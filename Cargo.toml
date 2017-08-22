@@ -1,0 +1,11 @@
+[package]
+name = "gtk-board"
+version = "0.1.0"
+authors = ["Niklas Fiekas <niklas.fiekas@backscattering.de>"]
+
+[dependencies]
+gtk = "*"
+gdk = "*"
+cairo-rs = "*"
+rsvg = "*"
+shakmaty = "*"
