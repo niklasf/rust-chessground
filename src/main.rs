@@ -199,12 +199,24 @@ fn draw_shape(cr: &Context, shape: &DrawShape) {
         DrawBrush::Red => cr.set_source_rgba(0.53, 0.13, 0.13, shape.opacity),
     }
 
+    let xtail = 0.5 + shape.orig.file() as f64;
+    let xhead = 0.5 + shape.dest.file() as f64;
+    let ytail = 7.5 - shape.orig.rank() as f64;
+    let yhead = 7.5 - shape.dest.rank() as f64;
+
     if shape.orig == shape.dest {
-        cr.arc(0.5 + shape.orig.file() as f64, 7.5 - shape.orig.rank() as f64,
-               0.5 * (1.0 - shape.stroke), 0.0, 2.0 * PI);
+        // draw circle
+        cr.arc(xhead, yhead, 0.5 * (1.0 - shape.stroke), 0.0, 2.0 * PI);
     } else {
-        cr.move_to(0.5 + shape.orig.file() as f64, 7.5 - shape.orig.rank() as f64);
-        cr.line_to(0.5 + shape.dest.file() as f64, 7.5 - shape.dest.rank() as f64);
+        // draw arrow
+        let adjacent = xhead - xtail;
+        let opposite = yhead - ytail;
+        let hypot = adjacent.hypot(opposite);
+        let marker_size = 0.2;
+
+        cr.move_to(xtail, ytail);
+        cr.line_to(xhead - adjacent * marker_size / hypot,
+                   yhead - opposite * marker_size / hypot);
     }
 
     cr.stroke();
