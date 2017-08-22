@@ -86,11 +86,13 @@ impl BoardView {
             v.widget.connect_button_press_event(move |widget, e| {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
-                    println!("press: {:?} {:?}", e.get_position(), e.get_button());
-                    pos_to_square(widget, e.get_position()).map(|sq| {
-                        state.drawing = Some(Drawing { orig: sq, dest: sq });
-                        widget.queue_draw();
-                    });
+
+                    if e.get_button() == 3 {
+                        pos_to_square(widget, e.get_position()).map(|sq| {
+                            state.drawing = Some(Drawing { orig: sq, dest: sq });
+                            widget.queue_draw();
+                        });
+                    }
                 }
                 Inhibit(false)
             });
