@@ -106,7 +106,7 @@ impl BoardView {
                         orig: drawing.orig,
                         dest: drawing.dest,
                         brush: DrawBrush::Green,
-                        stroke: 0.06,
+                        stroke: 0.2, // 0.06,
                         opacity: 1.0,
                     });
 
@@ -207,19 +207,32 @@ fn draw_shape(cr: &Context, shape: &DrawShape) {
     if shape.orig == shape.dest {
         // draw circle
         cr.arc(xhead, yhead, 0.5 * (1.0 - shape.stroke), 0.0, 2.0 * PI);
+        cr.stroke();
     } else {
         // draw arrow
         let adjacent = xhead - xtail;
         let opposite = yhead - ytail;
         let hypot = adjacent.hypot(opposite);
-        let marker_size = 0.2;
+        let marker_size = 4.0 * shape.stroke;
 
+        let xbase = xhead - adjacent * marker_size / hypot;
+        let ybase = yhead - opposite * marker_size / hypot;
+
+        // line
         cr.move_to(xtail, ytail);
-        cr.line_to(xhead - adjacent * marker_size / hypot,
-                   yhead - opposite * marker_size / hypot);
+        cr.line_to(xbase, ybase);
+        cr.stroke();
+
+        // arrow head
+        cr.line_to(xbase - opposite * 0.5 * marker_size / hypot,
+                   ybase + adjacent * 0.5 * marker_size / hypot);
+        cr.line_to(xhead, yhead);
+        cr.line_to(xbase + opposite * 0.5 * marker_size / hypot,
+                   ybase - adjacent * 0.5 * marker_size / hypot);
+        cr.line_to(xbase, ybase);
+        cr.fill();
     }
 
-    cr.stroke();
 }
 
 fn draw_drawing(cr: &Context, drawing: &Drawing) {
