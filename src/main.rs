@@ -49,15 +49,13 @@ impl BoardView {
             state: Rc::new(RefCell::new(BoardState::test())),
         };
 
-        v.widget.add_events(gdk::BUTTON_PRESS_MASK.bits() as i32);
+        v.widget.add_events((gdk::BUTTON_PRESS_MASK | gdk::BUTTON_RELEASE_MASK).bits() as i32);
 
         {
             let state = Rc::downgrade(&v.state);
             v.widget.connect_draw(move |widget, cr| {
                 if let Some(state) = state.upgrade() {
                     draw(widget, cr, &*state.borrow());
-                } else {
-                    println!("failed to draw");
                 }
                 Inhibit(false)
             });
@@ -70,9 +68,20 @@ impl BoardView {
                     let mut state = state.borrow_mut();
                     println!("press: {:?} {:?}", e.get_position(), e.get_button());
                     pos_to_square(widget, e.get_position()).map(|sq| {
-                        println!("{}", sq);
                         state.drawing = Some(Drawing { orig: sq, dest: sq });
                     });
+                }
+                Inhibit(false)
+            });
+        }
+
+        {
+            let state = Rc::downgrade(&v.state);
+            v.widget.connect_button_release_event(move |widget, e| {
+                if let Some(state) = state.upgrade() {
+                    let mut state = state.borrow_mut();
+                    state.drawing = None;
+                    println!("release");
                 }
                 Inhibit(false)
             });
