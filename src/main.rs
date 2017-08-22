@@ -17,6 +17,21 @@ use gtk::{Window, WindowType, DrawingArea};
 use gdk::{EventMask, EventButton};
 use cairo::{Context, Matrix, MatrixTrait};
 
+enum DrawBrush {
+    Green,
+    Red,
+    //Blue,
+    //Yellow,
+}
+
+struct DrawShape {
+    orig: Square,
+    dest: Square,
+    brush: DrawBrush,
+    stroke: f64,
+    opacity: f64,
+}
+
 struct Drawing {
     orig: Square,
     dest: Square,
@@ -25,6 +40,7 @@ struct Drawing {
 struct BoardState {
     orientation: Color,
     selected: Option<Square>,
+    shapes: Vec<DrawShape>,
     drawing: Option<Drawing>,
 }
 
@@ -33,6 +49,7 @@ impl BoardState {
         BoardState {
             orientation: Color::White,
             selected: Some(square::E2),
+            shapes: Vec::new(),
             drawing: None,
         }
     }
@@ -164,17 +181,33 @@ fn draw_board(cr: &Context, state: &BoardState) {
     }
 }
 
-fn draw_drawing(cr: &Context, drawing: &Drawing) {
-    cr.set_line_width(0.2);
-    cr.set_source_rgb(0f64, 0f64, 0f64);
-    if drawing.orig == drawing.dest {
-        cr.arc(0.5 + drawing.orig.file() as f64, 7.5 - drawing.orig.rank() as f64,
-               0.5 - 0.1, 0f64, 2f64 * PI);
-    } else {
-        cr.move_to(0.5 + drawing.orig.file() as f64, 7.5 - drawing.orig.rank() as f64);
-        cr.line_to(0.5 + drawing.dest.file() as f64, 7.5 - drawing.dest.rank() as f64);
+fn draw_shape(cr: &Context, shape: &DrawShape) {
+    cr.set_line_width(shape.stroke);
+
+    match shape.brush {
+        DrawBrush::Green => cr.set_source_rgba(0.08, 0.47, 0.11, shape.opacity),
+        DrawBrush::Red => cr.set_source_rgba(0.53, 0.13, 0.13, shape.opacity),
     }
+
+    if shape.orig == shape.dest {
+        cr.arc(0.5 + shape.orig.file() as f64, 7.5 - shape.orig.rank() as f64,
+               0.5 * (1.0 - shape.stroke), 0f64, 2f64 * PI);
+    } else {
+        cr.move_to(0.5 + shape.orig.file() as f64, 7.5 - shape.orig.rank() as f64);
+        cr.line_to(0.5 + shape.dest.file() as f64, 7.5 - shape.dest.rank() as f64);
+    }
+
     cr.stroke();
+}
+
+fn draw_drawing(cr: &Context, drawing: &Drawing) {
+    draw_shape(cr, &DrawShape {
+        orig: drawing.orig,
+        dest: drawing.dest,
+        stroke: 0.05,
+        opacity: 0.9,
+        brush: DrawBrush::Green,
+    });
 }
 
 fn draw(widget: &DrawingArea, cr: &Context, state: &BoardState) {
