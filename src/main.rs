@@ -13,7 +13,7 @@ use shakmaty::{Square, Color};
 use gtk::prelude::*;
 use gtk::{Window, WindowType, DrawingArea};
 use gdk::{EventMask, EventButton};
-use cairo::Context;
+use cairo::{Context, Matrix, MatrixTrait};
 
 struct Drawing {
     orig: Square,
@@ -31,7 +31,7 @@ impl BoardState {
         BoardState {
             orientation: Color::White,
             selected: Some(square::E2),
-            drawing: Some(Drawing { orig: square::E2, dest: square::F4 }),
+            drawing: None,
         }
     }
 }
@@ -71,6 +71,20 @@ impl BoardView {
     }
 }
 
+fn compute_matrix(widget: &DrawingArea) -> Matrix {
+    let mut matrix = Matrix::identity();
+
+    let w = widget.get_allocated_width();
+    let h = widget.get_allocated_height();
+    let size = min(w, h);
+
+    matrix.translate(w as f64 / 2.0, h as f64 / 2.0);
+    matrix.scale(size as f64 / 10.0, size as f64 / 10.0);
+    matrix.translate(-4.0, -4.0);
+
+    matrix
+}
+
 fn draw_border(cr: &Context) {
     let border = cairo::SolidPattern::from_rgb(0.2, 0.2, 0.5);
     cr.set_source(&border);
@@ -108,21 +122,11 @@ fn draw_drawing(cr: &Context, drawing: &Drawing) {
 }
 
 fn draw(widget: &DrawingArea, cr: &Context, state: &BoardState) {
-    //let img = rsvg::Handle::new_from_file("bK.svg").expect("found bK.svg");
-
-    let w = widget.get_allocated_width();
-    let h = widget.get_allocated_height();
-    let size = min(w, h);
-
-    cr.translate(w as f64 / 2.0, h as f64 / 2.0);
-    cr.scale(size as f64 / 10.0, size as f64 / 10.0);
-    cr.translate(-4.0, -4.0);
-
-    let state = BoardState::test();
+    cr.set_matrix(compute_matrix(widget));
 
     draw_border(cr);
     draw_board(cr, &state);
-    state.drawing.map(|d| draw_drawing(cr, &d));
+    state.drawing.as_ref().map(|d| draw_drawing(cr, d));
 
     //ctx.rectangle(0.0, 0.0, 50.0, 50.0);
     //ctx.fill();
