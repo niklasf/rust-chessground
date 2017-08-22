@@ -101,8 +101,18 @@ impl BoardView {
             v.widget.connect_button_release_event(move |widget, e| {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
+
+                    let shape = state.drawing.as_ref().map(|drawing| DrawShape {
+                        orig: drawing.orig,
+                        dest: drawing.dest,
+                        brush: DrawBrush::Green,
+                        stroke: 0.06,
+                        opacity: 1.0,
+                    });
+
+                    state.shapes.extend(shape);
+
                     state.drawing = None;
-                    println!("release");
                     widget.queue_draw();
                 }
                 Inhibit(false)
@@ -191,7 +201,7 @@ fn draw_shape(cr: &Context, shape: &DrawShape) {
 
     if shape.orig == shape.dest {
         cr.arc(0.5 + shape.orig.file() as f64, 7.5 - shape.orig.rank() as f64,
-               0.5 * (1.0 - shape.stroke), 0f64, 2f64 * PI);
+               0.5 * (1.0 - shape.stroke), 0.0, 2.0 * PI);
     } else {
         cr.move_to(0.5 + shape.orig.file() as f64, 7.5 - shape.orig.rank() as f64);
         cr.line_to(0.5 + shape.dest.file() as f64, 7.5 - shape.dest.rank() as f64);
@@ -215,7 +225,12 @@ fn draw(widget: &DrawingArea, cr: &Context, state: &BoardState) {
 
     draw_border(cr);
     draw_board(cr, &state);
+
     state.drawing.as_ref().map(|d| draw_drawing(cr, d));
+
+    for shape in &state.shapes {
+        draw_shape(cr, shape);
+    }
 
     //ctx.rectangle(0.0, 0.0, 50.0, 50.0);
     //ctx.fill();
