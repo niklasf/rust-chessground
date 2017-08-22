@@ -7,6 +7,7 @@ extern crate shakmaty;
 use std::cmp::min;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::f64::consts::PI;
 
 use shakmaty::square;
 use shakmaty::{Square, Color};
@@ -166,8 +167,13 @@ fn draw_board(cr: &Context, state: &BoardState) {
 fn draw_drawing(cr: &Context, drawing: &Drawing) {
     cr.set_line_width(0.2);
     cr.set_source_rgb(0f64, 0f64, 0f64);
-    cr.move_to(0.5 + drawing.orig.file() as f64, 7.5 - drawing.orig.rank() as f64);
-    cr.line_to(0.5 + drawing.dest.file() as f64, 7.5 - drawing.dest.rank() as f64);
+    if drawing.orig == drawing.dest {
+        cr.arc(0.5 + drawing.orig.file() as f64, 7.5 - drawing.orig.rank() as f64,
+               0.5 - 0.1, 0f64, 2f64 * PI);
+    } else {
+        cr.move_to(0.5 + drawing.orig.file() as f64, 7.5 - drawing.orig.rank() as f64);
+        cr.line_to(0.5 + drawing.dest.file() as f64, 7.5 - drawing.dest.rank() as f64);
+    }
     cr.stroke();
 }
 
