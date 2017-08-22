@@ -15,16 +15,23 @@ use gtk::{Window, WindowType, DrawingArea};
 use gdk::{EventMask, EventButton};
 use cairo::Context;
 
+struct Drawing {
+    orig: Square,
+    dest: Square,
+}
+
 struct BoardState {
     orientation: Color,
     selected: Option<Square>,
+    drawing: Option<Drawing>,
 }
 
 impl BoardState {
     fn test() -> Self {
         BoardState {
             orientation: Color::White,
-            selected: Some(square::E2)
+            selected: Some(square::E2),
+            drawing: Some(Drawing { orig: square::E2, dest: square::F4 }),
         }
     }
 }
@@ -55,7 +62,7 @@ impl BoardView {
             });
 
             v.widget.connect_button_press_event(move |widget, e| {
-                println!("press: {:?}", e.get_position());
+                println!("press: {:?} {:?}", e.get_position(), e.get_button());
                 Inhibit(false)
             });
         }
@@ -92,6 +99,14 @@ fn draw_board(cr: &Context, state: &BoardState) {
     }
 }
 
+fn draw_drawing(cr: &Context, drawing: &Drawing) {
+    cr.set_line_width(0.2);
+    cr.set_source_rgb(0f64, 0f64, 0f64);
+    cr.move_to(0.5 + drawing.orig.file() as f64, 7.5 - drawing.orig.rank() as f64);
+    cr.line_to(0.5 + drawing.dest.file() as f64, 7.5 - drawing.dest.rank() as f64);
+    cr.stroke();
+}
+
 fn draw(widget: &DrawingArea, cr: &Context, state: &BoardState) {
     //let img = rsvg::Handle::new_from_file("bK.svg").expect("found bK.svg");
 
@@ -107,6 +122,7 @@ fn draw(widget: &DrawingArea, cr: &Context, state: &BoardState) {
 
     draw_border(cr);
     draw_board(cr, &state);
+    state.drawing.map(|d| draw_drawing(cr, &d));
 
     //ctx.rectangle(0.0, 0.0, 50.0, 50.0);
     //ctx.fill();
