@@ -6,6 +6,7 @@ extern crate shakmaty;
 
 use std::cmp::min;
 use std::rc::Rc;
+use std::cell::RefCell;
 
 use shakmaty::square;
 use shakmaty::{Square, Color};
@@ -38,14 +39,14 @@ impl BoardState {
 
 struct BoardView {
     widget: DrawingArea,
-    state: Rc<BoardState>,
+    state: Rc<RefCell<BoardState>>,
 }
 
 impl BoardView {
     fn new() -> Self {
         let v = BoardView {
             widget: DrawingArea::new(),
-            state: Rc::new(BoardState::test()),
+            state: Rc::new(RefCell::new(BoardState::test())),
         };
 
         v.widget.add_events(gdk::BUTTON_PRESS_MASK.bits() as i32);
@@ -54,15 +55,25 @@ impl BoardView {
             let state = Rc::downgrade(&v.state);
             v.widget.connect_draw(move |widget, cr| {
                 if let Some(state) = state.upgrade() {
-                    draw(widget, cr, state.as_ref());
+                    draw(widget, cr, &*state.borrow());
                 } else {
                     println!("failed to draw");
                 }
                 Inhibit(false)
             });
+        }
 
+        {
+            let state = Rc::downgrade(&v.state);
             v.widget.connect_button_press_event(move |widget, e| {
-                println!("press: {:?} {:?}", e.get_position(), e.get_button());
+                if let Some(state) = state.upgrade() {
+                    let mut state = state.borrow_mut();
+                    println!("press: {:?} {:?}", e.get_position(), e.get_button());
+                    pos_to_square(widget, e.get_position()).map(|sq| {
+                        println!("{}", sq);
+                        state.drawing = Some(Drawing { orig: sq, dest: sq });
+                    });
+                }
                 Inhibit(false)
             });
         }
@@ -83,6 +94,18 @@ fn compute_matrix(widget: &DrawingArea) -> Matrix {
     matrix.translate(-4.0, -4.0);
 
     matrix
+}
+
+fn pos_to_square(widget: &DrawingArea, (x, y): (f64, f64)) -> Option<Square> {
+    let mut matrix = compute_matrix(widget);
+    matrix.invert();
+    let (x, y) = matrix.transform_point(x, y);
+    let (x, y) = (x.floor(), y.floor());
+    if 0f64 <= x && x <= 7f64 && 0f64 <= y && y <= 7f64 {
+        Square::from_coords(x as i8, 7 - y as i8)
+    } else {
+        None
+    }
 }
 
 fn draw_border(cr: &Context) {
