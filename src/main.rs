@@ -196,12 +196,39 @@ fn draw_move_hints(cr: &Context, state: &BoardState) {
         cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
 
         let radius = 0.12;
+        let corner = 1.8 * radius;
 
         for square in squares {
-            cr.arc(0.5 + square.file() as f64,
-                   7.5 - square.rank() as f64,
-                   radius, 0.0, 2.0 * PI);
-            cr.fill();
+            if state.pieces.occupied().contains(square) {
+                cr.move_to(square.file() as f64, 7.0 - square.rank() as f64);
+                cr.rel_line_to(corner, 0.0);
+                cr.rel_line_to(-corner, corner);
+                cr.rel_line_to(0.0, -corner);
+                cr.fill();
+
+                cr.move_to(1.0 + square.file() as f64, 7.0 - square.rank() as f64);
+                cr.rel_line_to(0.0, corner);
+                cr.rel_line_to(-corner, -corner);
+                cr.rel_line_to(corner, 0.0);
+                cr.fill();
+
+                cr.move_to(square.file() as f64, 8.0 - square.rank() as f64);
+                cr.rel_line_to(corner, 0.0);
+                cr.rel_line_to(-corner, -corner);
+                cr.rel_line_to(0.0, corner);
+                cr.fill();
+
+                cr.move_to(1.0 + square.file() as f64, 8.0 - square.rank() as f64);
+                cr.rel_line_to(-corner, 0.0);
+                cr.rel_line_to(corner, -corner);
+                cr.rel_line_to(0.0, corner);
+                cr.fill();
+            } else {
+                cr.arc(0.5 + square.file() as f64,
+                       7.5 - square.rank() as f64,
+                       radius, 0.0, 2.0 * PI);
+                cr.fill();
+            }
         }
     }
 }
