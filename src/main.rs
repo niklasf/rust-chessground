@@ -17,7 +17,6 @@ use gtk::{Window, WindowType, DrawingArea};
 use gdk::{EventMask, EventButton};
 use cairo::{Context, Matrix, MatrixTrait};
 
-#[derive(Clone)]
 enum DrawBrush {
     Green,
     Red,
@@ -33,30 +32,49 @@ struct DrawShape {
     opacity: f64,
 }
 
-#[derive(Clone)]
-struct Drawing {
-    orig: Square,
-    dest: Square,
-    brush: DrawBrush,
+struct Drawable {
+    drawing: Option<DrawShape>,
+    shapes: Vec<DrawShape>,
+    enabled: bool,
+    erase_on_click: bool,
 }
 
-impl Drawing {
-    fn into_shape(self, stroke: f64, opacity: f64) -> DrawShape {
-        DrawShape {
-            orig: self.orig,
-            dest: self.dest,
-            brush: self.brush,
-            stroke,
-            opacity
+impl Drawable {
+    fn new() -> Drawable {
+        Drawable {
+            drawing: None,
+            shapes: Vec::new(),
+            enabled: true,
+            erase_on_click: true,
         }
+    }
+
+    fn mouse_down(&mut self, widget: &DrawingArea, e: &EventButton) -> Option<Inhibit> {
+        if e.get_button() == 3 {
+            pos_to_square(widget, e.get_position()).map(|sq| {
+                let brush = if e.get_state().contains(gdk::MOD1_MASK | gdk::SHIFT_MASK) {
+                    DrawBrush::Yellow
+                } else if e.get_state().contains(gdk::MOD1_MASK) {
+                    DrawBrush::Blue
+                } else if e.get_state().contains(gdk::SHIFT_MASK) {
+                    DrawBrush::Red
+                } else {
+                    DrawBrush::Green
+                };
+
+                widget.queue_draw();
+            });
+        } else if e.get_button() == 1 {
+            widget.queue_draw();
+        }
+        None
     }
 }
 
 struct BoardState {
     orientation: Color,
     selected: Option<Square>,
-    shapes: Vec<DrawShape>,
-    drawing: Option<Drawing>,
+    drawable: Drawable,
 }
 
 impl BoardState {
@@ -64,8 +82,7 @@ impl BoardState {
         BoardState {
             orientation: Color::White,
             selected: Some(square::E2),
-            shapes: Vec::new(),
-            drawing: None,
+            drawable: Drawable::new(),
         }
     }
 }
@@ -101,26 +118,8 @@ impl BoardView {
             v.widget.connect_button_press_event(move |widget, e| {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
+                    state.drawable.mouse_down(widget, e);
 
-                    if e.get_button() == 3 {
-                        pos_to_square(widget, e.get_position()).map(|sq| {
-                            let brush = if e.get_state().contains(gdk::MOD1_MASK | gdk::SHIFT_MASK) {
-                                DrawBrush::Yellow
-                            } else if e.get_state().contains(gdk::MOD1_MASK) {
-                                DrawBrush::Blue
-                            } else if e.get_state().contains(gdk::SHIFT_MASK) {
-                                DrawBrush::Red
-                            } else {
-                                DrawBrush::Green
-                            };
-
-                            state.drawing = Some(Drawing { orig: sq, dest: sq, brush });
-                            widget.queue_draw();
-                        });
-                    } else if e.get_button() == 1 {
-                        state.shapes.clear();
-                        widget.queue_draw();
-                    }
                 }
                 Inhibit(false)
             });
@@ -132,8 +131,8 @@ impl BoardView {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
 
-                    let shape = state.drawing.take().map(|d| d.into_shape(0.2, 0.4));
-                    state.shapes.extend(shape);
+                    let shape = state.drawable.drawing.take();
+                    state.drawable.shapes.extend(shape);
 
                     widget.queue_draw();
                 }
@@ -146,7 +145,7 @@ impl BoardView {
             v.widget.connect_motion_notify_event(move |widget, e| {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
-                    if let Some(ref mut drawing) = state.drawing {
+                    if let Some(ref mut drawing) = state.drawable.drawing {
                         drawing.dest = pos_to_square(widget, e.get_position()).unwrap_or(drawing.orig);
                         widget.queue_draw();
                     }
@@ -259,19 +258,15 @@ fn draw_shape(cr: &Context, shape: &DrawShape) {
 
 }
 
-fn draw_drawing(cr: &Context, drawing: &Drawing) {
-    draw_shape(cr, &drawing.clone().into_shape(0.04, 0.4 * 0.9));
-}
-
 fn draw(widget: &DrawingArea, cr: &Context, state: &BoardState) {
     cr.set_matrix(compute_matrix(widget));
 
     draw_border(cr);
     draw_board(cr, &state);
 
-    state.drawing.as_ref().map(|d| draw_drawing(cr, d));
+    state.drawable.drawing.as_ref().map(|d| draw_shape(cr, d));
 
-    for shape in &state.shapes {
+    for shape in &state.drawable.shapes {
         draw_shape(cr, shape);
     }
 
