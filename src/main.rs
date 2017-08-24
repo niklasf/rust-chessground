@@ -145,9 +145,7 @@ fn draw_board(cr: &Context, state: &BoardState) {
 
     for x in 0..8 {
         for y in 0..8 {
-            if state.selected.map_or(false, |sq| sq.file() == x && sq.rank() == 7 - y) {
-                cr.set_source(&selected);
-            } else if (x + y) % 2 == 0 {
+            if (x + y) % 2 == 0 {
                 cr.set_source(&light);
             } else {
                 cr.set_source(&dark);
@@ -155,6 +153,12 @@ fn draw_board(cr: &Context, state: &BoardState) {
 
             cr.rectangle(x as f64, y as f64, 1.0, 1.0);
             cr.fill();
+
+            if state.selected.map_or(false, |sq| sq.file() == x && sq.rank() == 7 - y) {
+                cr.rectangle(x as f64, y as f64, 1.0, 1.0);
+                cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
+                cr.fill();
+            }
         }
     }
 }
