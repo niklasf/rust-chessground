@@ -7,9 +7,10 @@ extern crate option_filter;
 
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::f64::consts::PI;
 
 use shakmaty::square;
-use shakmaty::{Square, Color, Board};
+use shakmaty::{Square, Color, Board, Bitboard, Move, MoveList, Position, Chess};
 
 use gtk::prelude::*;
 use gtk::{Window, WindowType, DrawingArea};
@@ -31,17 +32,24 @@ struct BoardState {
     drawable: Drawable,
     piece_set: PieceSet,
     pieces: Board,
+    legals: MoveList,
 }
 
 impl BoardState {
     fn test() -> Self {
-        BoardState {
+        let mut state = BoardState {
             orientation: Color::White,
             selected: None,
             drawable: Drawable::new(),
             piece_set: pieceset::PieceSet::merida(),
             pieces: Board::new(),
-        }
+            legals: MoveList::new(),
+        };
+
+        let pos = Chess::default();
+        pos.legal_moves(&mut state.legals);
+
+        state
     }
 }
 
@@ -164,6 +172,33 @@ fn draw_pieces(cr: &Context, state: &BoardState) {
     }
 }
 
+fn draw_move_hints(cr: &Context, state: &BoardState) {
+    if let Some(selected) = state.selected {
+        let squares: Bitboard = state.legals.iter().filter(|m| match **m {
+            Move::Normal { from, .. } => from == selected,
+            Move::EnPassant { from, .. } => from == selected,
+            Move::Castle { king, .. } => king == selected,
+            _ => false,
+        }).map(|m| match *m {
+            Move::Normal { to, .. } => to,
+            Move::EnPassant { to, .. } => to,
+            Move::Castle { rook, .. } => rook,
+            Move::Put { to, .. } => to,
+        }).collect();
+
+        cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
+
+        let radius = 0.12;
+
+        for square in squares {
+            cr.arc(0.5 + square.file() as f64,
+                   7.5 - square.rank() as f64,
+                   radius, 0.0, 2.0 * PI);
+            cr.fill();
+        }
+    }
+}
+
 fn draw(widget: &DrawingArea, cr: &Context, state: &BoardState) {
     cr.set_matrix(util::compute_matrix(widget));
 
@@ -172,6 +207,8 @@ fn draw(widget: &DrawingArea, cr: &Context, state: &BoardState) {
     draw_pieces(cr, &state);
 
     state.drawable.render_cairo(cr);
+
+    draw_move_hints(cr, &state);
 
     //ctx.rectangle(0.0, 0.0, 50.0, 50.0);
     //ctx.fill();
