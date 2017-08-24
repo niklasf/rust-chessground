@@ -1,3 +1,4 @@
+use shakmaty::{Color, Role, Piece};
 use rsvg::Handle;
 
 struct PieceSetSide {
@@ -9,9 +10,32 @@ struct PieceSetSide {
     king: Handle,
 }
 
+impl PieceSetSide {
+    fn by_role(&self, role: Role) -> &Handle {
+        match role {
+            Role::Pawn => &self.pawn,
+            Role::Knight => &self.knight,
+            Role::Bishop => &self.bishop,
+            Role::Rook => &self.rook,
+            Role::Queen => &self.queen,
+            Role::King => &self.king,
+        }
+    }
+}
+
 pub struct PieceSet {
     black: PieceSetSide,
     white: PieceSetSide,
+}
+
+impl PieceSet {
+    fn by_color(&self, color: Color) -> &PieceSetSide {
+        color.fold(&self.white, &self.black)
+    }
+
+    pub fn by_piece(&self, piece: &Piece) -> &Handle {
+        self.by_color(piece.color).by_role(piece.role)
+    }
 }
 
 impl PieceSet {
