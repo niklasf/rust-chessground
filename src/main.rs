@@ -172,6 +172,11 @@ fn draw_pieces(cr: &Context, state: &BoardState) {
     for square in state.pieces.occupied() {
         cr.save();
         cr.translate(square.file() as f64, 7.0 - square.rank() as f64);
+
+        cr.translate(0.5, 0.5);
+        cr.rotate(state.orientation.fold(0.0, PI));
+        cr.translate(-0.5, -0.5);
+
         cr.scale(0.0056, 0.0056);
 
         let piece = state.pieces.piece_at(square).expect("enumerating");
