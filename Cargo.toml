@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Niklas Fiekas <niklas.fiekas@backscattering.de>"]
 
 [dependencies]
+option-filter = "1.0"
 gtk = "*"
 gdk = "*"
 cairo-rs = "*"

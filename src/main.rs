@@ -3,6 +3,7 @@ extern crate gdk;
 extern crate cairo;
 extern crate rsvg;
 extern crate shakmaty;
+extern crate option_filter;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -12,7 +13,10 @@ use shakmaty::{Square, Color, Board};
 
 use gtk::prelude::*;
 use gtk::{Window, WindowType, DrawingArea};
+use gdk::EventButton;
 use cairo::Context;
+
+use option_filter::OptionFilterExt;
 
 mod drawable;
 mod util;
@@ -33,7 +37,7 @@ impl BoardState {
     fn test() -> Self {
         BoardState {
             orientation: Color::White,
-            selected: Some(square::E2),
+            selected: None,
             drawable: Drawable::new(),
             piece_set: pieceset::PieceSet::merida(),
             pieces: Board::new(),
@@ -72,6 +76,7 @@ impl BoardView {
             v.widget.connect_button_press_event(move |widget, e| {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
+                    selection_mouse_down(&mut state, widget, e);
                     state.drawable.mouse_down(widget, e).unwrap_or(Inhibit(false))
                 } else {
                     Inhibit(false)
@@ -105,6 +110,13 @@ impl BoardView {
 
         v
     }
+}
+
+fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventButton) -> Option<Inhibit> {
+    state.selected =
+        util::pos_to_square(widget, e.get_position())
+            .filter(|sq| state.pieces.occupied().contains(*sq));
+    None
 }
 
 fn draw_border(cr: &Context) {
