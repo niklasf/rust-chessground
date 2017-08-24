@@ -34,7 +34,7 @@ impl BoardState {
             orientation: Color::White,
             selected: Some(square::E2),
             drawable: Drawable::new(),
-            piece_set: pieceset::PieceSet::cburnett(),
+            piece_set: pieceset::PieceSet::merida(),
         }
     }
 }
