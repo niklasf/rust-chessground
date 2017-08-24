@@ -32,6 +32,53 @@ struct DrawShape {
     opacity: f64,
 }
 
+impl DrawShape {
+    fn render_cairo(&self, cr: &Context) {
+        cr.set_line_width(self.stroke);
+
+        match self.brush {
+            DrawBrush::Green => cr.set_source_rgba(0.08, 0.47, 0.11, self.opacity),
+            DrawBrush::Red => cr.set_source_rgba(0.53, 0.13, 0.13, self.opacity),
+            DrawBrush::Blue => cr.set_source_rgba(0.0, 0.19, 0.53, self.opacity),
+            DrawBrush::Yellow => cr.set_source_rgba(0.90, 0.94, 0.0, self.opacity),
+        }
+
+        let xtail = 0.5 + self.orig.file() as f64;
+        let xhead = 0.5 + self.dest.file() as f64;
+        let ytail = 7.5 - self.orig.rank() as f64;
+        let yhead = 7.5 - self.dest.rank() as f64;
+
+        if self.orig == self.dest {
+            // draw circle
+            cr.arc(xhead, yhead, 0.5 * (1.0 - self.stroke), 0.0, 2.0 * PI);
+            cr.stroke();
+        } else {
+            // draw arrow
+            let adjacent = xhead - xtail;
+            let opposite = yhead - ytail;
+            let hypot = adjacent.hypot(opposite);
+            let marker_size = 0.75;
+
+            let xbase = xhead - adjacent * marker_size / hypot;
+            let ybase = yhead - opposite * marker_size / hypot;
+
+            // line
+            cr.move_to(xtail, ytail);
+            cr.line_to(xbase, ybase);
+            cr.stroke();
+
+            // arrow head
+            cr.line_to(xbase - opposite * 0.5 * marker_size / hypot,
+                       ybase + adjacent * 0.5 * marker_size / hypot);
+            cr.line_to(xhead, yhead);
+            cr.line_to(xbase + opposite * 0.5 * marker_size / hypot,
+                       ybase - adjacent * 0.5 * marker_size / hypot);
+            cr.line_to(xbase, ybase);
+            cr.fill();
+        }
+    }
+}
+
 struct Drawable {
     drawing: Option<DrawShape>,
     shapes: Vec<DrawShape>,
@@ -110,6 +157,14 @@ impl Drawable {
         }
 
         None
+    }
+
+    fn render_cairo(&self, cr: &Context) {
+        for shape in &self.shapes {
+            shape.render_cairo(cr);
+        }
+
+        self.drawing.as_ref().map(|shape| shape.render_cairo(cr));
     }
 }
 
@@ -249,63 +304,13 @@ fn draw_board(cr: &Context, state: &BoardState) {
     }
 }
 
-fn draw_shape(cr: &Context, shape: &DrawShape) {
-    cr.set_line_width(shape.stroke);
-
-    match shape.brush {
-        DrawBrush::Green => cr.set_source_rgba(0.08, 0.47, 0.11, shape.opacity),
-        DrawBrush::Red => cr.set_source_rgba(0.53, 0.13, 0.13, shape.opacity),
-        DrawBrush::Blue => cr.set_source_rgba(0.0, 0.19, 0.53, shape.opacity),
-        DrawBrush::Yellow => cr.set_source_rgba(0.90, 0.94, 0.0, shape.opacity),
-    }
-
-    let xtail = 0.5 + shape.orig.file() as f64;
-    let xhead = 0.5 + shape.dest.file() as f64;
-    let ytail = 7.5 - shape.orig.rank() as f64;
-    let yhead = 7.5 - shape.dest.rank() as f64;
-
-    if shape.orig == shape.dest {
-        // draw circle
-        cr.arc(xhead, yhead, 0.5 * (1.0 - shape.stroke), 0.0, 2.0 * PI);
-        cr.stroke();
-    } else {
-        // draw arrow
-        let adjacent = xhead - xtail;
-        let opposite = yhead - ytail;
-        let hypot = adjacent.hypot(opposite);
-        let marker_size = 0.75;
-
-        let xbase = xhead - adjacent * marker_size / hypot;
-        let ybase = yhead - opposite * marker_size / hypot;
-
-        // line
-        cr.move_to(xtail, ytail);
-        cr.line_to(xbase, ybase);
-        cr.stroke();
-
-        // arrow head
-        cr.line_to(xbase - opposite * 0.5 * marker_size / hypot,
-                   ybase + adjacent * 0.5 * marker_size / hypot);
-        cr.line_to(xhead, yhead);
-        cr.line_to(xbase + opposite * 0.5 * marker_size / hypot,
-                   ybase - adjacent * 0.5 * marker_size / hypot);
-        cr.line_to(xbase, ybase);
-        cr.fill();
-    }
-
-}
-
 fn draw(widget: &DrawingArea, cr: &Context, state: &BoardState) {
     cr.set_matrix(compute_matrix(widget));
 
     draw_border(cr);
     draw_board(cr, &state);
 
-    state.drawable.drawing.as_ref().map(|d| draw_shape(cr, d));
-
-    for shape in &state.drawable.shapes {
-        draw_shape(cr, shape);
-    }
+    state.drawable.render_cairo(cr);
 
     //ctx.rectangle(0.0, 0.0, 50.0, 50.0);
     //ctx.fill();
