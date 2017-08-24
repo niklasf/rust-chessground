@@ -169,8 +169,9 @@ fn draw_board(cr: &Context, state: &BoardState) {
 }
 
 fn draw_pieces(cr: &Context, state: &BoardState) {
+
     for square in state.pieces.occupied() {
-        cr.save();
+        cr.push_group();
         cr.translate(square.file() as f64, 7.0 - square.rank() as f64);
 
         cr.translate(0.5, 0.5);
@@ -182,7 +183,13 @@ fn draw_pieces(cr: &Context, state: &BoardState) {
         let piece = state.pieces.piece_at(square).expect("enumerating");
         state.piece_set.by_piece(&piece).render_cairo(cr);
 
-        cr.restore();
+        cr.pop_group_to_source();
+
+        if Some(square) == state.selected {
+            cr.paint_with_alpha(0.2);
+        } else {
+            cr.paint();
+        }
     }
 }
 
