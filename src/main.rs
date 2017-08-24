@@ -4,169 +4,20 @@ extern crate cairo;
 extern crate rsvg;
 extern crate shakmaty;
 
-use std::cmp::min;
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::f64::consts::PI;
 
 use shakmaty::square;
 use shakmaty::{Square, Color};
 
 use gtk::prelude::*;
 use gtk::{Window, WindowType, DrawingArea};
-use gdk::{EventMask, EventButton, EventMotion};
-use cairo::{Context, Matrix, MatrixTrait};
+use cairo::Context;
 
-enum DrawBrush {
-    Green,
-    Red,
-    Blue,
-    Yellow,
-}
+mod drawable;
+mod util;
 
-struct DrawShape {
-    orig: Square,
-    dest: Square,
-    brush: DrawBrush,
-    stroke: f64,
-    opacity: f64,
-}
-
-impl DrawShape {
-    fn render_cairo(&self, cr: &Context) {
-        cr.set_line_width(self.stroke);
-
-        match self.brush {
-            DrawBrush::Green => cr.set_source_rgba(0.08, 0.47, 0.11, self.opacity),
-            DrawBrush::Red => cr.set_source_rgba(0.53, 0.13, 0.13, self.opacity),
-            DrawBrush::Blue => cr.set_source_rgba(0.0, 0.19, 0.53, self.opacity),
-            DrawBrush::Yellow => cr.set_source_rgba(0.90, 0.94, 0.0, self.opacity),
-        }
-
-        let xtail = 0.5 + self.orig.file() as f64;
-        let xhead = 0.5 + self.dest.file() as f64;
-        let ytail = 7.5 - self.orig.rank() as f64;
-        let yhead = 7.5 - self.dest.rank() as f64;
-
-        if self.orig == self.dest {
-            // draw circle
-            cr.arc(xhead, yhead, 0.5 * (1.0 - self.stroke), 0.0, 2.0 * PI);
-            cr.stroke();
-        } else {
-            // draw arrow
-            let adjacent = xhead - xtail;
-            let opposite = yhead - ytail;
-            let hypot = adjacent.hypot(opposite);
-            let marker_size = 0.75;
-
-            let xbase = xhead - adjacent * marker_size / hypot;
-            let ybase = yhead - opposite * marker_size / hypot;
-
-            // line
-            cr.move_to(xtail, ytail);
-            cr.line_to(xbase, ybase);
-            cr.stroke();
-
-            // arrow head
-            cr.line_to(xbase - opposite * 0.5 * marker_size / hypot,
-                       ybase + adjacent * 0.5 * marker_size / hypot);
-            cr.line_to(xhead, yhead);
-            cr.line_to(xbase + opposite * 0.5 * marker_size / hypot,
-                       ybase - adjacent * 0.5 * marker_size / hypot);
-            cr.line_to(xbase, ybase);
-            cr.fill();
-        }
-    }
-}
-
-struct Drawable {
-    drawing: Option<DrawShape>,
-    shapes: Vec<DrawShape>,
-    enabled: bool,
-    erase_on_click: bool,
-}
-
-impl Drawable {
-    fn new() -> Drawable {
-        Drawable {
-            drawing: None,
-            shapes: Vec::new(),
-            enabled: true,
-            erase_on_click: true,
-        }
-    }
-
-    fn mouse_down(&mut self, widget: &DrawingArea, e: &EventButton) -> Option<Inhibit> {
-        match e.get_button() {
-            1 => {
-                if self.erase_on_click {
-                    self.shapes.clear();
-                    widget.queue_draw();
-                }
-            },
-            3 => {
-                self.drawing = pos_to_square(widget, e.get_position()).map(|square| {
-                    let brush = if e.get_state().contains(gdk::MOD1_MASK | gdk::SHIFT_MASK) {
-                        DrawBrush::Yellow
-                    } else if e.get_state().contains(gdk::MOD1_MASK) {
-                        DrawBrush::Blue
-                    } else if e.get_state().contains(gdk::SHIFT_MASK) {
-                        DrawBrush::Red
-                    } else {
-                        DrawBrush::Green
-                    };
-
-                    DrawShape {
-                        orig: square,
-                        dest: square,
-                        brush,
-                        opacity: 0.4,
-                        stroke: 0.2,
-                    }
-                });
-
-                return Some(Inhibit(false));
-            },
-            _ => {},
-        }
-
-        None
-    }
-
-    fn mouse_move(&mut self, widget: &DrawingArea, e: &EventMotion) -> Option<Inhibit> {
-        if let Some(ref mut drawing) = self.drawing {
-            drawing.dest = pos_to_square(widget, e.get_position()).unwrap_or(drawing.orig);
-            widget.queue_draw();
-        }
-
-        None
-    }
-
-    fn mouse_up(&mut self, widget: &DrawingArea, e: &EventButton) -> Option<Inhibit> {
-        if let Some(mut drawing) = self.drawing.take() {
-            drawing.dest = pos_to_square(widget, e.get_position()).unwrap_or(drawing.orig);
-
-            // remove or add shape
-            let num_shapes = self.shapes.len();
-            self.shapes.retain(|s| s.orig != drawing.orig || s.dest != drawing.dest);
-            if num_shapes == self.shapes.len() {
-                self.shapes.push(drawing);
-            }
-
-            widget.queue_draw();
-        }
-
-        None
-    }
-
-    fn render_cairo(&self, cr: &Context) {
-        for shape in &self.shapes {
-            shape.render_cairo(cr);
-        }
-
-        self.drawing.as_ref().map(|shape| shape.render_cairo(cr));
-    }
-}
+use drawable::Drawable;
 
 struct BoardState {
     orientation: Color,
@@ -250,32 +101,6 @@ impl BoardView {
     }
 }
 
-fn compute_matrix(widget: &DrawingArea) -> Matrix {
-    let mut matrix = Matrix::identity();
-
-    let w = widget.get_allocated_width();
-    let h = widget.get_allocated_height();
-    let size = min(w, h);
-
-    matrix.translate(w as f64 / 2.0, h as f64 / 2.0);
-    matrix.scale(size as f64 / 10.0, size as f64 / 10.0);
-    matrix.translate(-4.0, -4.0);
-
-    matrix
-}
-
-fn pos_to_square(widget: &DrawingArea, (x, y): (f64, f64)) -> Option<Square> {
-    let mut matrix = compute_matrix(widget);
-    matrix.invert();
-    let (x, y) = matrix.transform_point(x, y);
-    let (x, y) = (x.floor(), y.floor());
-    if 0f64 <= x && x <= 7f64 && 0f64 <= y && y <= 7f64 {
-        Square::from_coords(x as i8, 7 - y as i8)
-    } else {
-        None
-    }
-}
-
 fn draw_border(cr: &Context) {
     let border = cairo::SolidPattern::from_rgb(0.2, 0.2, 0.5);
     cr.set_source(&border);
@@ -305,7 +130,7 @@ fn draw_board(cr: &Context, state: &BoardState) {
 }
 
 fn draw(widget: &DrawingArea, cr: &Context, state: &BoardState) {
-    cr.set_matrix(compute_matrix(widget));
+    cr.set_matrix(util::compute_matrix(widget));
 
     draw_border(cr);
     draw_board(cr, &state);
