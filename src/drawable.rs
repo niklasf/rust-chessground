@@ -126,7 +126,7 @@ impl Drawable {
                         orig: square,
                         dest: square,
                         brush,
-                        opacity: 0.4,
+                        opacity: 0.5,
                         stroke: 0.2,
                     }
                 });

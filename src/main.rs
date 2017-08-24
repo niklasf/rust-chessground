@@ -8,7 +8,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 use shakmaty::square;
-use shakmaty::{Square, Color};
+use shakmaty::{Square, Color, Board};
 
 use gtk::prelude::*;
 use gtk::{Window, WindowType, DrawingArea};
@@ -26,6 +26,7 @@ struct BoardState {
     selected: Option<Square>,
     drawable: Drawable,
     piece_set: PieceSet,
+    pieces: Board,
 }
 
 impl BoardState {
@@ -35,6 +36,7 @@ impl BoardState {
             selected: Some(square::E2),
             drawable: Drawable::new(),
             piece_set: pieceset::PieceSet::merida(),
+            pieces: Board::new(),
         }
     }
 }
@@ -133,11 +135,25 @@ fn draw_board(cr: &Context, state: &BoardState) {
     }
 }
 
+fn draw_pieces(cr: &Context, state: &BoardState) {
+    for square in state.pieces.occupied() {
+        cr.save();
+        cr.translate(square.file() as f64, 7.0 - square.rank() as f64);
+        cr.scale(0.0056, 0.0056);
+
+        let piece = state.pieces.piece_at(square).expect("enumerating");
+        state.piece_set.by_piece(&piece).render_cairo(cr);
+
+        cr.restore();
+    }
+}
+
 fn draw(widget: &DrawingArea, cr: &Context, state: &BoardState) {
     cr.set_matrix(util::compute_matrix(widget));
 
     draw_border(cr);
     draw_board(cr, &state);
+    draw_pieces(cr, &state);
 
     state.drawable.render_cairo(cr);
 
