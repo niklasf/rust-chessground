@@ -16,13 +16,16 @@ use cairo::Context;
 
 mod drawable;
 mod util;
+mod pieceset;
 
 use drawable::Drawable;
+use pieceset::PieceSet;
 
 struct BoardState {
     orientation: Color,
     selected: Option<Square>,
     drawable: Drawable,
+    piece_set: PieceSet,
 }
 
 impl BoardState {
@@ -31,6 +34,7 @@ impl BoardState {
             orientation: Color::White,
             selected: Some(square::E2),
             drawable: Drawable::new(),
+            piece_set: pieceset::PieceSet::cburnett(),
         }
     }
 }
