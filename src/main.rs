@@ -113,9 +113,13 @@ impl BoardView {
 }
 
 fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventButton) -> Option<Inhibit> {
-    state.selected =
-        util::pos_to_square(widget, e.get_position())
-            .filter(|sq| state.pieces.occupied().contains(*sq));
+    if e.get_button() == 1 {
+        state.selected =
+            util::pos_to_square(widget, e.get_position())
+                .filter(|sq| state.pieces.occupied().contains(*sq));
+    } else {
+        state.selected = None;
+    }
     None
 }
 
