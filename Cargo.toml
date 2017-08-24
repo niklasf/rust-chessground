@@ -5,8 +5,8 @@ authors = ["Niklas Fiekas <niklas.fiekas@backscattering.de>"]
 
 [dependencies]
 option-filter = "1.0"
-gtk = "*"
-gdk = "*"
-cairo-rs = "*"
-rsvg = "*"
-shakmaty = "*"
+gtk = "0.2.0"
+gdk = "0.6.0"
+cairo-rs = "0.2.0"
+rsvg = "0.2.0"
+shakmaty = "0.0.5"

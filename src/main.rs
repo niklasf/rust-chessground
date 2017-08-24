@@ -9,7 +9,6 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::f64::consts::PI;
 
-use shakmaty::square;
 use shakmaty::{Square, Color, Board, Bitboard, Move, MoveList, Position, Chess, Setup};
 use shakmaty::fen::Fen;
 
@@ -17,6 +16,7 @@ use gtk::prelude::*;
 use gtk::{Window, WindowType, DrawingArea};
 use gdk::EventButton;
 use cairo::Context;
+use rsvg::HandleExt;
 
 use option_filter::OptionFilterExt;
 
@@ -87,8 +87,9 @@ impl BoardView {
             v.widget.connect_button_press_event(move |widget, e| {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
+                    let square = util::pos_to_square(widget, state.orientation, e.get_position());
                     selection_mouse_down(&mut state, widget, e);
-                    state.drawable.mouse_down(widget, e).unwrap_or(Inhibit(false))
+                    state.drawable.mouse_down(widget, square, e).unwrap_or(Inhibit(false))
                 } else {
                     Inhibit(false)
                 }
@@ -100,7 +101,8 @@ impl BoardView {
             v.widget.connect_button_release_event(move |widget, e| {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
-                    state.drawable.mouse_up(widget, e).unwrap_or(Inhibit(false))
+                    let square = util::pos_to_square(widget, state.orientation, e.get_position());
+                    state.drawable.mouse_up(widget, square).unwrap_or(Inhibit(false))
                 } else {
                     Inhibit(false)
                 }
@@ -112,7 +114,8 @@ impl BoardView {
             v.widget.connect_motion_notify_event(move |widget, e| {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
-                    state.drawable.mouse_move(widget, e).unwrap_or(Inhibit(false))
+                    let square = util::pos_to_square(widget, state.orientation, e.get_position());
+                    state.drawable.mouse_move(widget, square).unwrap_or(Inhibit(false))
                 } else {
                     Inhibit(false)
                 }
@@ -126,7 +129,7 @@ impl BoardView {
 fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventButton) -> Option<Inhibit> {
     if e.get_button() == 1 {
         state.selected =
-            util::pos_to_square(widget, e.get_position())
+            util::pos_to_square(widget, state.orientation, e.get_position())
                 .filter(|sq| state.pieces.occupied().contains(*sq));
     } else {
         state.selected = None;
@@ -144,7 +147,6 @@ fn draw_border(cr: &Context) {
 fn draw_board(cr: &Context, state: &BoardState) {
     let light = cairo::SolidPattern::from_rgb(0.87, 0.89, 0.90);
     let dark = cairo::SolidPattern::from_rgb(0.55, 0.64, 0.68);
-    let selected = cairo::SolidPattern::from_rgb(0.5, 1.0, 0.5);
 
     for x in 0..8 {
         for y in 0..8 {
@@ -234,7 +236,7 @@ fn draw_move_hints(cr: &Context, state: &BoardState) {
 }
 
 fn draw(widget: &DrawingArea, cr: &Context, state: &BoardState) {
-    cr.set_matrix(util::compute_matrix(widget));
+    cr.set_matrix(util::compute_matrix(widget, state.orientation));
 
     draw_border(cr);
     draw_board(cr, &state);

@@ -10,10 +10,8 @@ use shakmaty::Square;
 
 use gtk::prelude::*;
 use gtk::DrawingArea;
-use gdk::{EventButton, EventMotion};
+use gdk::EventButton;
 use cairo::Context;
-
-use util::pos_to_square;
 
 enum DrawBrush {
     Green,
@@ -98,7 +96,7 @@ impl Drawable {
         }
     }
 
-    pub(crate) fn mouse_down(&mut self, widget: &DrawingArea, e: &EventButton) -> Option<Inhibit> {
+    pub(crate) fn mouse_down(&mut self, widget: &DrawingArea, square: Option<Square>, e: &EventButton) -> Option<Inhibit> {
         if !self.enabled {
             return None;
         }
@@ -111,7 +109,7 @@ impl Drawable {
                 }
             },
             3 => {
-                self.drawing = pos_to_square(widget, e.get_position()).map(|square| {
+                self.drawing = square.map(|square| {
                     let brush = if e.get_state().contains(gdk::MOD1_MASK | gdk::SHIFT_MASK) {
                         DrawBrush::Yellow
                     } else if e.get_state().contains(gdk::MOD1_MASK) {
@@ -139,18 +137,18 @@ impl Drawable {
         None
     }
 
-    pub(crate) fn mouse_move(&mut self, widget: &DrawingArea, e: &EventMotion) -> Option<Inhibit> {
+    pub(crate) fn mouse_move(&mut self, widget: &DrawingArea, square: Option<Square>) -> Option<Inhibit> {
         if let Some(ref mut drawing) = self.drawing {
-            drawing.dest = pos_to_square(widget, e.get_position()).unwrap_or(drawing.orig);
+            drawing.dest = square.unwrap_or(drawing.orig);
             widget.queue_draw();
         }
 
         None
     }
 
-    pub(crate) fn mouse_up(&mut self, widget: &DrawingArea, e: &EventButton) -> Option<Inhibit> {
+    pub(crate) fn mouse_up(&mut self, widget: &DrawingArea, square: Option<Square>) -> Option<Inhibit> {
         if let Some(mut drawing) = self.drawing.take() {
-            drawing.dest = pos_to_square(widget, e.get_position()).unwrap_or(drawing.orig);
+            drawing.dest = square.unwrap_or(drawing.orig);
 
             // remove or add shape
             let num_shapes = self.shapes.len();
