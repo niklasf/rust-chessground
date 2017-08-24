@@ -10,7 +10,8 @@ use std::cell::RefCell;
 use std::f64::consts::PI;
 
 use shakmaty::square;
-use shakmaty::{Square, Color, Board, Bitboard, Move, MoveList, Position, Chess};
+use shakmaty::{Square, Color, Board, Bitboard, Move, MoveList, Position, Chess, Setup};
+use shakmaty::fen::Fen;
 
 use gtk::prelude::*;
 use gtk::{Window, WindowType, DrawingArea};
@@ -37,16 +38,18 @@ struct BoardState {
 
 impl BoardState {
     fn test() -> Self {
+        let fen: Fen = "2r2rk1/1p3ppp/p1nbb3/q3p3/2PpP3/1P3NP1/PB2QPBP/R3R1K1 w - - 4 16".parse().expect("valid fen");
+        let pos: Chess = fen.position().expect("legal position");
+
         let mut state = BoardState {
             orientation: Color::White,
             selected: None,
             drawable: Drawable::new(),
             piece_set: pieceset::PieceSet::merida(),
-            pieces: Board::new(),
+            pieces: pos.board().clone(),
             legals: MoveList::new(),
         };
 
-        let pos = Chess::default();
         pos.legal_moves(&mut state.legals);
 
         state
