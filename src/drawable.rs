@@ -41,37 +41,41 @@ impl DrawShape {
             DrawBrush::Yellow => cr.set_source_rgba(0.90, 0.94, 0.0, self.opacity),
         }
 
-        let xtail = 0.5 + self.orig.file() as f64;
-        let xhead = 0.5 + self.dest.file() as f64;
-        let ytail = 7.5 - self.orig.rank() as f64;
-        let yhead = 7.5 - self.dest.rank() as f64;
+        let orig_x = 0.5 + self.orig.file() as f64;
+        let orig_y = 7.5 - self.orig.rank() as f64;
+        let dest_x = 0.5 + self.dest.file() as f64;
+        let dest_y = 7.5 - self.dest.rank() as f64;
 
         if self.orig == self.dest {
             // draw circle
-            cr.arc(xhead, yhead, 0.5 * (1.0 - self.stroke), 0.0, 2.0 * PI);
+            cr.arc(dest_x, dest_y, 0.5 * (1.0 - self.stroke), 0.0, 2.0 * PI);
             cr.stroke();
         } else {
             // draw arrow
-            let adjacent = xhead - xtail;
-            let opposite = yhead - ytail;
-            let hypot = adjacent.hypot(opposite);
             let marker_size = 0.75;
+            let margin = 0.1;
 
-            let xbase = xhead - adjacent * marker_size / hypot;
-            let ybase = yhead - opposite * marker_size / hypot;
+            let (dx, dy) = (dest_x - orig_x, dest_y - orig_y);
+            let hypot = dx.hypot(dy);
 
-            // line
-            cr.move_to(xtail, ytail);
-            cr.line_to(xbase, ybase);
+            let shaft_x = dest_x - dx * (marker_size + margin) / hypot;
+            let shaft_y = dest_y - dy * (marker_size + margin) / hypot;
+
+            let head_x = dest_x - dx * margin / hypot;
+            let head_y = dest_y - dy * margin / hypot;
+
+            // shaft
+            cr.move_to(orig_x, orig_y);
+            cr.line_to(shaft_x, shaft_y);
             cr.stroke();
 
             // arrow head
-            cr.line_to(xbase - opposite * 0.5 * marker_size / hypot,
-                       ybase + adjacent * 0.5 * marker_size / hypot);
-            cr.line_to(xhead, yhead);
-            cr.line_to(xbase + opposite * 0.5 * marker_size / hypot,
-                       ybase - adjacent * 0.5 * marker_size / hypot);
-            cr.line_to(xbase, ybase);
+            cr.line_to(shaft_x - dy * 0.5 * marker_size / hypot,
+                       shaft_y + dx * 0.5 * marker_size / hypot);
+            cr.line_to(head_x, head_y);
+            cr.line_to(shaft_x + dy * 0.5 * marker_size / hypot,
+                       shaft_y - dx * 0.5 * marker_size / hypot);
+            cr.line_to(shaft_x, shaft_y);
             cr.fill();
         }
     }
