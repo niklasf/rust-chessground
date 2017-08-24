@@ -14,7 +14,7 @@ use shakmaty::{Square, Color};
 
 use gtk::prelude::*;
 use gtk::{Window, WindowType, DrawingArea};
-use gdk::{EventMask, EventButton};
+use gdk::{EventMask, EventButton, EventMotion};
 use cairo::{Context, Matrix, MatrixTrait};
 
 enum DrawBrush {
@@ -50,23 +50,65 @@ impl Drawable {
     }
 
     fn mouse_down(&mut self, widget: &DrawingArea, e: &EventButton) -> Option<Inhibit> {
-        if e.get_button() == 3 {
-            pos_to_square(widget, e.get_position()).map(|sq| {
-                let brush = if e.get_state().contains(gdk::MOD1_MASK | gdk::SHIFT_MASK) {
-                    DrawBrush::Yellow
-                } else if e.get_state().contains(gdk::MOD1_MASK) {
-                    DrawBrush::Blue
-                } else if e.get_state().contains(gdk::SHIFT_MASK) {
-                    DrawBrush::Red
-                } else {
-                    DrawBrush::Green
-                };
+        match e.get_button() {
+            1 => {
+                if self.erase_on_click {
+                    self.shapes.clear();
+                    widget.queue_draw();
+                }
+            },
+            3 => {
+                self.drawing = pos_to_square(widget, e.get_position()).map(|square| {
+                    let brush = if e.get_state().contains(gdk::MOD1_MASK | gdk::SHIFT_MASK) {
+                        DrawBrush::Yellow
+                    } else if e.get_state().contains(gdk::MOD1_MASK) {
+                        DrawBrush::Blue
+                    } else if e.get_state().contains(gdk::SHIFT_MASK) {
+                        DrawBrush::Red
+                    } else {
+                        DrawBrush::Green
+                    };
 
-                widget.queue_draw();
-            });
-        } else if e.get_button() == 1 {
+                    DrawShape {
+                        orig: square,
+                        dest: square,
+                        brush,
+                        opacity: 0.4,
+                        stroke: 0.2,
+                    }
+                });
+
+                return Some(Inhibit(false));
+            },
+            _ => {},
+        }
+
+        None
+    }
+
+    fn mouse_move(&mut self, widget: &DrawingArea, e: &EventMotion) -> Option<Inhibit> {
+        if let Some(ref mut drawing) = self.drawing {
+            drawing.dest = pos_to_square(widget, e.get_position()).unwrap_or(drawing.orig);
             widget.queue_draw();
         }
+
+        None
+    }
+
+    fn mouse_up(&mut self, widget: &DrawingArea, e: &EventButton) -> Option<Inhibit> {
+        if let Some(mut drawing) = self.drawing.take() {
+            drawing.dest = pos_to_square(widget, e.get_position()).unwrap_or(drawing.orig);
+
+            // remove or add shape
+            let num_shapes = self.shapes.len();
+            self.shapes.retain(|s| s.orig != drawing.orig || s.dest != drawing.dest);
+            if num_shapes == self.shapes.len() {
+                self.shapes.push(drawing);
+            }
+
+            widget.queue_draw();
+        }
+
         None
     }
 }
@@ -118,10 +160,10 @@ impl BoardView {
             v.widget.connect_button_press_event(move |widget, e| {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
-                    state.drawable.mouse_down(widget, e);
-
+                    state.drawable.mouse_down(widget, e).unwrap_or(Inhibit(false))
+                } else {
+                    Inhibit(false)
                 }
-                Inhibit(false)
             });
         }
 
@@ -130,13 +172,10 @@ impl BoardView {
             v.widget.connect_button_release_event(move |widget, e| {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
-
-                    let shape = state.drawable.drawing.take();
-                    state.drawable.shapes.extend(shape);
-
-                    widget.queue_draw();
+                    state.drawable.mouse_up(widget, e).unwrap_or(Inhibit(false))
+                } else {
+                    Inhibit(false)
                 }
-                Inhibit(false)
             });
         }
 
@@ -145,12 +184,10 @@ impl BoardView {
             v.widget.connect_motion_notify_event(move |widget, e| {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
-                    if let Some(ref mut drawing) = state.drawable.drawing {
-                        drawing.dest = pos_to_square(widget, e.get_position()).unwrap_or(drawing.orig);
-                        widget.queue_draw();
-                    }
+                    state.drawable.mouse_move(widget, e).unwrap_or(Inhibit(false))
+                } else {
+                    Inhibit(false)
                 }
-                Inhibit(false)
             });
         }
 
