@@ -17,11 +17,12 @@ use gtk::{Window, WindowType, DrawingArea};
 use gdk::{EventMask, EventButton};
 use cairo::{Context, Matrix, MatrixTrait};
 
+#[derive(Clone)]
 enum DrawBrush {
     Green,
     Red,
-    //Blue,
-    //Yellow,
+    Blue,
+    Yellow,
 }
 
 struct DrawShape {
@@ -32,9 +33,23 @@ struct DrawShape {
     opacity: f64,
 }
 
+#[derive(Clone)]
 struct Drawing {
     orig: Square,
     dest: Square,
+    brush: DrawBrush,
+}
+
+impl Drawing {
+    fn into_shape(self, stroke: f64, opacity: f64) -> DrawShape {
+        DrawShape {
+            orig: self.orig,
+            dest: self.dest,
+            brush: self.brush,
+            stroke,
+            opacity
+        }
+    }
 }
 
 struct BoardState {
@@ -89,9 +104,22 @@ impl BoardView {
 
                     if e.get_button() == 3 {
                         pos_to_square(widget, e.get_position()).map(|sq| {
-                            state.drawing = Some(Drawing { orig: sq, dest: sq });
+                            let brush = if e.get_state().contains(gdk::MOD1_MASK | gdk::SHIFT_MASK) {
+                                DrawBrush::Yellow
+                            } else if e.get_state().contains(gdk::MOD1_MASK) {
+                                DrawBrush::Blue
+                            } else if e.get_state().contains(gdk::SHIFT_MASK) {
+                                DrawBrush::Red
+                            } else {
+                                DrawBrush::Green
+                            };
+
+                            state.drawing = Some(Drawing { orig: sq, dest: sq, brush });
                             widget.queue_draw();
                         });
+                    } else if e.get_button() == 1 {
+                        state.shapes.clear();
+                        widget.queue_draw();
                     }
                 }
                 Inhibit(false)
@@ -104,17 +132,9 @@ impl BoardView {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
 
-                    let shape = state.drawing.as_ref().map(|drawing| DrawShape {
-                        orig: drawing.orig,
-                        dest: drawing.dest,
-                        brush: DrawBrush::Green,
-                        stroke: 0.2, // 0.06,
-                        opacity: 1.0,
-                    });
-
+                    let shape = state.drawing.take().map(|d| d.into_shape(0.2, 0.4));
                     state.shapes.extend(shape);
 
-                    state.drawing = None;
                     widget.queue_draw();
                 }
                 Inhibit(false)
@@ -199,6 +219,8 @@ fn draw_shape(cr: &Context, shape: &DrawShape) {
     match shape.brush {
         DrawBrush::Green => cr.set_source_rgba(0.08, 0.47, 0.11, shape.opacity),
         DrawBrush::Red => cr.set_source_rgba(0.53, 0.13, 0.13, shape.opacity),
+        DrawBrush::Blue => cr.set_source_rgba(0.0, 0.19, 0.53, shape.opacity),
+        DrawBrush::Yellow => cr.set_source_rgba(0.90, 0.94, 0.0, shape.opacity),
     }
 
     let xtail = 0.5 + shape.orig.file() as f64;
@@ -215,7 +237,7 @@ fn draw_shape(cr: &Context, shape: &DrawShape) {
         let adjacent = xhead - xtail;
         let opposite = yhead - ytail;
         let hypot = adjacent.hypot(opposite);
-        let marker_size = 4.0 * shape.stroke;
+        let marker_size = 0.75;
 
         let xbase = xhead - adjacent * marker_size / hypot;
         let ybase = yhead - opposite * marker_size / hypot;
@@ -238,13 +260,7 @@ fn draw_shape(cr: &Context, shape: &DrawShape) {
 }
 
 fn draw_drawing(cr: &Context, drawing: &Drawing) {
-    draw_shape(cr, &DrawShape {
-        orig: drawing.orig,
-        dest: drawing.dest,
-        stroke: 0.05,
-        opacity: 0.9,
-        brush: DrawBrush::Green,
-    });
+    draw_shape(cr, &drawing.clone().into_shape(0.04, 0.4 * 0.9));
 }
 
 fn draw(widget: &DrawingArea, cr: &Context, state: &BoardState) {
