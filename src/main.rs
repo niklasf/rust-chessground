@@ -14,7 +14,7 @@ use shakmaty::fen::Fen;
 
 use gtk::prelude::*;
 use gtk::{Window, WindowType, DrawingArea};
-use gdk::EventButton;
+use gdk::{EventButton, EventMotion};
 use cairo::Context;
 use rsvg::HandleExt;
 
@@ -34,6 +34,22 @@ struct BoardState {
     piece_set: PieceSet,
     pieces: Board,
     legals: MoveList,
+    drag: Option<Drag>,
+}
+
+struct Drag {
+    orig: Square,
+    dest: Square,
+    start: (f64, f64),
+    pos: (f64, f64),
+}
+
+impl Drag {
+    fn threshold(&self) -> bool {
+        let dx = self.start.0 - self.pos.0;
+        let dy = self.start.1 - self.pos.1;
+        dx.hypot(dy) > 10.0
+    }
 }
 
 impl BoardState {
@@ -48,6 +64,7 @@ impl BoardState {
             piece_set: pieceset::PieceSet::merida(),
             pieces: pos.board().clone(),
             legals: MoveList::new(),
+            drag: None,
         };
 
         pos.legal_moves(&mut state.legals);
@@ -89,6 +106,7 @@ impl BoardView {
                     let mut state = state.borrow_mut();
                     let square = util::pos_to_square(widget, state.orientation, e.get_position());
                     selection_mouse_down(&mut state, widget, e);
+                    drag_mouse_down(&mut state, square, e);
                     state.drawable.mouse_down(widget, square, e).unwrap_or(Inhibit(false))
                 } else {
                     Inhibit(false)
@@ -102,6 +120,7 @@ impl BoardView {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
                     let square = util::pos_to_square(widget, state.orientation, e.get_position());
+                    drag_mouse_up(&mut state, widget, square, e);
                     state.drawable.mouse_up(widget, square).unwrap_or(Inhibit(false))
                 } else {
                     Inhibit(false)
@@ -115,6 +134,7 @@ impl BoardView {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
                     let square = util::pos_to_square(widget, state.orientation, e.get_position());
+                    drag_mouse_move(&mut state, widget, square, e);
                     state.drawable.mouse_move(widget, square).unwrap_or(Inhibit(false))
                 } else {
                     Inhibit(false)
@@ -133,6 +153,37 @@ fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventB
                 .filter(|sq| state.pieces.occupied().contains(*sq));
     } else {
         state.selected = None;
+    }
+    None
+}
+
+fn drag_mouse_down(state: &mut BoardState, square: Option<Square>, e: &EventButton) -> Option<Inhibit> {
+    if let Some(square) = square {
+        state.drag = Some(Drag {
+            orig: square,
+            dest: square,
+            start: e.get_position(),
+            pos: e.get_position(),
+        });
+    }
+    None
+}
+
+fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventMotion) -> Option<Inhibit> {
+    if let Some(ref mut drag) = state.drag {
+        drag.dest = square.unwrap_or(drag.orig);
+        drag.pos = e.get_position();
+        widget.queue_draw();
+    }
+    None
+}
+
+fn drag_mouse_up(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventButton) -> Option<Inhibit> {
+    if let Some(mut drag) = state.drag.take() {
+        drag.dest = square.unwrap_or(drag.orig);
+        drag.pos = e.get_position();
+        println!("drag: {} to {}", drag.orig, drag.dest);
+        widget.queue_draw();
     }
     None
 }
@@ -169,7 +220,6 @@ fn draw_board(cr: &Context, state: &BoardState) {
 }
 
 fn draw_pieces(cr: &Context, state: &BoardState) {
-
     for square in state.pieces.occupied() {
         cr.push_group();
         cr.translate(square.file() as f64, 7.0 - square.rank() as f64);
@@ -185,7 +235,7 @@ fn draw_pieces(cr: &Context, state: &BoardState) {
 
         cr.pop_group_to_source();
 
-        if Some(square) == state.selected {
+        if state.drag.as_ref().map_or(false, |d| d.threshold() && d.orig == square) {
             cr.paint_with_alpha(0.2);
         } else {
             cr.paint();
