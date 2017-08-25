@@ -8,8 +8,6 @@ use std::f64::consts::PI;
 
 use shakmaty::Square;
 
-use gtk::prelude::*;
-use gtk::DrawingArea;
 use gdk::EventButton;
 use cairo::Context;
 
@@ -99,16 +97,18 @@ impl Drawable {
         }
     }
 
-    pub(crate) fn mouse_down(&mut self, widget: &DrawingArea, square: Option<Square>, e: &EventButton) -> Option<Inhibit> {
+    pub(crate) fn mouse_down(&mut self, square: Option<Square>, e: &EventButton) -> bool {
         if !self.enabled {
-            return None;
+            return false;
         }
 
         match e.get_button() {
             1 => {
                 if self.erase_on_click {
                     self.shapes.clear();
-                    widget.queue_draw();
+                    true
+                } else {
+                    false
                 }
             },
             3 => {
@@ -130,24 +130,24 @@ impl Drawable {
                     }
                 });
 
-                return Some(Inhibit(false));
+                true
             },
-            _ => {},
+            _ => false,
         }
-
-        None
     }
 
-    pub(crate) fn mouse_move(&mut self, widget: &DrawingArea, square: Option<Square>) -> Option<Inhibit> {
+    pub(crate) fn mouse_move(&mut self, square: Option<Square>) -> bool {
         if let Some(ref mut drawing) = self.drawing {
-            drawing.dest = square.unwrap_or(drawing.orig);
-            widget.queue_draw();
+            let dest = square.unwrap_or(drawing.orig);
+            let redraw = drawing.dest != dest;
+            drawing.dest = dest;
+            redraw
+        } else {
+            false
         }
-
-        None
     }
 
-    pub(crate) fn mouse_up(&mut self, widget: &DrawingArea, square: Option<Square>) -> Option<Inhibit> {
+    pub(crate) fn mouse_up(&mut self, square: Option<Square>) -> bool {
         if let Some(mut drawing) = self.drawing.take() {
             drawing.dest = square.unwrap_or(drawing.orig);
 
@@ -158,10 +158,10 @@ impl Drawable {
                 self.shapes.push(drawing);
             }
 
-            widget.queue_draw();
+            true
+        } else {
+            false
         }
-
-        None
     }
 
     pub(crate) fn render_cairo(&self, cr: &Context) {

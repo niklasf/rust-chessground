@@ -126,12 +126,17 @@ impl BoardView {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
                     let square = util::pos_to_square(widget, state.orientation, e.get_position());
-                    selection_mouse_down(&mut state, widget, e);
-                    drag_mouse_down(&mut state, square, e);
-                    state.drawable.mouse_down(widget, square, e).unwrap_or(Inhibit(false))
-                } else {
-                    Inhibit(false)
+
+                    let redraw =
+                        selection_mouse_down(&mut state, widget, e) |
+                        drag_mouse_down(&mut state, square, e) |
+                        state.drawable.mouse_down(square, e);
+
+                    if redraw {
+                        widget.queue_draw();
+                    }
                 }
+                Inhibit(false)
             });
         }
 
@@ -141,11 +146,16 @@ impl BoardView {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
                     let square = util::pos_to_square(widget, state.orientation, e.get_position());
-                    drag_mouse_up(&mut state, widget, square, e);
-                    state.drawable.mouse_up(widget, square).unwrap_or(Inhibit(false))
-                } else {
-                    Inhibit(false)
+
+                    let redraw =
+                        drag_mouse_up(&mut state, widget, square, e) |
+                        state.drawable.mouse_up(square);
+
+                    if redraw {
+                        widget.queue_draw();
+                    }
                 }
+                Inhibit(false)
             });
         }
 
@@ -155,11 +165,16 @@ impl BoardView {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
                     let square = util::pos_to_square(widget, state.orientation, e.get_position());
-                    drag_mouse_move(&mut state, widget, square, e);
-                    state.drawable.mouse_move(widget, square).unwrap_or(Inhibit(false))
-                } else {
-                    Inhibit(false)
+
+                    let redraw =
+                        drag_mouse_move(&mut state, widget, square, e) |
+                        state.drawable.mouse_move(square);
+
+                    if redraw {
+                        widget.queue_draw();
+                    }
                 }
+                Inhibit(false)
             });
         }
 
@@ -167,7 +182,7 @@ impl BoardView {
     }
 }
 
-fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventButton) -> Option<Inhibit> {
+fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventButton) -> bool {
     if e.get_button() == 1 {
         let orig = state.selected.take();
         let dest = util::pos_to_square(widget, state.orientation, e.get_position());
@@ -182,10 +197,11 @@ fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventB
     } else {
         state.selected = None;
     }
-    None
+
+    true
 }
 
-fn drag_mouse_down(state: &mut BoardState, square: Option<Square>, e: &EventButton) -> Option<Inhibit> {
+fn drag_mouse_down(state: &mut BoardState, square: Option<Square>, e: &EventButton) -> bool {
     if e.get_button() == 1 {
         if let Some(square) = square {
             state.drag = state.pieces.piece_at(square).map(|piece| Drag {
@@ -195,29 +211,34 @@ fn drag_mouse_down(state: &mut BoardState, square: Option<Square>, e: &EventButt
                 start: e.get_position(),
                 pos: e.get_position(),
             });
+
+            return true;
         }
     }
-    None
+
+    false
 }
 
-fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventMotion) -> Option<Inhibit> {
+fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventMotion) -> bool {
     if let Some(ref mut drag) = state.drag {
         drag.dest = square.unwrap_or(drag.orig);
         drag.pos = e.get_position();
-        widget.queue_draw();
+        true
+    } else {
+        false
     }
-    None
 }
 
-fn drag_mouse_up(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventButton) -> Option<Inhibit> {
+fn drag_mouse_up(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventButton) -> bool {
     if let Some(mut drag) = state.drag.take() {
         drag.dest = square.unwrap_or(drag.orig);
         drag.pos = e.get_position();
         println!("drag: {} to {}", drag.orig, drag.dest);
         state.user_move(drag.orig, drag.dest);
-        widget.queue_draw();
+        true
+    } else {
+        false
     }
-    None
 }
 
 fn draw_border(cr: &Context) {
