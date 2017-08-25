@@ -245,26 +245,28 @@ fn draw_pieces(cr: &Context, state: &BoardState) {
     }
 }
 
+fn move_targets(state: &BoardState, orig: Square) -> Bitboard {
+    state.legals.iter().filter(|m| match **m {
+        Move::Normal { from, .. } => from == orig,
+        Move::EnPassant { from, .. } => from == orig,
+        Move::Castle { king, .. } => king == orig,
+        _ => false,
+    }).map(|m| match *m {
+        Move::Normal { to, .. } => to,
+        Move::EnPassant { to, .. } => to,
+        Move::Castle { rook, .. } => rook,
+        Move::Put { to, .. } => to,
+    }).collect()
+}
+
 fn draw_move_hints(cr: &Context, state: &BoardState) {
     if let Some(selected) = state.selected {
-        let squares: Bitboard = state.legals.iter().filter(|m| match **m {
-            Move::Normal { from, .. } => from == selected,
-            Move::EnPassant { from, .. } => from == selected,
-            Move::Castle { king, .. } => king == selected,
-            _ => false,
-        }).map(|m| match *m {
-            Move::Normal { to, .. } => to,
-            Move::EnPassant { to, .. } => to,
-            Move::Castle { rook, .. } => rook,
-            Move::Put { to, .. } => to,
-        }).collect();
-
         cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
 
         let radius = 0.12;
         let corner = 1.8 * radius;
 
-        for square in squares {
+        for square in move_targets(state, selected) {
             if state.pieces.occupied().contains(square) {
                 cr.move_to(square.file() as f64, 7.0 - square.rank() as f64);
                 cr.rel_line_to(corner, 0.0);
