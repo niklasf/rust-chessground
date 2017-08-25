@@ -201,19 +201,28 @@ fn drag_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Option<
     }
 }
 
+fn queue_draw_square(widget: &DrawingArea, orientation: Color, square: Square) {
+    let matrix = util::compute_matrix(widget, orientation);
+    let (x, y) = matrix.transform_point(square.file() as f64, 7.0 - square.rank() as f64);
+    let (dx, dy) = matrix.transform_distance(1.0, 1.0);
+    widget.queue_draw_area(x.floor() as i32, y.floor() as i32, dx.ceil() as i32, dy.ceil() as i32);
+}
+
 fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventMotion) {
     if let Some(ref mut drag) = state.drag {
         let matrix = util::compute_matrix(widget, state.orientation);
         let (dx, dy) = matrix.transform_distance(0.5, 0.5);
         let (dx, dy) = (dx.ceil(), dy.ceil());
 
-
+        queue_draw_square(widget, state.orientation, drag.orig);
+        queue_draw_square(widget, state.orientation, drag.dest);
         widget.queue_draw_area((drag.pos.0 - dx) as i32, (drag.pos.1 - dy) as i32,
                                2 * (dx as i32), 2 * (dy as i32));
 
         drag.pos = e.get_position();
         drag.dest = square.unwrap_or(drag.orig);
 
+        queue_draw_square(widget, state.orientation, drag.dest);
         widget.queue_draw_area((drag.pos.0 - dx) as i32, (drag.pos.1 - dy) as i32,
                                2 * (dx as i32), 2 * (dy as i32));
     }
