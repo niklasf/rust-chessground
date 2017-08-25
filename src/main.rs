@@ -186,14 +186,16 @@ fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventB
 }
 
 fn drag_mouse_down(state: &mut BoardState, square: Option<Square>, e: &EventButton) -> Option<Inhibit> {
-    if let Some(square) = square {
-        state.drag = state.pieces.piece_at(square).map(|piece| Drag {
-            piece,
-            orig: square,
-            dest: square,
-            start: e.get_position(),
-            pos: e.get_position(),
-        });
+    if e.get_button() == 1 {
+        if let Some(square) = square {
+            state.drag = state.pieces.piece_at(square).map(|piece| Drag {
+                piece,
+                orig: square,
+                dest: square,
+                start: e.get_position(),
+                pos: e.get_position(),
+            });
+        }
     }
     None
 }
