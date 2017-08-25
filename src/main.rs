@@ -199,22 +199,24 @@ fn draw_board(cr: &Context, state: &BoardState) {
     let light = cairo::SolidPattern::from_rgb(0.87, 0.89, 0.90);
     let dark = cairo::SolidPattern::from_rgb(0.55, 0.64, 0.68);
 
-    for x in 0..8 {
-        for y in 0..8 {
-            if (x + y) % 2 == 0 {
-                cr.set_source(&light);
-            } else {
-                cr.set_source(&dark);
-            }
+    for square in Bitboard::all() {
+        if (square.file() + square.rank()) & 1 == 1 {
+            cr.set_source(&light);
+        } else {
+            cr.set_source(&dark);
+        }
 
-            cr.rectangle(x as f64, y as f64, 1.0, 1.0);
-            cr.fill();
+        cr.rectangle(square.file() as f64, 7.0 - square.rank() as f64, 1.0, 1.0);
+        cr.fill_preserve();
 
-            if state.selected.map_or(false, |sq| sq.file() == x && sq.rank() == 7 - y) {
-                cr.rectangle(x as f64, y as f64, 1.0, 1.0);
-                cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
-                cr.fill();
-            }
+       if state.selected.map_or(false, |sq| sq == square) {
+           cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
+           cr.fill();
+        } else if state.drag.as_ref().map_or(false, |d| d.threshold() && d.dest == square) {
+           cr.set_source_rgba(0.08, 0.47, 0.11, 0.25);
+           cr.fill();
+        } else {
+            cr.new_path();
         }
     }
 }
