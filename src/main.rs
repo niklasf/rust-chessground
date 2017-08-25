@@ -9,7 +9,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::f64::consts::PI;
 
-use shakmaty::{Square, Color, Piece, Board, Bitboard, Move, MoveList, Position, Chess, Setup};
+use shakmaty::{Square, Color, Piece, Board, Bitboard, MoveList, Position, Chess, Setup};
 use shakmaty::fen::Fen;
 
 use gtk::prelude::*;
@@ -148,7 +148,7 @@ impl BoardView {
                     let square = util::pos_to_square(widget, state.orientation, e.get_position());
 
                     let redraw =
-                        drag_mouse_up(&mut state, widget, square, e) |
+                        drag_mouse_up(&mut state, square, e) |
                         state.drawable.mouse_up(square);
 
                     if redraw {
@@ -167,7 +167,7 @@ impl BoardView {
                     let square = util::pos_to_square(widget, state.orientation, e.get_position());
 
                     let redraw =
-                        drag_mouse_move(&mut state, widget, square, e) |
+                        drag_mouse_move(&mut state, square, e) |
                         state.drawable.mouse_move(square);
 
                     if redraw {
@@ -219,7 +219,7 @@ fn drag_mouse_down(state: &mut BoardState, square: Option<Square>, e: &EventButt
     false
 }
 
-fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventMotion) -> bool {
+fn drag_mouse_move(state: &mut BoardState, square: Option<Square>, e: &EventMotion) -> bool {
     if let Some(ref mut drag) = state.drag {
         drag.dest = square.unwrap_or(drag.orig);
         drag.pos = e.get_position();
@@ -229,7 +229,7 @@ fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<
     }
 }
 
-fn drag_mouse_up(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventButton) -> bool {
+fn drag_mouse_up(state: &mut BoardState, square: Option<Square>, e: &EventButton) -> bool {
     if let Some(mut drag) = state.drag.take() {
         drag.dest = square.unwrap_or(drag.orig);
         drag.pos = e.get_position();
