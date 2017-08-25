@@ -16,7 +16,7 @@ use gtk::prelude::*;
 use gtk::{Window, WindowType, DrawingArea};
 use gdk::{EventButton, EventMotion};
 use cairo::prelude::*;
-use cairo::{Context, Matrix};
+use cairo::{Context, Matrix, RadialGradient};
 use rsvg::HandleExt;
 
 use option_filter::OptionFilterExt;
@@ -29,11 +29,12 @@ use drawable::Drawable;
 use pieceset::PieceSet;
 
 struct BoardState {
+    pieces: Board,
     orientation: Color,
+    check: Option<Square>,
     selected: Option<Square>,
     drawable: Drawable,
     piece_set: PieceSet,
-    pieces: Board,
     legals: MoveList,
     drag: Option<Drag>,
     pos: Chess,
@@ -75,11 +76,12 @@ impl BoardState {
         let pos: Chess = fen.position().expect("legal position");
 
         let mut state = BoardState {
+            pieces: pos.board().clone(),
             orientation: Color::White,
+            check: Some(shakmaty::square::G1),
             selected: None,
             drawable: Drawable::new(),
             piece_set: pieceset::PieceSet::merida(),
-            pieces: pos.board().clone(),
             legals: MoveList::new(),
             drag: None,
             pos: pos.clone(),
@@ -317,6 +319,19 @@ fn draw_move_hints(cr: &Context, state: &BoardState) {
     }
 }
 
+fn draw_check(cr: &Context, state: &BoardState) {
+    if let Some(check) = state.check {
+        let cx = 0.5 + check.file() as f64;
+        let cy = 7.5 - check.rank() as f64;
+        let gradient = RadialGradient::new(cx, cy, 0.0, cx, cy, 0.5f64.hypot(0.5));
+        gradient.add_color_stop_rgba(0.0, 1.0, 0.0, 0.0, 1.0);
+        gradient.add_color_stop_rgba(0.25, 0.91, 0.0, 0.0, 1.0);
+        gradient.add_color_stop_rgba(0.89, 0.66, 0.0, 0.0, 0.0);
+        cr.set_source(&gradient);
+        cr.paint();
+    }
+}
+
 fn draw_drag(cr: &Context, mut matrix: Matrix, state: &BoardState) {
     if let Some(drag) = state.drag.as_ref().filter(|d| d.threshold()) {
         matrix.invert();
@@ -337,6 +352,7 @@ fn draw(widget: &DrawingArea, cr: &Context, state: &BoardState) {
 
     draw_border(cr);
     draw_board(cr, &state);
+    draw_check(cr, &state);
     draw_pieces(cr, &state);
 
     state.drawable.render_cairo(cr);
