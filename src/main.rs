@@ -108,7 +108,7 @@ impl BoardView {
 
         v.widget.add_events((gdk::BUTTON_PRESS_MASK |
                              gdk::BUTTON_RELEASE_MASK |
-                             gdk::BUTTON_MOTION_MASK).bits() as i32);
+                             gdk::POINTER_MOTION_MASK).bits() as i32);
 
         {
             let state = Rc::downgrade(&v.state);
