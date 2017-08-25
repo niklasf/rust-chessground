@@ -51,6 +51,7 @@ impl BoardState {
 
         self.legals.clear();
         self.pos.legal_moves(&mut self.legals);
+        self.check = self.pos.board().king_of(self.pos.turn()).filter(|_| self.pos.checkers().any());
     }
 }
 
@@ -78,7 +79,7 @@ impl BoardState {
         let mut state = BoardState {
             pieces: pos.board().clone(),
             orientation: Color::White,
-            check: Some(shakmaty::square::G1),
+            check: None,
             selected: None,
             drawable: Drawable::new(),
             piece_set: pieceset::PieceSet::merida(),
