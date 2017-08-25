@@ -36,6 +36,21 @@ struct BoardState {
     pieces: Board,
     legals: MoveList,
     drag: Option<Drag>,
+    pos: Chess,
+}
+
+impl BoardState {
+    fn user_move(&mut self, orig: Square, dest: Square) {
+        let m = { self.legals.drain(..).filter(|m| m.from() == Some(orig) && m.to() == dest).next() };
+        println!("user move: {:?}", m);
+        if let Some(m) = m {
+            self.pos = self.pos.clone().play_unchecked(&m);
+            self.pieces = self.pos.board().clone();
+        }
+
+        self.legals.clear();
+        self.pos.legal_moves(&mut self.legals);
+    }
 }
 
 struct Drag {
@@ -67,6 +82,7 @@ impl BoardState {
             pieces: pos.board().clone(),
             legals: MoveList::new(),
             drag: None,
+            pos: pos.clone(),
         };
 
         pos.legal_moves(&mut state.legals);
@@ -186,6 +202,7 @@ fn drag_mouse_up(state: &mut BoardState, widget: &DrawingArea, square: Option<Sq
         drag.dest = square.unwrap_or(drag.orig);
         drag.pos = e.get_position();
         println!("drag: {} to {}", drag.orig, drag.dest);
+        state.user_move(drag.orig, drag.dest);
         widget.queue_draw();
     }
     None
