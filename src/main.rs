@@ -252,23 +252,34 @@ fn draw_board(cr: &Context, state: &BoardState) {
     let light = cairo::SolidPattern::from_rgb(0.87, 0.89, 0.90);
     let dark = cairo::SolidPattern::from_rgb(0.55, 0.64, 0.68);
 
+    cr.rectangle(0.0, 0.0, 8.0, 8.0);
+    cr.set_source(&dark);
+    cr.fill();
+
+    cr.set_source(&light);
+
+    for square in Bitboard::all() {
+        if square.is_light() {
+            cr.rectangle(square.file() as f64, 7.0 - square.rank() as f64, 1.0, 1.0);
+            cr.fill();
+        }
+    }
+
+    if let Some(square) = state.selected {
+        cr.rectangle(square.file() as f64, 7.0 - square.rank() as f64, 1.0, 1.0);
+        cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
+        cr.fill();
+    }
+
     let hovered = state.drag.as_ref()
         .filter(|d| d.threshold() && move_targets(state, d.orig).contains(d.dest))
         .map(|d| d.dest);
 
-    for square in Bitboard::all() {
-        cr.set_source(if square.is_light() { &light } else { &dark });
-        cr.rectangle(square.file() as f64, 7.0 - square.rank() as f64, 1.0, 1.0);
-        cr.fill_preserve();
-
-       if state.selected.map_or(false, |sq| sq == square) {
-           cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
-           cr.fill();
-        } else if Some(square) == hovered {
-           cr.set_source_rgba(0.08, 0.47, 0.11, 0.25);
-           cr.fill();
-        } else {
-            cr.new_path();
+    if let Some(square) = hovered {
+        if hovered != state.selected {
+            cr.rectangle(square.file() as f64, 7.0 - square.rank() as f64, 1.0, 1.0);
+            cr.set_source_rgba(0.08, 0.47, 0.11, 0.25);
+            cr.fill();
         }
     }
 }
