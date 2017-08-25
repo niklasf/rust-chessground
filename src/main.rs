@@ -5,6 +5,7 @@ extern crate rsvg;
 extern crate shakmaty;
 extern crate option_filter;
 
+use std::cmp::{min, max};
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::f64::consts::PI;
@@ -203,9 +204,16 @@ fn drag_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Option<
 
 fn queue_draw_square(widget: &DrawingArea, orientation: Color, square: Square) {
     let matrix = util::compute_matrix(widget, orientation);
-    let (x, y) = matrix.transform_point(square.file() as f64, 7.0 - square.rank() as f64);
-    let (dx, dy) = matrix.transform_distance(1.0, 1.0);
-    widget.queue_draw_area(x.floor() as i32, y.floor() as i32, dx.ceil() as i32, dy.ceil() as i32);
+
+    let (x1, y1) = matrix.transform_point(square.file() as f64, 7.0 - square.rank() as f64);
+    let (x2, y2) = matrix.transform_point(1.0 + square.file() as f64, 8.0 - square.rank() as f64);
+
+    let xmin = min(x1.floor() as i32, x2.floor() as i32);
+    let ymin = min(y1.floor() as i32, y2.floor() as i32);
+    let xmax = max(x1.ceil() as i32, x2.ceil() as i32);
+    let ymax = max(y1.ceil() as i32, y2.ceil() as i32);
+
+    widget.queue_draw_area(xmin, ymin, xmax - xmin, ymax - ymin);
 }
 
 fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventMotion) {
