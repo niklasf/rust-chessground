@@ -34,6 +34,7 @@ struct BoardState {
     orientation: Color,
     check: Option<Square>,
     selected: Option<Square>,
+    last_move: Option<(Square, Square)>,
     drawable: Drawable,
     piece_set: PieceSet,
     legals: MoveList,
@@ -47,6 +48,7 @@ impl BoardState {
         if let Some(m) = m {
             self.pos = self.pos.clone().play_unchecked(&m);
             self.pieces = self.pos.board().clone();
+            self.last_move = Some((m.to(), m.from().unwrap_or(m.to())))
         }
 
         self.legals.clear();
@@ -80,6 +82,7 @@ impl BoardState {
             pieces: pos.board().clone(),
             orientation: Color::White,
             check: None,
+            last_move: None,
             selected: None,
             drawable: Drawable::new(),
             piece_set: pieceset::PieceSet::merida(),
@@ -240,8 +243,11 @@ fn drag_mouse_up(state: &mut BoardState, widget: &DrawingArea, square: Option<Sq
     if let Some(mut drag) = state.drag.take() {
         drag.dest = square.unwrap_or(drag.orig);
         drag.pos = e.get_position();
-        println!("drag: {} to {}", drag.orig, drag.dest);
-        state.user_move(drag.orig, drag.dest);
+        if drag.orig != drag.dest {
+            println!("drag: {} to {}", drag.orig, drag.dest);
+            state.selected = None;
+            state.user_move(drag.orig, drag.dest);
+        }
         widget.queue_draw();
     }
 }
@@ -284,6 +290,18 @@ fn draw_board(cr: &Context, state: &BoardState) {
         if hovered != state.selected {
             cr.rectangle(square.file() as f64, 7.0 - square.rank() as f64, 1.0, 1.0);
             cr.set_source_rgba(0.08, 0.47, 0.11, 0.25);
+            cr.fill();
+        }
+    }
+
+    if let Some((orig, dest)) = state.last_move {
+        println!("drawing with lastmove");
+        cr.set_source_rgba(0.61, 0.78, 0.0, 0.41);
+        cr.rectangle(orig.file() as f64, 7.0 - orig.rank() as f64, 1.0, 1.0);
+        cr.fill();
+
+        if dest != orig {
+            cr.rectangle(dest.file() as f64, 7.0 - dest.rank() as f64, 1.0, 1.0);
             cr.fill();
         }
     }
