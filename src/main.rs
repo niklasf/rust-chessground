@@ -10,8 +10,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::f64::consts::PI;
 
-use shakmaty::{Square, Color, Piece, Board, Bitboard, MoveList, Position, Chess, Setup};
-use shakmaty::fen::Fen;
+use shakmaty::{Square, Color, Role, Piece, Board, Bitboard, MoveList, Position, Chess, Setup};
 
 use gtk::prelude::*;
 use gtk::{Window, WindowType, DrawingArea};
@@ -35,6 +34,7 @@ struct BoardState {
     check: Option<Square>,
     selected: Option<Square>,
     last_move: Option<(Square, Square)>,
+    promoting: Option<Promoting>,
     drawable: Drawable,
     piece_set: PieceSet,
     legals: MoveList,
@@ -82,10 +82,14 @@ impl Drag {
     }
 }
 
+struct Promoting {
+    square: Square,
+    hover: Option<Square>,
+}
+
 impl BoardState {
     fn test() -> Self {
-        //let fen: Fen = "2r2rk1/1p3ppp/p1nbb3/q3p3/2PpP3/1P3NP1/PB2QPBP/R3R1K1 w - - 4 16".parse().expect("valid fen");
-        let pos = Chess::default(); // : Chess = fen.position().expect("legal position");
+        let pos = Chess::default();
 
         let mut state = BoardState {
             pieces: pos.board().clone(),
@@ -93,6 +97,10 @@ impl BoardState {
             check: None,
             last_move: None,
             selected: None,
+            promoting: Some(Promoting {
+                square: shakmaty::square::E8,
+                hover: Some(shakmaty::square::E7),
+            }),
             drawable: Drawable::new(),
             piece_set: pieceset::PieceSet::merida(),
             legals: MoveList::new(),
@@ -401,13 +409,58 @@ fn draw_drag(cr: &Context, mut matrix: Matrix, state: &BoardState) {
     if let Some(drag) = state.drag.as_ref().filter(|d| d.threshold()) {
         matrix.invert();
         let (x, y) = matrix.transform_point(drag.pos.0, drag.pos.1);
+        cr.save();
         cr.translate(x, y);
         cr.rotate(state.orientation.fold(0.0, PI));
         cr.translate(-0.5, -0.5);
-
         cr.scale(0.0056, 0.0056);
-
         state.piece_set.by_piece(&drag.piece).render_cairo(cr);
+        cr.restore();
+    }
+}
+
+fn draw_promoting(cr: &Context, state: &BoardState) {
+    if let Some(ref promoting) = state.promoting {
+        let mut square = promoting.square;
+
+        cr.rectangle(0.0, 0.0, 8.0, 8.0);
+        cr.set_source_rgba(0.0, 0.0, 0.0, 0.5);
+        cr.fill();
+
+        let offset = if square.rank() < 4 { -1.0 } else { 1.0 };
+        let mut y = 7.0 - square.rank() as f64;
+        let mut light = square.is_light();
+
+        for role in &[Role::Queen, Role::Rook, Role::Bishop, Role::Knight] {
+            if square.is_light() {
+                cr.set_source_rgb(0.25, 0.25, 0.25);
+            } else {
+                cr.set_source_rgb(0.18, 0.18, 0.18);
+            }
+            cr.rectangle(square.file() as f64, y, 1.0, 1.0);
+            cr.fill();
+
+            if promoting.hover == Some(square) {
+                cr.set_source_rgb(1.0, 0.65, 0.0);
+            } else {
+                cr.set_source_rgb(0.69, 0.69, 0.69);
+            }
+            cr.arc(0.5 + square.file() as f64, y + 0.5 * offset,
+                   0.5, 0.0, 2.0 * PI);
+            cr.fill();
+
+            cr.save();
+            cr.translate(0.5 + square.file() as f64, y + 0.5 * offset);
+            cr.scale(0.707, 0.707);
+            cr.translate(-0.5, -0.5);
+            cr.scale(0.0056, 0.0056);
+            state.piece_set.by_piece(&role.of(Color::White)).render_cairo(cr);
+            cr.restore();
+
+            y += offset;
+            light = !light;
+            square = Square::from_coords(square.file(), square.rank() - offset as i8).expect("promotion dialog square on board");
+        }
     }
 }
 
@@ -420,16 +473,16 @@ fn draw(widget: &DrawingArea, cr: &Context, state: &BoardState) {
     draw_check(cr, &state);
     draw_pieces(cr, &state);
 
-    state.drawable.render_cairo(cr);
+    state.drawable.render(cr);
 
     draw_move_hints(cr, &state);
 
     draw_drag(cr, matrix, state);
+    draw_promoting(cr, state);
 
     //ctx.rectangle(0.0, 0.0, 50.0, 50.0);
     //ctx.fill();
     //img.render_cairo(ctx);
-
 }
 
 fn main() {

@@ -27,7 +27,7 @@ struct DrawShape {
 }
 
 impl DrawShape {
-    fn render_cairo(&self, cr: &Context) {
+    fn render(&self, cr: &Context) {
         let opacity = 0.5;
 
         match self.brush {
@@ -161,11 +161,11 @@ impl Drawable {
         }
     }
 
-    pub(crate) fn render_cairo(&self, cr: &Context) {
+    pub(crate) fn render(&self, cr: &Context) {
         for shape in &self.shapes {
-            shape.render_cairo(cr);
+            shape.render(cr);
         }
 
-        self.drawing.as_ref().map(|shape| shape.render_cairo(cr));
+        self.drawing.as_ref().map(|shape| shape.render(cr));
     }
 }
