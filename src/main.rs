@@ -67,7 +67,7 @@ impl Drag {
     fn threshold(&self) -> bool {
         let dx = self.start.0 - self.pos.0;
         let dy = self.start.1 - self.pos.1;
-        dx.hypot(dy) > 10.0
+        dx.hypot(dy) > 3.0
     }
 }
 
