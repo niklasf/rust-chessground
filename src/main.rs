@@ -48,7 +48,16 @@ impl BoardState {
         if let Some(m) = m {
             self.pos = self.pos.clone().play_unchecked(&m);
             self.pieces = self.pos.board().clone();
-            self.last_move = Some((m.to(), m.from().unwrap_or(m.to())))
+            self.last_move = Some((m.to(), m.from().unwrap_or(m.to())));
+
+            // respond
+            self.legals.clear();
+            self.pos.legal_moves(&mut self.legals);
+            if let Some(m) = self.legals.iter().next() {
+                self.pos = self.pos.clone().play_unchecked(&m);
+                self.pieces = self.pos.board().clone();
+                self.last_move = Some((m.to(), m.from().unwrap_or(m.to())));
+            }
         }
 
         self.legals.clear();
@@ -75,8 +84,8 @@ impl Drag {
 
 impl BoardState {
     fn test() -> Self {
-        let fen: Fen = "2r2rk1/1p3ppp/p1nbb3/q3p3/2PpP3/1P3NP1/PB2QPBP/R3R1K1 w - - 4 16".parse().expect("valid fen");
-        let pos: Chess = fen.position().expect("legal position");
+        //let fen: Fen = "2r2rk1/1p3ppp/p1nbb3/q3p3/2PpP3/1P3NP1/PB2QPBP/R3R1K1 w - - 4 16".parse().expect("valid fen");
+        let pos = Chess::default(); // : Chess = fen.position().expect("legal position");
 
         let mut state = BoardState {
             pieces: pos.board().clone(),
