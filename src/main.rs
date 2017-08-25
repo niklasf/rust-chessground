@@ -207,12 +207,7 @@ fn draw_board(cr: &Context, state: &BoardState) {
         .map(|d| d.dest);
 
     for square in Bitboard::all() {
-        if (square.file() + square.rank()) & 1 == 1 {
-            cr.set_source(&light);
-        } else {
-            cr.set_source(&dark);
-        }
-
+        cr.set_source(if square.is_light() { &light } else { &dark });
         cr.rectangle(square.file() as f64, 7.0 - square.rank() as f64, 1.0, 1.0);
         cr.fill_preserve();
 
@@ -253,17 +248,7 @@ fn draw_pieces(cr: &Context, state: &BoardState) {
 }
 
 fn move_targets(state: &BoardState, orig: Square) -> Bitboard {
-    state.legals.iter().filter(|m| match **m {
-        Move::Normal { from, .. } => from == orig,
-        Move::EnPassant { from, .. } => from == orig,
-        Move::Castle { king, .. } => king == orig,
-        _ => false,
-    }).map(|m| match *m {
-        Move::Normal { to, .. } => to,
-        Move::EnPassant { to, .. } => to,
-        Move::Castle { rook, .. } => rook,
-        Move::Put { to, .. } => to,
-    }).collect()
+    state.legals.iter().filter(|m| m.from() == Some(orig)).map(|m| m.to()).collect()
 }
 
 fn draw_move_hints(cr: &Context, state: &BoardState) {
