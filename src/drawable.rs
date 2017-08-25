@@ -8,6 +8,8 @@ use std::f64::consts::PI;
 
 use shakmaty::Square;
 
+use gtk::prelude::*;
+use gtk::DrawingArea;
 use gdk::EventButton;
 use cairo::Context;
 
@@ -97,18 +99,16 @@ impl Drawable {
         }
     }
 
-    pub(crate) fn mouse_down(&mut self, square: Option<Square>, e: &EventButton) -> bool {
+    pub(crate) fn mouse_down(&mut self, widget: &DrawingArea, square: Option<Square>, e: &EventButton) {
         if !self.enabled {
-            return false;
+            return;
         }
 
         match e.get_button() {
             1 => {
                 if self.erase_on_click {
                     self.shapes.clear();
-                    true
-                } else {
-                    false
+                    widget.queue_draw();
                 }
             },
             3 => {
@@ -130,24 +130,23 @@ impl Drawable {
                     }
                 });
 
-                true
+                widget.queue_draw();
             },
-            _ => false,
+            _ => {},
         }
     }
 
-    pub(crate) fn mouse_move(&mut self, square: Option<Square>) -> bool {
+    pub(crate) fn mouse_move(&mut self, widget: &DrawingArea, square: Option<Square>) {
         if let Some(ref mut drawing) = self.drawing {
             let dest = square.unwrap_or(drawing.orig);
-            let redraw = drawing.dest != dest;
+            if drawing.dest != dest {
+                widget.queue_draw();
+            }
             drawing.dest = dest;
-            redraw
-        } else {
-            false
         }
     }
 
-    pub(crate) fn mouse_up(&mut self, square: Option<Square>) -> bool {
+    pub(crate) fn mouse_up(&mut self, widget: &DrawingArea, square: Option<Square>) {
         if let Some(mut drawing) = self.drawing.take() {
             drawing.dest = square.unwrap_or(drawing.orig);
 
@@ -158,9 +157,7 @@ impl Drawable {
                 self.shapes.push(drawing);
             }
 
-            true
-        } else {
-            false
+            widget.queue_draw();
         }
     }
 
