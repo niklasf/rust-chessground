@@ -24,19 +24,17 @@ struct DrawShape {
     orig: Square,
     dest: Square,
     brush: DrawBrush,
-    stroke: f64,
-    opacity: f64,
 }
 
 impl DrawShape {
     fn render_cairo(&self, cr: &Context) {
-        cr.set_line_width(self.stroke);
+        let opacity = 0.5;
 
         match self.brush {
-            DrawBrush::Green => cr.set_source_rgba(0.08, 0.47, 0.11, self.opacity),
-            DrawBrush::Red => cr.set_source_rgba(0.53, 0.13, 0.13, self.opacity),
-            DrawBrush::Blue => cr.set_source_rgba(0.0, 0.19, 0.53, self.opacity),
-            DrawBrush::Yellow => cr.set_source_rgba(0.90, 0.94, 0.0, self.opacity),
+            DrawBrush::Green => cr.set_source_rgba(0.08, 0.47, 0.11, opacity),
+            DrawBrush::Red => cr.set_source_rgba(0.53, 0.13, 0.13, opacity),
+            DrawBrush::Blue => cr.set_source_rgba(0.0, 0.19, 0.53, opacity),
+            DrawBrush::Yellow => cr.set_source_rgba(0.90, 0.94, 0.0, opacity),
         }
 
         let orig_x = 0.5 + self.orig.file() as f64;
@@ -46,7 +44,9 @@ impl DrawShape {
 
         if self.orig == self.dest {
             // draw circle
-            cr.arc(dest_x, dest_y, 0.5 * (1.0 - self.stroke), 0.0, 2.0 * PI);
+            let stroke = 0.05;
+            cr.set_line_width(stroke);
+            cr.arc(dest_x, dest_y, 0.5 * (1.0 - stroke), 0.0, 2.0 * PI);
             cr.stroke();
         } else {
             // draw arrow
@@ -61,6 +61,9 @@ impl DrawShape {
 
             let head_x = dest_x - dx * margin / hypot;
             let head_y = dest_y - dy * margin / hypot;
+
+            let stroke = 0.2;
+            cr.set_line_width(stroke);
 
             // shaft
             cr.move_to(orig_x, orig_y);
@@ -124,8 +127,6 @@ impl Drawable {
                         orig: square,
                         dest: square,
                         brush,
-                        opacity: 0.5,
-                        stroke: 0.2,
                     }
                 });
 
