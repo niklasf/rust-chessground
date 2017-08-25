@@ -9,13 +9,14 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::f64::consts::PI;
 
-use shakmaty::{Square, Color, Board, Bitboard, Move, MoveList, Position, Chess, Setup};
+use shakmaty::{Square, Color, Piece, Board, Bitboard, Move, MoveList, Position, Chess, Setup};
 use shakmaty::fen::Fen;
 
 use gtk::prelude::*;
 use gtk::{Window, WindowType, DrawingArea};
 use gdk::{EventButton, EventMotion};
-use cairo::Context;
+use cairo::prelude::*;
+use cairo::{Context, Matrix};
 use rsvg::HandleExt;
 
 use option_filter::OptionFilterExt;
@@ -38,6 +39,7 @@ struct BoardState {
 }
 
 struct Drag {
+    piece: Piece,
     orig: Square,
     dest: Square,
     start: (f64, f64),
@@ -159,7 +161,8 @@ fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventB
 
 fn drag_mouse_down(state: &mut BoardState, square: Option<Square>, e: &EventButton) -> Option<Inhibit> {
     if let Some(square) = square {
-        state.drag = Some(Drag {
+        state.drag = state.pieces.piece_at(square).map(|piece| Drag {
+            piece,
             orig: square,
             dest: square,
             start: e.get_position(),
@@ -305,8 +308,23 @@ fn draw_move_hints(cr: &Context, state: &BoardState) {
     }
 }
 
+fn draw_drag(cr: &Context, mut matrix: Matrix, state: &BoardState) {
+    if let Some(drag) = state.drag.as_ref().filter(|d| d.threshold()) {
+        matrix.invert();
+        let (x, y) = matrix.transform_point(drag.pos.0, drag.pos.1);
+        cr.translate(x, y);
+        cr.rotate(state.orientation.fold(0.0, PI));
+        cr.translate(-0.5, -0.5);
+
+        cr.scale(0.0056, 0.0056);
+
+        state.piece_set.by_piece(&drag.piece).render_cairo(cr);
+    }
+}
+
 fn draw(widget: &DrawingArea, cr: &Context, state: &BoardState) {
-    cr.set_matrix(util::compute_matrix(widget, state.orientation));
+    let matrix = util::compute_matrix(widget, state.orientation);
+    cr.set_matrix(matrix);
 
     draw_border(cr);
     draw_board(cr, &state);
@@ -315,6 +333,8 @@ fn draw(widget: &DrawingArea, cr: &Context, state: &BoardState) {
     state.drawable.render_cairo(cr);
 
     draw_move_hints(cr, &state);
+
+    draw_drag(cr, matrix, state);
 
     //ctx.rectangle(0.0, 0.0, 50.0, 50.0);
     //ctx.fill();
