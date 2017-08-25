@@ -43,7 +43,6 @@ struct BoardState {
 impl BoardState {
     fn user_move(&mut self, orig: Square, dest: Square) {
         let m = { self.legals.drain(..).filter(|m| m.from() == Some(orig) && m.to() == dest).next() };
-        println!("user move: {:?}", m);
         if let Some(m) = m {
             self.pos = self.pos.clone().play_unchecked(&m);
             self.pieces = self.pos.board().clone();
@@ -156,7 +155,7 @@ impl BoardView {
                     let mut state = state.borrow_mut();
                     let square = util::pos_to_square(widget, state.orientation, e.get_position());
 
-                    drag_mouse_move(&mut state, square, e);
+                    drag_mouse_move(&mut state, widget, square, e);
                     state.drawable.mouse_move(widget, square);
                 }
                 Inhibit(false)
@@ -167,7 +166,7 @@ impl BoardView {
     }
 }
 
-fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventButton) -> bool {
+fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventButton) {
     if e.get_button() == 1 {
         let orig = state.selected.take();
         let dest = util::pos_to_square(widget, state.orientation, e.get_position());
@@ -183,7 +182,7 @@ fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventB
         state.selected = None;
     }
 
-    true
+    widget.queue_draw();
 }
 
 fn drag_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventButton) {
@@ -202,13 +201,21 @@ fn drag_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Option<
     }
 }
 
-fn drag_mouse_move(state: &mut BoardState, square: Option<Square>, e: &EventMotion) -> bool {
+fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventMotion) {
     if let Some(ref mut drag) = state.drag {
-        drag.dest = square.unwrap_or(drag.orig);
+        let matrix = util::compute_matrix(widget, state.orientation);
+        let (dx, dy) = matrix.transform_distance(0.5, 0.5);
+        let (dx, dy) = (dx.ceil(), dy.ceil());
+
+
+        widget.queue_draw_area((drag.pos.0 - dx) as i32, (drag.pos.1 - dy) as i32,
+                               2 * (dx as i32), 2 * (dy as i32));
+
         drag.pos = e.get_position();
-        true
-    } else {
-        false
+        drag.dest = square.unwrap_or(drag.orig);
+
+        widget.queue_draw_area((drag.pos.0 - dx) as i32, (drag.pos.1 - dy) as i32,
+                               2 * (dx as i32), 2 * (dy as i32));
     }
 }
 
