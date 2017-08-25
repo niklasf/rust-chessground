@@ -244,7 +244,6 @@ fn drag_mouse_up(state: &mut BoardState, widget: &DrawingArea, square: Option<Sq
         drag.dest = square.unwrap_or(drag.orig);
         drag.pos = e.get_position();
         if drag.orig != drag.dest {
-            println!("drag: {} to {}", drag.orig, drag.dest);
             state.selected = None;
             state.user_move(drag.orig, drag.dest);
         }
@@ -295,7 +294,6 @@ fn draw_board(cr: &Context, state: &BoardState) {
     }
 
     if let Some((orig, dest)) = state.last_move {
-        println!("drawing with lastmove");
         cr.set_source_rgba(0.61, 0.78, 0.0, 0.41);
         cr.rectangle(orig.file() as f64, 7.0 - orig.rank() as f64, 1.0, 1.0);
         cr.fill();
