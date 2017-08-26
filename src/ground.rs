@@ -46,15 +46,25 @@ struct Figurine {
     piece: Piece,
     pos: (f64, f64),
     time: SteadyTime,
+    fading: bool,
 }
 
 impl Figurine {
     fn pos(&self) -> (f64, f64) {
-        let now = SteadyTime::now();
-        let elapsed = (now - self.time).num_milliseconds() as f64;
+        let elapsed = (SteadyTime::now() - self.time).num_milliseconds() as f64;
         let duration = 500.0;
         let (end_x, end_y) =  (0.5 + self.square.file() as f64, 7.5 - self.square.rank() as f64);
         (ease_in_out_cubic(self.pos.0, end_x, elapsed, duration), ease_in_out_cubic(self.pos.1, end_y, elapsed, duration))
+    }
+
+    fn alpha(&self) -> f64 {
+        if self.fading {
+            let elapsed = (SteadyTime::now() - self.time).num_milliseconds() as f64;
+            let duration = 500.0;
+            ease_in_out_cubic(1.0, 0.0, elapsed, duration)
+        } else {
+            1.0
+        }
     }
 }
 
@@ -64,15 +74,25 @@ struct Pieces {
 
 impl Pieces {
     pub fn test() -> Pieces {
-        let figurine = Figurine {
-            square: shakmaty::square::E1,
+        let a = Figurine {
+            square: shakmaty::square::H8,
             piece: Color::White.queen(),
             pos: (0.0, 0.0),
             time: SteadyTime::now(),
+            fading: false,
+        };
+
+        let b = Figurine {
+            square: shakmaty::square::H8,
+            piece: Color::Black.king(),
+            pos: (7.5, 0.5),
+            time: SteadyTime::now(),
+            fading: true,
         };
 
         let mut figurines = Vec::new();
-        figurines.push(figurine);
+        figurines.push(a);
+        figurines.push(b);
 
         Pieces { figurines }
     }
@@ -88,6 +108,7 @@ impl Pieces {
                 piece: board.piece_at(sq).expect("enumerating"),
                 pos: (0.5 + sq.file() as f64, 7.5 - sq.rank() as f64),
                 time: SteadyTime::now(),
+                fading: false,
             }).collect()
         }
     }
@@ -111,9 +132,9 @@ impl Pieces {
             cr.pop_group_to_source();
 
             if state.drag.as_ref().map_or(false, |d| d.threshold() && d.orig == figurine.square) {
-                cr.paint_with_alpha(0.2);
+                cr.paint_with_alpha(0.2 * figurine.alpha());
             } else {
-                cr.paint();
+                cr.paint_with_alpha(figurine.alpha());
             }
         }
     }
