@@ -381,7 +381,7 @@ fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventB
         {
             state.user_move(orig, dest);
         } else {
-            // TODO state.selected = dest.filter(|sq| state.pieces.occupied().contains(*sq));
+            state.selected = dest.filter(|sq| state.pieces.occupied().contains(*sq));
         }
     } else {
         state.selected = None;
