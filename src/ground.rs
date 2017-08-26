@@ -57,7 +57,7 @@ impl Figurine {
         } else {
             let elapsed = (SteadyTime::now() - self.time).num_milliseconds() as f64;
             let duration = 200.0;
-            let (end_x, end_y) =  (0.5 + self.square.file() as f64, 7.5 - self.square.rank() as f64);
+            let (end_x, end_y) = util::square_to_inverted(self.square);
             (ease_in_out_cubic(self.pos.0, end_x, elapsed, duration), ease_in_out_cubic(self.pos.1, end_y, elapsed, duration))
         }
     }
@@ -72,6 +72,16 @@ impl Figurine {
         } else {
             base
         }
+    }
+
+    fn elapsed(&self) -> f64 {
+        (SteadyTime::now() - self.time).num_milliseconds() as f64 / 1000.0
+    }
+
+    fn is_animating(&self) -> bool {
+        !self.dragging &&
+        (self.fading || self.pos != util::square_to_inverted(self.square)) &&
+        self.elapsed() <= 0.2
     }
 }
 
@@ -210,9 +220,14 @@ impl Pieces {
         self.figurines.iter_mut().find(|f| f.dragging)
     }
 
+    pub fn is_animating(&self) -> bool {
+        self.figurines.iter().any(|f| f.is_animating())
+    }
+
     pub fn animate(&self, widget: &DrawingArea) -> Continue {
+        let animating = self.is_animating();
         widget.queue_draw();
-        Continue(true)
+        Continue(animating)
     }
 }
 

@@ -44,3 +44,7 @@ pub fn inverted_to_square((x, y): (f64, f64)) -> Option<Square> {
         None
     }
 }
+
+pub fn square_to_inverted(square: Square) -> (f64, f64) {
+    (0.5 + square.file() as f64, 7.5 - square.rank() as f64)
+}
