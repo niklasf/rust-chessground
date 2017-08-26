@@ -34,8 +34,10 @@ fn ease_in_out_cubic(start: f64, end: f64, elapsed: f64, duration: f64) -> f64 {
         1.0
     } else if t >= 0.5 {
         (t - 1.0) * (2.0 * t - 2.0) * (2.0 * t - 2.0) + 1.0
-    } else {
+    } else if t >= 0.0 {
         4.0 * t * t * t
+    } else {
+        0.0
     };
     start + (end - start) * ease
 }
@@ -50,24 +52,24 @@ struct Figurine {
 }
 
 impl Figurine {
-    fn pos(&self) -> (f64, f64) {
+    fn pos(&self, now: SteadyTime) -> (f64, f64) {
         if self.dragging {
             (0.5 + self.square.file() as f64, 7.5 - self.square.rank() as f64)
         } else {
-            let elapsed = (SteadyTime::now() - self.time).num_milliseconds() as f64;
-            let duration = 200.0;
+            let duration = 0.2;
             let (end_x, end_y) = util::square_to_inverted(self.square);
-            (ease_in_out_cubic(self.pos.0, end_x, elapsed, duration), ease_in_out_cubic(self.pos.1, end_y, elapsed, duration))
+
+            (ease_in_out_cubic(self.pos.0, end_x, self.elapsed(now), duration),
+             ease_in_out_cubic(self.pos.1, end_y, self.elapsed(now), duration))
         }
     }
 
-    fn alpha(&self) -> f64 {
+    fn alpha(&self, now: SteadyTime) -> f64 {
         let base = if self.dragging { 0.2 } else { 1.0 };
 
         if self.fading {
-            let elapsed = (SteadyTime::now() - self.time).num_milliseconds() as f64;
-            let duration = 200.0;
-            base * ease_in_out_cubic(1.0, 0.0, elapsed, duration)
+            let duration = 0.2;
+            base * ease_in_out_cubic(1.0, 0.0, self.elapsed(now), duration)
         } else {
             base
         }
@@ -85,7 +87,7 @@ impl Figurine {
     fn render(&self, cr: &Context, state: &BoardState) {
         cr.push_group();
 
-        let (x, y) = self.pos();
+        let (x, y) = self.pos(state.now);
         cr.translate(x, y);
         cr.rotate(state.orientation.fold(0.0, PI));
         cr.translate(-0.5, -0.5);
@@ -94,7 +96,7 @@ impl Figurine {
         state.piece_set.by_piece(&self.piece).render_cairo(cr);
 
         cr.pop_group_to_source();
-        cr.paint_with_alpha(self.alpha());
+        cr.paint_with_alpha(self.alpha(state.now));
     }
 }
 
@@ -126,10 +128,10 @@ impl Pieces {
         let now = SteadyTime::now();
 
         // clean and freeze previous animation
-        self.figurines.retain(|f| f.alpha() > 0.0001);
+        self.figurines.retain(|f| f.alpha(now) > 0.0001);
         for figurine in &mut self.figurines {
             if !figurine.fading {
-                figurine.pos = figurine.pos();
+                figurine.pos = figurine.pos(now);
                 figurine.time = now;
             }
         }
@@ -245,6 +247,7 @@ struct BoardState {
     piece_set: PieceSet,
     legals: MoveList,
     pos: Chess,
+    now: SteadyTime,
 }
 
 impl BoardState {
@@ -293,6 +296,7 @@ impl BoardState {
             piece_set: pieceset::PieceSet::merida(),
             legals: MoveList::new(),
             pos: pos.clone(),
+            now: SteadyTime::now(),
         };
 
         pos.legal_moves(&mut state.legals);
@@ -322,8 +326,9 @@ impl BoardView {
             let weak_widget = Rc::downgrade(&v.widget);
             v.widget.connect_draw(move |widget, cr| {
                 if let Some(state) = state.upgrade() {
-                    let state = state.borrow();
-                    let animating = state.pieces.is_animating(SteadyTime::now());
+                    let mut state = state.borrow_mut();
+                    state.now = SteadyTime::now();
+                    let animating = state.pieces.is_animating(state.now);
 
                     let matrix = util::compute_matrix(widget, state.orientation);
                     cr.set_matrix(matrix);
