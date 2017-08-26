@@ -526,45 +526,46 @@ fn queue_draw_square(widget: &DrawingArea, orientation: Color, square: Square) {
 }
 
 fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventMotion) {
-    if let Some(ref drag_start) = state.drag_start {
-        let pos = util::invert_pos(widget, state.orientation, e.get_position());
-        let drag_distance = (drag_start.pos.0 - pos.0).hypot(drag_start.pos.1 - pos.1);
+    let pos = util::invert_pos(widget, state.orientation, e.get_position());
 
-        if state.pieces.dragging().is_none() && drag_distance < 0.1 {
-            return;
+    if let Some(ref drag_start) = state.drag_start {
+        let drag_distance = (drag_start.pos.0 - pos.0).hypot(drag_start.pos.1 - pos.1);
+        if drag_distance >= 0.1 {
+            if let Some(dragging) = state.pieces.figurine_at_mut(drag_start.square) {
+                dragging.dragging = true;
+            }
+        }
+    }
+
+    if let Some(dragging) = state.pieces.dragging_mut() {
+        let matrix = util::compute_matrix(widget, state.orientation);
+
+        // invalidate previous
+        let (x, y) = matrix.transform_point(dragging.pos.0 - 0.5, dragging.pos.1 - 0.5);
+        let (dx, dy) = matrix.transform_distance(1.0, 1.0);
+        widget.queue_draw_area(x as i32, y as i32, dx as i32, dy as i32);
+        queue_draw_square(widget, state.orientation, dragging.square);
+        if let Some(sq) = util::inverted_to_square(dragging.pos) {
+            queue_draw_square(widget, state.orientation, sq);
         }
 
-        if let Some(dragging) = state.pieces.figurine_at_mut(drag_start.square) {
-            dragging.dragging = true;
-            dragging.pos = pos;
-            dragging.time = SteadyTime::now();
+        // update position
+        dragging.pos = pos;
+        dragging.time = SteadyTime::now();
 
-            let matrix = util::compute_matrix(widget, state.orientation);
-
-            // invalidate previous
-            let (x, y) = matrix.transform_point(dragging.pos.0 - 0.5, dragging.pos.1 - 0.5);
-            let (dx, dy) = matrix.transform_distance(1.0, 1.0);
-            widget.queue_draw_area(x as i32, y as i32, dx as i32, dy as i32);
-            queue_draw_square(widget, state.orientation, dragging.square);
-            if let Some(sq) = util::inverted_to_square(dragging.pos) {
-                queue_draw_square(widget, state.orientation, sq);
-            }
-
-            // update position
-            dragging.pos = util::invert_pos(widget, state.orientation, e.get_position());
-
-            // invalidate new
-            let (x, y) = matrix.transform_point(dragging.pos.0 - 0.5, dragging.pos.1 - 0.5);
-            let (dx, dy) = matrix.transform_distance(1.0, 1.0);
-            widget.queue_draw_area(x as i32, y as i32, dx as i32, dy as i32);
-            if let Some(sq) = square {
-                queue_draw_square(widget, state.orientation, sq);
-            }
+        // invalidate new
+        let (x, y) = matrix.transform_point(dragging.pos.0 - 0.5, dragging.pos.1 - 0.5);
+        let (dx, dy) = matrix.transform_distance(1.0, 1.0);
+        widget.queue_draw_area(x as i32, y as i32, dx as i32, dy as i32);
+        if let Some(sq) = square {
+            queue_draw_square(widget, state.orientation, sq);
         }
     }
 }
 
 fn drag_mouse_up(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>) {
+    state.drag_start = None;
+
     let m = if let Some(dragging) = state.pieces.dragging_mut() {
         widget.queue_draw();
 
@@ -572,7 +573,6 @@ fn drag_mouse_up(state: &mut BoardState, widget: &DrawingArea, square: Option<Sq
         dragging.pos = util::square_to_inverted(dest);
         dragging.time = SteadyTime::now();
         dragging.dragging = false;
-        state.drag_start = None;
 
         if dragging.square != dest {
             state.selected = None;
@@ -581,7 +581,6 @@ fn drag_mouse_up(state: &mut BoardState, widget: &DrawingArea, square: Option<Sq
             None
         }
     } else {
-        state.drag_start = None;
         None
     };
 
