@@ -29,6 +29,7 @@ use pieceset::PieceSet;
 struct Figurine {
     square: Square,
     piece: Piece,
+    pos: (f64, f64),
 }
 
 struct Pieces {
@@ -45,6 +46,7 @@ impl Pieces {
             figurines: board.occupied().map(|sq| Figurine {
                 square: sq,
                 piece: board.piece_at(sq).expect("enumerating"),
+                pos: (0.5 + sq.file() as f64, 7.5 - sq.rank() as f64),
             }).collect()
         }
     }
@@ -56,12 +58,10 @@ impl Pieces {
     pub fn render(&self, cr: &Context, state: &BoardState) {
         for figurine in &self.figurines {
             cr.push_group();
-            cr.translate(figurine.square.file() as f64, 7.0 - figurine.square.rank() as f64);
 
-            cr.translate(0.5, 0.5);
+            cr.translate(figurine.pos.0, figurine.pos.1);
             cr.rotate(state.orientation.fold(0.0, PI));
             cr.translate(-0.5, -0.5);
-
             cr.scale(state.piece_set.scale(), state.piece_set.scale());
 
             state.piece_set.by_piece(&figurine.piece).render_cairo(cr);
