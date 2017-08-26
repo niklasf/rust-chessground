@@ -496,6 +496,8 @@ fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventB
             if state.valid_move(orig, dest) {
                 state.selected = None;
                 state.user_move(orig, dest);
+            } else if orig == dest {
+                state.selected = None;
             }
         }
     }
