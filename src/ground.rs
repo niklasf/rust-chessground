@@ -110,11 +110,9 @@ impl Pieces {
         }
 
         for (square, _) in removed {
-            if let Some(ref mut figurine) = self.figurines.iter_mut().find(|f| f.square == square) {
-                if !figurine.fading {
-                    figurine.fading = true;
-                    figurine.time = now;
-                }
+            if let Some(ref mut figurine) = self.figurines.iter_mut().find(|f| f.square == square && !f.fading) {
+                figurine.fading = true;
+                figurine.time = now;
             }
         }
 
