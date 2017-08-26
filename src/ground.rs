@@ -307,6 +307,14 @@ impl BoardState {
         self.pos.legal_moves(&mut self.legals);
         self.check = self.pos.board().king_of(self.pos.turn()).filter(|_| self.pos.checkers().any());
     }
+
+    fn move_targets(&self, orig: Square) -> Bitboard {
+        self.legals.iter().filter(|m| m.from() == Some(orig)).map(|m| m.to()).collect()
+    }
+
+    fn valid_move(&self, orig: Square, dest: Square) -> bool {
+        self.move_targets(orig).contains(dest)
+    }
 }
 
 struct Promoting {
@@ -371,9 +379,7 @@ impl BoardView {
                     draw_check(cr, &state);
                     state.pieces.render(cr, &state);
                     state.drawable.render(cr);
-
                     draw_move_hints(cr, &state);
-
                     draw_drag(cr, &state);
                     draw_promoting(cr, &state);
 
@@ -445,19 +451,19 @@ impl BoardView {
 }
 
 fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventButton) {
+    let orig = state.selected.take();
+
     if e.get_button() == 1 {
-        let orig = state.selected.take();
         let dest = util::pos_to_square(widget, state.orientation, e.get_position());
 
-        if let (Some(orig), Some(dest)) =
-            (orig, dest.filter(|sq| orig.map_or(false, |o| move_targets(state, o).contains(*sq))))
-        {
-            state.user_move(orig, dest);
-        } else {
-            state.selected = dest.filter(|sq| state.pieces.occupied().contains(*sq));
+        state.selected = dest.filter(|sq| state.pieces.occupied().contains(*sq));
+
+        if let (Some(orig), Some(dest)) = (orig, dest) {
+            if state.valid_move(orig, dest) {
+                state.selected = None;
+                state.user_move(orig, dest);
+            }
         }
-    } else {
-        state.selected = None;
     }
 
     widget.queue_draw();
@@ -537,7 +543,9 @@ fn drag_mouse_up(state: &mut BoardState, widget: &DrawingArea, square: Option<Sq
     };
 
     if let Some((orig, dest)) = m {
-        state.user_move(orig, dest);
+        if state.valid_move(orig, dest) {
+            state.user_move(orig, dest);
+        }
     }
 }
 
@@ -593,10 +601,6 @@ fn draw_board(cr: &Context, state: &BoardState) {
     }
 }
 
-fn move_targets(state: &BoardState, orig: Square) -> Bitboard {
-    state.legals.iter().filter(|m| m.from() == Some(orig)).map(|m| m.to()).collect()
-}
-
 fn draw_move_hints(cr: &Context, state: &BoardState) {
     if let Some(selected) = state.selected {
         cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
@@ -604,7 +608,7 @@ fn draw_move_hints(cr: &Context, state: &BoardState) {
         let radius = 0.12;
         let corner = 1.8 * radius;
 
-        for square in move_targets(state, selected) {
+        for square in state.move_targets(selected) {
             if state.pieces.occupied().contains(square) {
                 cr.move_to(square.file() as f64, 7.0 - square.rank() as f64);
                 cr.rel_line_to(corner, 0.0);
