@@ -70,14 +70,19 @@ impl Figurine {
     }
 
     fn alpha(&self, now: SteadyTime) -> f64 {
-        let base = if self.dragging {
-            0.2
-        } else if self.fading && self.replaced {
-            0.5
+        if self.dragging {
+            0.2 * self.alpha_easing(1.0, now)
         } else {
-            1.0
-        };
+            self.drag_alpha(now)
+        }
+    }
 
+    fn drag_alpha(&self, now: SteadyTime) -> f64 {
+        let base = if self.fading && self.replaced { 0.5 } else { 1.0 };
+        self.alpha_easing(base, now)
+    }
+
+    fn alpha_easing(&self, base: f64, now: SteadyTime) -> f64 {
         if self.fading {
             base * ease_in_out_cubic(1.0, 0.0, self.elapsed(now), ANIMATE_DURATION)
         } else {
@@ -548,8 +553,6 @@ fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<
     }
 
     if let Some(dragging) = state.pieces.dragging_mut() {
-        let matrix = util::compute_matrix(widget, state.orientation);
-
         // invalidate previous
         queue_draw_rect(widget, state.orientation, dragging.pos.0 - 0.5, dragging.pos.1 - 0.5, 1.0, 1.0);
         queue_draw_square(widget, state.orientation, dragging.square);
@@ -580,7 +583,7 @@ fn drag_mouse_up(state: &mut BoardState, widget: &DrawingArea, square: Option<Sq
         dragging.time = SteadyTime::now();
         dragging.dragging = false;
 
-        if dragging.square != dest {
+        if dragging.square != dest && !dragging.fading {
             state.selected = None;
             Some((dragging.square, dest))
         } else {
@@ -705,13 +708,14 @@ fn draw_check(cr: &Context, state: &BoardState) {
 
 fn draw_drag(cr: &Context, state: &BoardState) {
     if let Some(dragging) = state.pieces.dragging() {
-        cr.save();
+        cr.push_group();
         cr.translate(dragging.pos.0, dragging.pos.1);
         cr.rotate(state.orientation.fold(0.0, PI));
         cr.translate(-0.5, -0.5);
         cr.scale(state.piece_set.scale(), state.piece_set.scale());
         state.piece_set.by_piece(&dragging.piece).render_cairo(cr);
-        cr.restore();
+        cr.pop_group_to_source();
+        cr.paint_with_alpha(dragging.drag_alpha(state.now));
     }
 }
 
