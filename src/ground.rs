@@ -331,7 +331,6 @@ impl BoardView {
                     draw_promoting(cr, &state);
 
                     let weak_widget = weak_widget.clone();
-
                     if animating {
                         gtk::idle_add(move || {
                             if let Some(widget) = weak_widget.upgrade() {
@@ -449,22 +448,28 @@ fn queue_draw_square(widget: &DrawingArea, orientation: Color, square: Square) {
 }
 
 fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventMotion) {
-    if let Some(drag) = state.pieces.dragging_mut() {
+    if let Some(dragging) = state.pieces.dragging_mut() {
         let matrix = util::compute_matrix(widget, state.orientation);
-        let (dx, dy) = matrix.transform_distance(0.5, 0.5);
-        let (dx, dy) = (dx.ceil(), dy.ceil());
 
-        /* queue_draw_square(widget, state.orientation, drag.orig);
-        queue_draw_square(widget, state.orientation, drag.dest); */
-        widget.queue_draw_area((drag.pos.0 - dx) as i32, (drag.pos.1 - dy) as i32,
-                               2 * (dx as i32), 2 * (dy as i32));
+        // invalidate previous
+        let (x, y) = matrix.transform_point(dragging.pos.0 - 0.5, dragging.pos.1 - 0.5);
+        let (dx, dy) = matrix.transform_distance(1.0, 1.0);
+        widget.queue_draw_area(x as i32, y as i32, dx as i32, dy as i32);
+        queue_draw_square(widget, state.orientation, dragging.square);
+        if let Some(sq) = util::inverted_to_square(dragging.pos) {
+            queue_draw_square(widget, state.orientation, sq);
+        }
 
-        drag.pos = util::invert_pos(widget, state.orientation, e.get_position());
-        /*drag.dest = square.unwrap_or(drag.orig);
+        // update position
+        dragging.pos = util::invert_pos(widget, state.orientation, e.get_position());
 
-        queue_draw_square(widget, state.orientation, drag.dest); */
-        widget.queue_draw_area((drag.pos.0 - dx) as i32, (drag.pos.1 - dy) as i32,
-                               2 * (dx as i32), 2 * (dy as i32));
+        // invalidate new
+        let (x, y) = matrix.transform_point(dragging.pos.0 - 0.5, dragging.pos.1 - 0.5);
+        let (dx, dy) = matrix.transform_distance(1.0, 1.0);
+        widget.queue_draw_area(x as i32, y as i32, dx as i32, dy as i32);
+        if let Some(sq) = square {
+            queue_draw_square(widget, state.orientation, sq);
+        }
     }
 }
 
