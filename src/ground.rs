@@ -53,7 +53,7 @@ struct Figurine {
 impl Figurine {
     fn pos(&self) -> (f64, f64) {
         if self.dragging {
-            self.pos
+            (0.5 + self.square.file() as f64, 7.5 - self.square.rank() as f64)
         } else {
             let elapsed = (SteadyTime::now() - self.time).num_milliseconds() as f64;
             let duration = 500.0;
@@ -63,12 +63,14 @@ impl Figurine {
     }
 
     fn alpha(&self) -> f64 {
+        let base = if self.dragging { 0.2 } else { 1.0 };
+
         if self.fading {
             let elapsed = (SteadyTime::now() - self.time).num_milliseconds() as f64;
             let duration = 500.0;
-            ease_in_out_cubic(1.0, 0.0, elapsed, duration)
+            base * ease_in_out_cubic(1.0, 0.0, elapsed, duration)
         } else {
-            1.0
+            base
         }
     }
 }
@@ -188,12 +190,7 @@ impl Pieces {
             state.piece_set.by_piece(&figurine.piece).render_cairo(cr);
 
             cr.pop_group_to_source();
-
-            if state.drag.as_ref().map_or(false, |d| d.threshold() && d.orig == figurine.square) {
-                cr.paint_with_alpha(0.2 * figurine.alpha());
-            } else {
-                cr.paint_with_alpha(figurine.alpha());
-            }
+            cr.paint_with_alpha(figurine.alpha());
         }
     }
 
