@@ -25,13 +25,7 @@ pub fn compute_matrix(widget: &DrawingArea, orientation: Color) -> Matrix {
 
 pub fn pos_to_square(widget: &DrawingArea, orientation: Color, (x, y): (f64, f64)) -> Option<Square> {
     compute_matrix(widget, orientation).try_invert().ok().and_then(|matrix| {
-        let (x, y) = matrix.transform_point(x, y);
-        let (x, y) = (x.floor(), y.floor());
-        if 0f64 <= x && x <= 7f64 && 0f64 <= y && y <= 7f64 {
-            Square::from_coords(x as i8, 7 - y as i8)
-        } else {
-            None
-        }
+        inverted_to_square(matrix.transform_point(x, y))
     })
 }
 
@@ -40,4 +34,13 @@ pub fn invert_pos(widget: &DrawingArea, orientation: Color, (x, y): (f64, f64)) 
         .try_invert()
         .map(|m| m.transform_point(x, y))
         .unwrap_or((x, y))
+}
+
+pub fn inverted_to_square((x, y): (f64, f64)) -> Option<Square> {
+    let (x, y) = (x.floor(), y.floor());
+    if 0f64 <= x && x <= 7f64 && 0f64 <= y && y <= 7f64 {
+        Square::from_coords(x as i8, 7 - y as i8)
+    } else {
+        None
+    }
 }

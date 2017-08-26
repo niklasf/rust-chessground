@@ -56,7 +56,7 @@ impl Figurine {
             (0.5 + self.square.file() as f64, 7.5 - self.square.rank() as f64)
         } else {
             let elapsed = (SteadyTime::now() - self.time).num_milliseconds() as f64;
-            let duration = 500.0;
+            let duration = 200.0;
             let (end_x, end_y) =  (0.5 + self.square.file() as f64, 7.5 - self.square.rank() as f64);
             (ease_in_out_cubic(self.pos.0, end_x, elapsed, duration), ease_in_out_cubic(self.pos.1, end_y, elapsed, duration))
         }
@@ -67,7 +67,7 @@ impl Figurine {
 
         if self.fading {
             let elapsed = (SteadyTime::now() - self.time).num_milliseconds() as f64;
-            let duration = 500.0;
+            let duration = 200.0;
             base * ease_in_out_cubic(1.0, 0.0, elapsed, duration)
         } else {
             base
@@ -202,7 +202,11 @@ impl Pieces {
         self.figurines.iter_mut().find(|f| !f.fading && f.square == square)
     }
 
-    pub fn dragging(&mut self) -> Option<&mut Figurine> {
+    pub fn dragging(&self) -> Option<&Figurine> {
+        self.figurines.iter().find(|f| f.dragging)
+    }
+
+    pub fn dragging_mut(&mut self) -> Option<&mut Figurine> {
         self.figurines.iter_mut().find(|f| f.dragging)
     }
 
@@ -222,7 +226,6 @@ struct BoardState {
     drawable: Drawable,
     piece_set: PieceSet,
     legals: MoveList,
-    drag: Option<Drag>,
     pos: Chess,
 }
 
@@ -252,22 +255,6 @@ impl BoardState {
     }
 }
 
-struct Drag {
-    piece: Piece,
-    orig: Square,
-    dest: Square,
-    start: (f64, f64),
-    pos: (f64, f64),
-}
-
-impl Drag {
-    fn threshold(&self) -> bool {
-        let dx = self.start.0 - self.pos.0;
-        let dy = self.start.1 - self.pos.1;
-        dx.hypot(dy) > 3.0
-    }
-}
-
 struct Promoting {
     square: Square,
     hover: Option<Square>,
@@ -287,7 +274,6 @@ impl BoardState {
             drawable: Drawable::new(),
             piece_set: pieceset::PieceSet::merida(),
             legals: MoveList::new(),
-            drag: None,
             pos: pos.clone(),
         };
 
@@ -435,7 +421,7 @@ fn queue_draw_square(widget: &DrawingArea, orientation: Color, square: Square) {
 }
 
 fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventMotion) {
-    if let Some(drag) = state.pieces.dragging() {
+    if let Some(drag) = state.pieces.dragging_mut() {
         let matrix = util::compute_matrix(widget, state.orientation);
         let (dx, dy) = matrix.transform_distance(0.5, 0.5);
         let (dx, dy) = (dx.ceil(), dy.ceil());
@@ -455,14 +441,26 @@ fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<
 }
 
 fn drag_mouse_up(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventButton) {
-    if let Some(mut drag) = state.drag.take() {
-        drag.dest = square.unwrap_or(drag.orig);
-        drag.pos = e.get_position();
-        if drag.orig != drag.dest {
-            state.selected = None;
-            state.user_move(drag.orig, drag.dest);
-        }
+    let m = if let Some(dragging) = state.pieces.dragging_mut() {
         widget.queue_draw();
+
+        let dest = square.unwrap_or(dragging.square);
+        dragging.pos = util::invert_pos(widget, state.orientation, e.get_position());
+        dragging.time = SteadyTime::now();
+        dragging.dragging = false;
+
+        if dragging.square != dest {
+            state.selected = None;
+            Some((dragging.square, dest))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    if let Some((orig, dest)) = m {
+        state.user_move(orig, dest);
     }
 }
 
@@ -496,9 +494,7 @@ fn draw_board(cr: &Context, state: &BoardState) {
         cr.fill();
     }
 
-    let hovered = state.drag.as_ref()
-        .filter(|d| d.threshold() && move_targets(state, d.orig).contains(d.dest))
-        .map(|d| d.dest);
+    let hovered = state.pieces.dragging().and_then(|d| util::inverted_to_square(d.pos));
 
     if let Some(square) = hovered {
         if hovered != state.selected {
@@ -580,15 +576,13 @@ fn draw_check(cr: &Context, state: &BoardState) {
 }
 
 fn draw_drag(cr: &Context, mut matrix: Matrix, state: &BoardState) {
-    if let Some(drag) = state.drag.as_ref().filter(|d| d.threshold()) {
-        matrix.invert();
-        let (x, y) = matrix.transform_point(drag.pos.0, drag.pos.1);
+    if let Some(dragging) = state.pieces.dragging() {
         cr.save();
-        cr.translate(x, y);
+        cr.translate(dragging.pos.0, dragging.pos.1);
         cr.rotate(state.orientation.fold(0.0, PI));
         cr.translate(-0.5, -0.5);
-        cr.scale(0.0056, 0.0056);
-        state.piece_set.by_piece(&drag.piece).render_cairo(cr);
+        cr.scale(state.piece_set.scale(), state.piece_set.scale());
+        state.piece_set.by_piece(&dragging.piece).render_cairo(cr);
         cr.restore();
     }
 }
