@@ -74,14 +74,24 @@ struct Pieces {
 }
 
 impl Pieces {
-    pub fn test() -> Pieces {
-        let mut prev = Pieces::new();
-        let after = "2r2k1R/p1pR4/2p2p2/8/5PP1/8/PP3r2/2K5".parse().expect("valid fen");
-        prev.set_board(after);
-        prev
+    pub fn new() -> Pieces {
+        Pieces::new_from_board(&Board::new())
     }
 
-    pub fn set_board(&mut self, board: Board) {
+    pub fn new_from_board(board: &Board) -> Pieces {
+        Pieces {
+            board: board.clone(),
+            figurines: board.occupied().map(|sq| Figurine {
+                square: sq,
+                piece: board.piece_at(sq).expect("enumerating"),
+                pos: (0.5 + sq.file() as f64, 7.5 - sq.rank() as f64),
+                time: SteadyTime::now(),
+                fading: false,
+            }).collect()
+        }
+    }
+
+    pub fn set_board(&mut self, board: &Board) {
         let now = SteadyTime::now();
 
         // clean and freeze previous animation
@@ -93,6 +103,7 @@ impl Pieces {
             }
         }
 
+        // diff
         let mut removed = Bitboard(0);
         let mut added = Vec::new();
 
@@ -150,24 +161,7 @@ impl Pieces {
             });
         }
 
-        self.board = board;
-    }
-
-    pub fn new() -> Pieces {
-        Pieces::new_from_board(&Board::new())
-    }
-
-    pub fn new_from_board(board: &Board) -> Pieces {
-        Pieces {
-            board: board.clone(),
-            figurines: board.occupied().map(|sq| Figurine {
-                square: sq,
-                piece: board.piece_at(sq).expect("enumerating"),
-                pos: (0.5 + sq.file() as f64, 7.5 - sq.rank() as f64),
-                time: SteadyTime::now(),
-                fading: false,
-            }).collect()
-        }
+        self.board = board.clone();
     }
 
     pub fn occupied(&self) -> Bitboard {
@@ -218,10 +212,12 @@ struct BoardState {
 
 impl BoardState {
     fn user_move(&mut self, orig: Square, dest: Square) {
+        println!("user move: {} {}", orig, dest);
+
         let m = self.legals.drain(..).find(|m| m.from() == Some(orig) && m.to() == dest);
         if let Some(m) = m {
             self.pos = self.pos.clone().play_unchecked(&m);
-            self.pieces = Pieces::new_from_board(self.pos.board());
+            self.pieces.set_board(self.pos.board());
             self.last_move = Some((m.to(), m.from().unwrap_or_else(|| m.to())));
 
             // respond
@@ -229,7 +225,7 @@ impl BoardState {
             self.pos.legal_moves(&mut self.legals);
             if let Some(m) = self.legals.iter().next() {
                 self.pos = self.pos.clone().play_unchecked(m);
-                self.pieces = Pieces::new_from_board(self.pos.board());
+                self.pieces.set_board(self.pos.board());
                 self.last_move = Some((m.to(), m.from().unwrap_or_else(|| m.to())));
             }
         }
@@ -266,7 +262,7 @@ impl BoardState {
         let pos = Chess::default();
 
         let mut state = BoardState {
-            pieces: Pieces::test(),
+            pieces: Pieces::new(),
             orientation: Color::White,
             check: None,
             last_move: None,
