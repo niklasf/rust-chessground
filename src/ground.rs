@@ -30,7 +30,7 @@ use pieceset;
 use drawable::Drawable;
 use pieceset::PieceSet;
 
-pub const ANIMATE_DURATION: f64 = 2.0;
+pub const ANIMATE_DURATION: f64 = 0.2;
 
 fn ease_in_out_cubic(start: f64, end: f64, elapsed: f64, duration: f64) -> f64 {
     let t = elapsed / duration;
@@ -190,9 +190,6 @@ impl Pieces {
                 }
             }
         }
-
-        println!("removed:\n{:?}", removed);
-        println!("added: {:?}", added);
 
         // try to match additions and removals
         let mut matched = Vec::new();
