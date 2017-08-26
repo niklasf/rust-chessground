@@ -76,7 +76,7 @@ struct Pieces {
 impl Pieces {
     pub fn test() -> Pieces {
         let mut prev = Pieces::new();
-        let after = "rnb1kbnr/ppBppppp/2p5/8/3P4/8/PPP1PPPP/RN1QKBNR".parse().expect("valid fen");
+        let after = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR".parse().expect("valid fen");
         prev.set_board(after);
         prev
     }
@@ -93,15 +93,15 @@ impl Pieces {
             }
         }
 
-        let mut removed = Vec::new();
+        let mut removed = Bitboard(0);
         let mut added = Vec::new();
 
         for square in self.board.occupied() | board.occupied() {
             let old = self.board.piece_at(square);
             let new = board.piece_at(square);
             if old != new {
-                if let Some(old) = old {
-                    removed.push((square, old));
+                if old.is_some() {
+                    removed.add(square);
                 }
                 if let Some(new) = new {
                     added.push((square, new));
@@ -109,10 +109,29 @@ impl Pieces {
             }
         }
 
-        for (square, _) in removed {
-            if let Some(ref mut figurine) = self.figurines.iter_mut().find(|f| f.square == square && !f.fading) {
-                figurine.fading = true;
-                figurine.time = now;
+        // try to match additions and removals
+        added.retain(|&(square, piece)| {
+            let best = removed.filter(|sq| board.by_piece(piece).contains(*sq))
+                               .min_by_key(|sq| sq.distance(square));
+
+            if let Some(best) = best {
+                if let Some(figurine) = self.figurines.iter_mut().find(|f| !f.fading && f.square == best) {
+                    removed.remove(best);
+                    figurine.square = square;
+                    figurine.time = now;
+                    return false;
+                }
+            }
+
+            true
+        });
+
+        for square in removed {
+            for figurine in &mut self.figurines {
+                if !figurine.fading && figurine.square == square {
+                    figurine.fading = true;
+                    figurine.time = now;
+                }
             }
         }
 
