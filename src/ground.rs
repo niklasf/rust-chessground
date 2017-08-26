@@ -240,7 +240,7 @@ impl Pieces {
     }
 
     pub fn occupied(&self) -> Bitboard {
-        self.figurines.iter().map(|f| f.square).collect()
+        self.board.occupied()
     }
 
     pub fn render(&self, cr: &Context, state: &BoardState) {
