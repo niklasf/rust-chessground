@@ -76,7 +76,7 @@ struct Pieces {
 impl Pieces {
     pub fn test() -> Pieces {
         let mut prev = Pieces::new();
-        let after = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR".parse().expect("valid fen");
+        let after = "r1bqk2r/ppp1nppp/2n5/1N2P3/3N4/8/PP1Q1PPP/R3KB1R".parse().expect("valid fen");
         prev.set_board(after);
         prev
     }
@@ -110,20 +110,18 @@ impl Pieces {
         }
 
         // try to match additions and removals
+        let mut matched = Vec::new();
         added.retain(|&(square, piece)| {
             let best = removed.filter(|sq| self.board.by_piece(piece).contains(*sq))
                               .min_by_key(|sq| sq.distance(square));
 
             if let Some(best) = best {
-                if let Some(figurine) = self.figurines.iter_mut().find(|f| !f.fading && f.square == best) {
-                    removed.remove(best);
-                    figurine.square = square;
-                    figurine.time = now;
-                    return false;
-                }
+                removed.remove(best);
+                matched.push((best, square));
+                false
+            } else {
+                true
             }
-
-            true
         });
 
         for square in removed {
@@ -132,6 +130,13 @@ impl Pieces {
                     figurine.fading = true;
                     figurine.time = now;
                 }
+            }
+        }
+
+        for (orig, dest) in matched {
+            if let Some(figurine) = self.figurines.iter_mut().find(|f| !f.fading && f.square == orig) {
+                figurine.square = dest;
+                figurine.time = now;
             }
         }
 
