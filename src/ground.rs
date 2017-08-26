@@ -32,8 +32,8 @@ use pieceset::PieceSet;
 
 pub const ANIMATE_DURATION: f64 = 2.0;
 
-fn ease_in_out_cubic(start: f64, end: f64, elapsed: f64) -> f64 {
-    let t = elapsed / ANIMATE_DURATION;
+fn ease_in_out_cubic(start: f64, end: f64, elapsed: f64, duration: f64) -> f64 {
+    let t = elapsed / duration;
     let ease = if t >= 1.0 {
         1.0
     } else if t >= 0.5 {
@@ -52,6 +52,7 @@ struct Figurine {
     pos: (f64, f64),
     time: SteadyTime,
     fading: bool,
+    replaced: bool,
     dragging: bool,
 }
 
@@ -63,16 +64,22 @@ impl Figurine {
         } else if self.fading {
             self.pos
         } else {
-            (ease_in_out_cubic(self.pos.0, end.0, self.elapsed(now)),
-             ease_in_out_cubic(self.pos.1, end.1, self.elapsed(now)))
+            (ease_in_out_cubic(self.pos.0, end.0, self.elapsed(now), ANIMATE_DURATION),
+             ease_in_out_cubic(self.pos.1, end.1, self.elapsed(now), ANIMATE_DURATION))
         }
     }
 
     fn alpha(&self, now: SteadyTime) -> f64 {
-        let base = if self.dragging { 0.2 } else { 1.0 };
+        let base = if self.dragging {
+            0.2
+        } else if self.fading && self.replaced {
+            0.5
+        } else {
+            1.0
+        };
 
         if self.fading {
-            base * ease_in_out_cubic(1.0, 0.0, self.elapsed(now))
+            base * ease_in_out_cubic(1.0, 0.0, self.elapsed(now), ANIMATE_DURATION)
         } else {
             base
         }
@@ -149,6 +156,7 @@ impl Pieces {
                 pos: (0.5 + sq.file() as f64, 7.5 - sq.rank() as f64),
                 time: SteadyTime::now(),
                 fading: false,
+                replaced: false,
                 dragging: false,
             }).collect()
         }
@@ -206,12 +214,11 @@ impl Pieces {
             for figurine in &mut self.figurines {
                 if !figurine.fading && figurine.square == square {
                     figurine.fading = true;
+                    figurine.replaced = board.occupied().contains(square);
                     figurine.time = now;
                 }
             }
         }
-
-        //self.figurines.retain(|f| !f.fading || !added_mask.contains(f.square));
 
         for (orig, dest) in matched {
             if let Some(figurine) = self.figurines.iter_mut().find(|f| !f.fading && f.square == orig) {
@@ -227,6 +234,7 @@ impl Pieces {
                 pos: (0.5 + square.file() as f64, 7.5 - square.rank() as f64),
                 time: now,
                 fading: false,
+                replaced: false,
                 dragging: false,
             });
         }
