@@ -14,10 +14,9 @@ use shakmaty::{Square, Color, Role, Piece, Board, Bitboard, MoveList, Position, 
 
 use gtk::prelude::*;
 use gtk::DrawingArea;
-use gdk::prelude::*;
 use gdk::{EventButton, EventMotion};
 use cairo::prelude::*;
-use cairo::{Context, Matrix, RadialGradient};
+use cairo::{Context, RadialGradient};
 use rsvg::HandleExt;
 
 use option_filter::OptionFilterExt;
@@ -218,10 +217,6 @@ impl Pieces {
         }
     }
 
-    pub fn figurine_at(&self, square: Square) -> Option<&Figurine> {
-        self.figurines.iter().find(|f| !f.fading && f.square == square)
-    }
-
     pub fn figurine_at_mut(&mut self, square: Square) -> Option<&mut Figurine> {
         self.figurines.iter_mut().find(|f| !f.fading && f.square == square)
     }
@@ -234,8 +229,7 @@ impl Pieces {
         self.figurines.iter_mut().find(|f| f.dragging)
     }
 
-    pub fn is_animating(&self) -> bool {
-        let now = SteadyTime::now();
+    pub fn is_animating(&self, now: SteadyTime) -> bool {
         self.figurines.iter().any(|f| f.is_animating(now))
     }
 }
@@ -329,7 +323,7 @@ impl BoardView {
             v.widget.connect_draw(move |widget, cr| {
                 if let Some(state) = state.upgrade() {
                     let state = state.borrow();
-                    let animating = state.pieces.is_animating();
+                    let animating = state.pieces.is_animating(SteadyTime::now());
 
                     let matrix = util::compute_matrix(widget, state.orientation);
                     cr.set_matrix(matrix);
@@ -342,7 +336,7 @@ impl BoardView {
 
                     draw_move_hints(cr, &state);
 
-                    draw_drag(cr, matrix, &state);
+                    draw_drag(cr, &state);
                     draw_promoting(cr, &state);
 
                     let weak_widget = weak_widget.clone();
@@ -381,7 +375,7 @@ impl BoardView {
                     let mut state = state.borrow_mut();
                     let square = util::pos_to_square(widget, state.orientation, e.get_position());
 
-                    drag_mouse_up(&mut state, widget, square, e);
+                    drag_mouse_up(&mut state, widget, square);
                     state.drawable.mouse_up(widget, square);
                 }
                 Inhibit(false)
@@ -400,11 +394,6 @@ impl BoardView {
                 }
                 Inhibit(false)
             });
-        }
-
-        {
-            let state = Rc::downgrade(&v.state);
-            let widget = Rc::downgrade(&v.widget);
         }
 
         v
@@ -488,7 +477,7 @@ fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<
     }
 }
 
-fn drag_mouse_up(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventButton) {
+fn drag_mouse_up(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>) {
     let m = if let Some(dragging) = state.pieces.dragging_mut() {
         widget.queue_draw();
 
@@ -623,7 +612,7 @@ fn draw_check(cr: &Context, state: &BoardState) {
     }
 }
 
-fn draw_drag(cr: &Context, mut matrix: Matrix, state: &BoardState) {
+fn draw_drag(cr: &Context, state: &BoardState) {
     if let Some(dragging) = state.pieces.dragging() {
         cr.save();
         cr.translate(dragging.pos.0, dragging.pos.1);
