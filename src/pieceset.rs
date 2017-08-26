@@ -36,6 +36,10 @@ impl PieceSet {
     pub fn by_piece(&self, piece: &Piece) -> &Handle {
         self.by_color(piece.color).by_role(piece.role)
     }
+
+    pub fn scale(&self) -> f64 {
+        1.0 / 177.0
+    }
 }
 
 impl PieceSet {

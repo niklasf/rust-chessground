@@ -62,7 +62,7 @@ impl Pieces {
             cr.rotate(state.orientation.fold(0.0, PI));
             cr.translate(-0.5, -0.5);
 
-            cr.scale(0.0056, 0.0056);
+            cr.scale(state.piece_set.scale(), state.piece_set.scale());
 
             state.piece_set.by_piece(&figurine.piece).render_cairo(cr);
 
