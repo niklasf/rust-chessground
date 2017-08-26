@@ -111,8 +111,8 @@ impl Pieces {
 
         // try to match additions and removals
         added.retain(|&(square, piece)| {
-            let best = removed.filter(|sq| board.by_piece(piece).contains(*sq))
-                               .min_by_key(|sq| sq.distance(square));
+            let best = removed.filter(|sq| self.board.by_piece(piece).contains(*sq))
+                              .min_by_key(|sq| sq.distance(square));
 
             if let Some(best) = best {
                 if let Some(figurine) = self.figurines.iter_mut().find(|f| !f.fading && f.square == best) {
