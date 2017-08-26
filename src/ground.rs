@@ -205,6 +205,10 @@ impl Pieces {
         self.figurines.iter_mut().find(|f| !f.fading && f.square == square)
     }
 
+    pub fn dragging(&mut self) -> Option<&mut Figurine> {
+        self.figurines.iter_mut().find(|f| f.dragging)
+    }
+
     pub fn animate(&self, widget: &DrawingArea) -> Continue {
         widget.queue_draw();
         Continue(true)
@@ -434,20 +438,20 @@ fn queue_draw_square(widget: &DrawingArea, orientation: Color, square: Square) {
 }
 
 fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventMotion) {
-    if let Some(ref mut drag) = state.drag {
+    if let Some(drag) = state.pieces.dragging() {
         let matrix = util::compute_matrix(widget, state.orientation);
         let (dx, dy) = matrix.transform_distance(0.5, 0.5);
         let (dx, dy) = (dx.ceil(), dy.ceil());
 
-        queue_draw_square(widget, state.orientation, drag.orig);
-        queue_draw_square(widget, state.orientation, drag.dest);
+        /* queue_draw_square(widget, state.orientation, drag.orig);
+        queue_draw_square(widget, state.orientation, drag.dest); */
         widget.queue_draw_area((drag.pos.0 - dx) as i32, (drag.pos.1 - dy) as i32,
                                2 * (dx as i32), 2 * (dy as i32));
 
-        drag.pos = e.get_position();
-        drag.dest = square.unwrap_or(drag.orig);
+        drag.pos = util::invert_pos(widget, state.orientation, e.get_position());
+        /*drag.dest = square.unwrap_or(drag.orig);
 
-        queue_draw_square(widget, state.orientation, drag.dest);
+        queue_draw_square(widget, state.orientation, drag.dest); */
         widget.queue_draw_area((drag.pos.0 - dx) as i32, (drag.pos.1 - dy) as i32,
                                2 * (dx as i32), 2 * (dy as i32));
     }
