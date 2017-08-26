@@ -301,7 +301,8 @@ impl BoardState {
             if !self.legals.is_empty() {
                 let mut rng = rand::thread_rng();
                 let idx = Range::new(0, self.legals.len()).ind_sample(&mut rng);
-                self.pos = self.pos.clone().play_unchecked(&self.legals[idx]);
+                let m = &self.legals[idx];
+                self.pos = self.pos.clone().play_unchecked(m);
                 self.pieces.set_board(self.pos.board());
                 self.last_move = Some((m.to(), m.from().unwrap_or_else(|| m.to())));
             }
