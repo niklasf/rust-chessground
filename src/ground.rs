@@ -14,6 +14,7 @@ use shakmaty::{Square, Color, Role, Piece, Board, Bitboard, MoveList, Position, 
 
 use gtk::prelude::*;
 use gtk::DrawingArea;
+use gdk::prelude::*;
 use gdk::{EventButton, EventMotion};
 use cairo::prelude::*;
 use cairo::{Context, Matrix, RadialGradient};
@@ -37,6 +38,19 @@ struct Pieces {
 }
 
 impl Pieces {
+    pub fn test() -> Pieces {
+        let figurine = Figurine {
+            square: shakmaty::square::E1,
+            piece: Color::White.queen(),
+            pos: (0.0, 0.0),
+        };
+
+        let mut figurines = Vec::new();
+        figurines.push(figurine);
+
+        Pieces { figurines }
+    }
+
     pub fn new() -> Pieces {
         Pieces::new_from_board(&Board::new())
     }
@@ -74,6 +88,11 @@ impl Pieces {
                 cr.paint();
             }
         }
+    }
+
+    pub fn animate(&self, widget: &DrawingArea) -> Continue {
+        widget.queue_draw();
+        Continue(true)
     }
 }
 
@@ -141,7 +160,7 @@ impl BoardState {
         let pos = Chess::default();
 
         let mut state = BoardState {
-            pieces: Pieces::new(),
+            pieces: Pieces::test(),
             orientation: Color::White,
             check: None,
             last_move: None,
@@ -161,14 +180,14 @@ impl BoardState {
 }
 
 pub struct BoardView {
-    widget: DrawingArea,
+    widget: Rc<DrawingArea>,
     state: Rc<RefCell<BoardState>>,
 }
 
 impl BoardView {
     pub fn new() -> Self {
         let v = BoardView {
-            widget: DrawingArea::new(),
+            widget: Rc::new(DrawingArea::new()),
             state: Rc::new(RefCell::new(BoardState::test())),
         };
 
@@ -226,6 +245,19 @@ impl BoardView {
                     state.drawable.mouse_move(widget, square);
                 }
                 Inhibit(false)
+            });
+        }
+
+        {
+            let state = Rc::downgrade(&v.state);
+            let widget = Rc::downgrade(&v.widget);
+            gtk::idle_add(move || {
+                if let (Some(state), Some(widget)) = (state.upgrade(), widget.upgrade()) {
+                    let state = state.borrow();
+                    state.pieces.animate(&widget)
+                } else {
+                    Continue(false)
+                }
             });
         }
 
