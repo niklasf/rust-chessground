@@ -277,12 +277,12 @@ struct BoardState {
     check: Option<Square>,
     selected: Option<Square>,
     last_move: Option<(Square, Square)>,
-    promoting: Option<Promoting>,
-    drawable: Drawable,
     piece_set: PieceSet,
+    drawable: Drawable,
+    now: SteadyTime,
+    promoting: Option<Promoting>,
     legals: MoveList,
     pos: Chess,
-    now: SteadyTime,
 }
 
 impl BoardState {
@@ -327,7 +327,7 @@ struct Promoting {
 }
 
 impl BoardState {
-    fn test() -> Self {
+    fn new() -> Self {
         let pos = Chess::default();
 
         let mut state = BoardState {
@@ -359,7 +359,7 @@ impl BoardView {
     pub fn new() -> Self {
         let v = BoardView {
             widget: Rc::new(DrawingArea::new()),
-            state: Rc::new(RefCell::new(BoardState::test())),
+            state: Rc::new(RefCell::new(BoardState::new())),
         };
 
         v.widget.add_events((gdk::BUTTON_PRESS_MASK |
@@ -577,21 +577,20 @@ fn draw_board(cr: &Context, state: &BoardState) {
         }
     }
 
-    if let Some(square) = state.selected {
-        cr.rectangle(square.file() as f64, 7.0 - square.rank() as f64, 1.0, 1.0);
+    if let Some(selected) = state.selected {
+        cr.rectangle(selected.file() as f64, 7.0 - selected.rank() as f64, 1.0, 1.0);
         cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
         cr.fill();
-    }
 
-    let hovered = state.pieces.dragging().and_then(|d| util::inverted_to_square(d.pos));
-
-    if let Some(square) = hovered {
-        if hovered != state.selected {
-            cr.rectangle(square.file() as f64, 7.0 - square.rank() as f64, 1.0, 1.0);
-            cr.set_source_rgba(0.08, 0.47, 0.11, 0.25);
-            cr.fill();
+        if let Some(hovered) = state.pieces.dragging().and_then(|d| util::inverted_to_square(d.pos)) {
+            if state.valid_move(selected, hovered) {
+                cr.rectangle(hovered.file() as f64, 7.0 - hovered.rank() as f64, 1.0, 1.0);
+                cr.set_source_rgba(0.08, 0.47, 0.11, 0.25);
+                cr.fill();
+            }
         }
     }
+
 
     if let Some((orig, dest)) = state.last_move {
         cr.set_source_rgba(0.61, 0.78, 0.0, 0.41);
