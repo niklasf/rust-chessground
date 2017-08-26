@@ -183,11 +183,15 @@ impl Pieces {
             }
         }
 
+        println!("removed:\n{:?}", removed);
+        println!("added: {:?}", added);
+
         // try to match additions and removals
         let mut matched = Vec::new();
         added.retain(|&(square, piece)| {
-            let best = removed.filter(|sq| self.board.by_piece(piece).contains(*sq))
-                              .min_by_key(|sq| sq.distance(square));
+            let best = removed
+                .filter(|sq| self.board.by_piece(piece).contains(*sq))
+                .min_by_key(|sq| sq.distance(square));
 
             if let Some(best) = best {
                 removed.remove(best);
@@ -206,6 +210,8 @@ impl Pieces {
                 }
             }
         }
+
+        //self.figurines.retain(|f| !f.fading || !added_mask.contains(f.square));
 
         for (orig, dest) in matched {
             if let Some(figurine) = self.figurines.iter_mut().find(|f| !f.fading && f.square == orig) {
@@ -254,6 +260,10 @@ impl Pieces {
         }
     }
 
+    pub fn figurine_at(&self, square: Square) -> Option<&Figurine> {
+        self.figurines.iter().find(|f| !f.fading && f.square == square)
+    }
+
     pub fn figurine_at_mut(&mut self, square: Square) -> Option<&mut Figurine> {
         self.figurines.iter_mut().find(|f| !f.fading && f.square == square)
     }
@@ -277,12 +287,18 @@ impl Pieces {
     }
 }
 
+struct DragStart {
+    pos: (f64, f64),
+    square: Square,
+}
+
 struct BoardState {
     pieces: Pieces,
     orientation: Color,
     check: Option<Square>,
     selected: Option<Square>,
     last_move: Option<(Square, Square)>,
+    drag_start: Option<DragStart>,
     piece_set: PieceSet,
     drawable: Drawable,
     now: SteadyTime,
@@ -344,6 +360,7 @@ impl BoardState {
             check: None,
             last_move: None,
             selected: None,
+            drag_start: None,
             promoting: None,
             drawable: Drawable::new(),
             piece_set: pieceset::PieceSet::merida(),
@@ -484,13 +501,12 @@ fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventB
 fn drag_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventButton) {
     if e.get_button() == 1 {
         if let Some(square) = square {
-            if let Some(figurine) = state.pieces.figurine_at_mut(square) {
-                figurine.pos = util::invert_pos(widget, state.orientation, e.get_position());
-                figurine.time = SteadyTime::now();
-                figurine.dragging = true;
+            if state.pieces.figurine_at(square).is_some() {
+                state.drag_start = Some(DragStart {
+                    pos: util::invert_pos(widget, state.orientation, e.get_position()),
+                    square,
+                });
             }
-
-            widget.queue_draw();
         }
     }
 }
@@ -510,27 +526,40 @@ fn queue_draw_square(widget: &DrawingArea, orientation: Color, square: Square) {
 }
 
 fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventMotion) {
-    if let Some(dragging) = state.pieces.dragging_mut() {
-        let matrix = util::compute_matrix(widget, state.orientation);
+    if let Some(ref drag_start) = state.drag_start {
+        let pos = util::invert_pos(widget, state.orientation, e.get_position());
+        let drag_distance = (drag_start.pos.0 - pos.0).hypot(drag_start.pos.1 - pos.1);
 
-        // invalidate previous
-        let (x, y) = matrix.transform_point(dragging.pos.0 - 0.5, dragging.pos.1 - 0.5);
-        let (dx, dy) = matrix.transform_distance(1.0, 1.0);
-        widget.queue_draw_area(x as i32, y as i32, dx as i32, dy as i32);
-        queue_draw_square(widget, state.orientation, dragging.square);
-        if let Some(sq) = util::inverted_to_square(dragging.pos) {
-            queue_draw_square(widget, state.orientation, sq);
+        if state.pieces.dragging().is_none() && drag_distance < 0.1 {
+            return;
         }
 
-        // update position
-        dragging.pos = util::invert_pos(widget, state.orientation, e.get_position());
+        if let Some(dragging) = state.pieces.figurine_at_mut(drag_start.square) {
+            dragging.dragging = true;
+            dragging.pos = pos;
+            dragging.time = SteadyTime::now();
 
-        // invalidate new
-        let (x, y) = matrix.transform_point(dragging.pos.0 - 0.5, dragging.pos.1 - 0.5);
-        let (dx, dy) = matrix.transform_distance(1.0, 1.0);
-        widget.queue_draw_area(x as i32, y as i32, dx as i32, dy as i32);
-        if let Some(sq) = square {
-            queue_draw_square(widget, state.orientation, sq);
+            let matrix = util::compute_matrix(widget, state.orientation);
+
+            // invalidate previous
+            let (x, y) = matrix.transform_point(dragging.pos.0 - 0.5, dragging.pos.1 - 0.5);
+            let (dx, dy) = matrix.transform_distance(1.0, 1.0);
+            widget.queue_draw_area(x as i32, y as i32, dx as i32, dy as i32);
+            queue_draw_square(widget, state.orientation, dragging.square);
+            if let Some(sq) = util::inverted_to_square(dragging.pos) {
+                queue_draw_square(widget, state.orientation, sq);
+            }
+
+            // update position
+            dragging.pos = util::invert_pos(widget, state.orientation, e.get_position());
+
+            // invalidate new
+            let (x, y) = matrix.transform_point(dragging.pos.0 - 0.5, dragging.pos.1 - 0.5);
+            let (dx, dy) = matrix.transform_distance(1.0, 1.0);
+            widget.queue_draw_area(x as i32, y as i32, dx as i32, dy as i32);
+            if let Some(sq) = square {
+                queue_draw_square(widget, state.orientation, sq);
+            }
         }
     }
 }
@@ -543,6 +572,7 @@ fn drag_mouse_up(state: &mut BoardState, widget: &DrawingArea, square: Option<Sq
         dragging.pos = util::square_to_inverted(dest);
         dragging.time = SteadyTime::now();
         dragging.dragging = false;
+        state.drag_start = None;
 
         if dragging.square != dest {
             state.selected = None;
@@ -551,6 +581,7 @@ fn drag_mouse_up(state: &mut BoardState, widget: &DrawingArea, square: Option<Sq
             None
         }
     } else {
+        state.drag_start = None;
         None
     };
 
