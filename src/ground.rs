@@ -30,8 +30,10 @@ use pieceset;
 use drawable::Drawable;
 use pieceset::PieceSet;
 
-fn ease_in_out_cubic(start: f64, end: f64, elapsed: f64, duration: f64) -> f64 {
-    let t = elapsed / duration;
+pub const ANIMATE_DURATION: f64 = 2.0;
+
+fn ease_in_out_cubic(start: f64, end: f64, elapsed: f64) -> f64 {
+    let t = elapsed / ANIMATE_DURATION;
     let ease = if t >= 1.0 {
         1.0
     } else if t >= 0.5 {
@@ -55,14 +57,14 @@ struct Figurine {
 
 impl Figurine {
     fn pos(&self, now: SteadyTime) -> (f64, f64) {
+        let end = util::square_to_inverted(self.square);
         if self.dragging {
-            (0.5 + self.square.file() as f64, 7.5 - self.square.rank() as f64)
+            end
+        } else if self.fading {
+            self.pos
         } else {
-            let duration = 0.2;
-            let (end_x, end_y) = util::square_to_inverted(self.square);
-
-            (ease_in_out_cubic(self.pos.0, end_x, self.elapsed(now), duration),
-             ease_in_out_cubic(self.pos.1, end_y, self.elapsed(now), duration))
+            (ease_in_out_cubic(self.pos.0, end.0, self.elapsed(now)),
+             ease_in_out_cubic(self.pos.1, end.1, self.elapsed(now)))
         }
     }
 
@@ -70,8 +72,7 @@ impl Figurine {
         let base = if self.dragging { 0.2 } else { 1.0 };
 
         if self.fading {
-            let duration = 0.2;
-            base * ease_in_out_cubic(1.0, 0.0, self.elapsed(now), duration)
+            base * ease_in_out_cubic(1.0, 0.0, self.elapsed(now))
         } else {
             base
         }
@@ -82,7 +83,7 @@ impl Figurine {
     }
 
     fn is_animating(&self, now: SteadyTime) -> bool {
-        !self.dragging && self.elapsed(now) <= 0.2 &&
+        !self.dragging && self.elapsed(now) <= ANIMATE_DURATION &&
         (self.fading || self.pos != util::square_to_inverted(self.square))
     }
 
@@ -235,12 +236,17 @@ impl Pieces {
         let now = SteadyTime::now();
 
         for figurine in &self.figurines {
-            if figurine.fading || !figurine.is_animating(now) {
+            if figurine.fading {
                 figurine.render(cr, state);
             }
         }
 
-        // draw currently animating pieces on top of others
+        for figurine in &self.figurines {
+            if !figurine.fading && !figurine.is_animating(now) {
+                figurine.render(cr, state);
+            }
+        }
+
         for figurine in &self.figurines {
             if !figurine.fading && figurine.is_animating(now) {
                 figurine.render(cr, state);
@@ -329,10 +335,11 @@ struct Promoting {
 
 impl BoardState {
     fn new() -> Self {
-        let pos = Chess::default();
+        let fen: shakmaty::fen::Fen = "rnbqkbnr/ppppppPp/8/8/8/8/PPPPPP1P/RNBQKBNR".parse().expect("valid fen");
+        let pos: Chess = fen.position().expect("legal position");
 
         let mut state = BoardState {
-            pieces: Pieces::new(),
+            pieces: Pieces::new_from_board(pos.board()),
             orientation: Color::White,
             check: None,
             last_move: None,
