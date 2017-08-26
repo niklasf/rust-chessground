@@ -223,12 +223,6 @@ impl Pieces {
     pub fn is_animating(&self) -> bool {
         self.figurines.iter().any(|f| f.is_animating())
     }
-
-    pub fn animate(&self, widget: &DrawingArea) -> Continue {
-        let animating = self.is_animating();
-        widget.queue_draw();
-        Continue(animating)
-    }
 }
 
 struct BoardState {
@@ -316,9 +310,36 @@ impl BoardView {
 
         {
             let state = Rc::downgrade(&v.state);
+            let weak_widget = Rc::downgrade(&v.widget);
             v.widget.connect_draw(move |widget, cr| {
                 if let Some(state) = state.upgrade() {
-                    draw(widget, cr, &*state.borrow());
+                    let state = state.borrow();
+                    let animating = state.pieces.is_animating();
+
+                    let matrix = util::compute_matrix(widget, state.orientation);
+                    cr.set_matrix(matrix);
+
+                    draw_border(cr);
+                    draw_board(cr, &state);
+                    draw_check(cr, &state);
+                    state.pieces.render(cr, &state);
+                    state.drawable.render(cr);
+
+                    draw_move_hints(cr, &state);
+
+                    draw_drag(cr, matrix, &state);
+                    draw_promoting(cr, &state);
+
+                    let weak_widget = weak_widget.clone();
+
+                    if animating {
+                        gtk::idle_add(move || {
+                            if let Some(widget) = weak_widget.upgrade() {
+                                widget.queue_draw();
+                            }
+                            Continue(false)
+                        });
+                    }
                 }
                 Inhibit(false)
             });
@@ -370,14 +391,6 @@ impl BoardView {
         {
             let state = Rc::downgrade(&v.state);
             let widget = Rc::downgrade(&v.widget);
-            gtk::idle_add(move || {
-                if let (Some(state), Some(widget)) = (state.upgrade(), widget.upgrade()) {
-                    let state = state.borrow();
-                    state.pieces.animate(&widget)
-                } else {
-                    Continue(false)
-                }
-            });
         }
 
         v
@@ -645,24 +658,4 @@ fn draw_promoting(cr: &Context, state: &BoardState) {
             square = Square::from_coords(square.file(), square.rank() - offset as i8).expect("promotion dialog square on board");
         }
     }
-}
-
-fn draw(widget: &DrawingArea, cr: &Context, state: &BoardState) {
-    let matrix = util::compute_matrix(widget, state.orientation);
-    cr.set_matrix(matrix);
-
-    draw_border(cr);
-    draw_board(cr, state);
-    draw_check(cr, state);
-    state.pieces.render(cr, state);
-    state.drawable.render(cr);
-
-    draw_move_hints(cr, state);
-
-    draw_drag(cr, matrix, state);
-    draw_promoting(cr, state);
-
-    //ctx.rectangle(0.0, 0.0, 50.0, 50.0);
-    //ctx.fill();
-    //img.render_cairo(ctx);
 }
