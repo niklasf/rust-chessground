@@ -361,7 +361,7 @@ impl BoardState {
 
         let mut state = BoardState {
             pieces: Pieces::new_from_board(pos.board()),
-            orientation: Color::White,
+            orientation: Color::Black,
             check: None,
             last_move: None,
             selected: None,
@@ -517,10 +517,13 @@ fn drag_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Option<
 }
 
 fn queue_draw_square(widget: &DrawingArea, orientation: Color, square: Square) {
-    let matrix = util::compute_matrix(widget, orientation);
+    queue_draw_rect(widget, orientation, square.file() as f64, 7.0 - square.rank() as f64, 1.0, 1.0);
+}
 
-    let (x1, y1) = matrix.transform_point(square.file() as f64, 7.0 - square.rank() as f64);
-    let (x2, y2) = matrix.transform_point(1.0 + square.file() as f64, 8.0 - square.rank() as f64);
+fn queue_draw_rect(widget: &DrawingArea, orientation: Color, x: f64, y: f64, width: f64, height: f64) {
+    let matrix = util::compute_matrix(widget, orientation);
+    let (x1, y1) = matrix.transform_point(x, y);
+    let (x2, y2) = matrix.transform_point(x + width, y + height);
 
     let xmin = min(x1.floor() as i32, x2.floor() as i32);
     let ymin = min(y1.floor() as i32, y2.floor() as i32);
@@ -546,9 +549,7 @@ fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<
         let matrix = util::compute_matrix(widget, state.orientation);
 
         // invalidate previous
-        let (x, y) = matrix.transform_point(dragging.pos.0 - 0.5, dragging.pos.1 - 0.5);
-        let (dx, dy) = matrix.transform_distance(1.0, 1.0);
-        widget.queue_draw_area(x as i32, y as i32, dx as i32, dy as i32);
+        queue_draw_rect(widget, state.orientation, dragging.pos.0 - 0.5, dragging.pos.1 - 0.5, 1.0, 1.0);
         queue_draw_square(widget, state.orientation, dragging.square);
         if let Some(sq) = util::inverted_to_square(dragging.pos) {
             queue_draw_square(widget, state.orientation, sq);
@@ -559,9 +560,7 @@ fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<
         dragging.time = SteadyTime::now();
 
         // invalidate new
-        let (x, y) = matrix.transform_point(dragging.pos.0 - 0.5, dragging.pos.1 - 0.5);
-        let (dx, dy) = matrix.transform_distance(1.0, 1.0);
-        widget.queue_draw_area(x as i32, y as i32, dx as i32, dy as i32);
+        queue_draw_rect(widget, state.orientation, dragging.pos.0 - 0.5, dragging.pos.1 - 0.5, 1.0, 1.0);
         if let Some(sq) = square {
             queue_draw_square(widget, state.orientation, sq);
         }
