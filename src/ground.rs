@@ -52,7 +52,7 @@ struct Figurine {
 impl Figurine {
     fn pos(&self) -> (f64, f64) {
         let elapsed = (SteadyTime::now() - self.time).num_milliseconds() as f64;
-        let duration = 500.0;
+        let duration = 2000.0;
         let (end_x, end_y) =  (0.5 + self.square.file() as f64, 7.5 - self.square.rank() as f64);
         (ease_in_out_cubic(self.pos.0, end_x, elapsed, duration), ease_in_out_cubic(self.pos.1, end_y, elapsed, duration))
     }
@@ -60,7 +60,7 @@ impl Figurine {
     fn alpha(&self) -> f64 {
         if self.fading {
             let elapsed = (SteadyTime::now() - self.time).num_milliseconds() as f64;
-            let duration = 500.0;
+            let duration = 2000.0;
             ease_in_out_cubic(1.0, 0.0, elapsed, duration)
         } else {
             1.0
@@ -69,32 +69,66 @@ impl Figurine {
 }
 
 struct Pieces {
+    board: Board,
     figurines: Vec<Figurine>,
 }
 
 impl Pieces {
     pub fn test() -> Pieces {
-        let a = Figurine {
-            square: shakmaty::square::H8,
-            piece: Color::White.queen(),
-            pos: (0.0, 0.0),
-            time: SteadyTime::now(),
-            fading: false,
-        };
+        let mut prev = Pieces::new();
+        let after = "rnb1kbnr/ppBppppp/2p5/8/3P4/8/PPP1PPPP/RN1QKBNR".parse().expect("valid fen");
+        prev.set_board(after);
+        prev
+    }
 
-        let b = Figurine {
-            square: shakmaty::square::H8,
-            piece: Color::Black.king(),
-            pos: (7.5, 0.5),
-            time: SteadyTime::now(),
-            fading: true,
-        };
+    pub fn set_board(&mut self, board: Board) {
+        let now = SteadyTime::now();
 
-        let mut figurines = Vec::new();
-        figurines.push(a);
-        figurines.push(b);
+        // clean and freeze previous animation
+        self.figurines.retain(|f| f.alpha() > 0.0001);
+        for figurine in &mut self.figurines {
+            if !figurine.fading {
+                figurine.pos = figurine.pos();
+                figurine.time = now;
+            }
+        }
 
-        Pieces { figurines }
+        let mut removed = Vec::new();
+        let mut added = Vec::new();
+
+        for square in self.board.occupied() | board.occupied() {
+            let old = self.board.piece_at(square);
+            let new = board.piece_at(square);
+            if old != new {
+                if let Some(old) = old {
+                    removed.push((square, old));
+                }
+                if let Some(new) = new {
+                    added.push((square, new));
+                }
+            }
+        }
+
+        for (square, _) in removed {
+            if let Some(ref mut figurine) = self.figurines.iter_mut().find(|f| f.square == square) {
+                if !figurine.fading {
+                    figurine.fading = true;
+                    figurine.time = now;
+                }
+            }
+        }
+
+        for (square, piece) in added {
+            self.figurines.push(Figurine {
+                square: square,
+                piece: piece,
+                pos: (0.5 + square.file() as f64, 7.5 - square.rank() as f64),
+                time: now,
+                fading: false,
+            });
+        }
+
+        self.board = board;
     }
 
     pub fn new() -> Pieces {
@@ -103,6 +137,7 @@ impl Pieces {
 
     pub fn new_from_board(board: &Board) -> Pieces {
         Pieces {
+            board: board.clone(),
             figurines: board.occupied().map(|sq| Figurine {
                 square: sq,
                 piece: board.piece_at(sq).expect("enumerating"),
