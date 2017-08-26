@@ -22,15 +22,36 @@ use rsvg::HandleExt;
 
 use option_filter::OptionFilterExt;
 
+use time::SteadyTime;
+
 use util;
 use pieceset;
 use drawable::Drawable;
 use pieceset::PieceSet;
 
+fn easing(start: f64, end: f64, elapsed: f64, duration: f64) -> f64 {
+    if elapsed > duration {
+        end
+    } else {
+        start + (end - start) * elapsed / duration
+    }
+}
+
 struct Figurine {
     square: Square,
     piece: Piece,
     pos: (f64, f64),
+    time: SteadyTime,
+}
+
+impl Figurine {
+    fn pos(&self) -> (f64, f64) {
+        let now = SteadyTime::now();
+        let elapsed = (now - self.time).num_milliseconds() as f64;
+        let duration = 400.0;
+        let (end_x, end_y) =  (0.5 + self.square.file() as f64, 7.5 - self.square.rank() as f64);
+        (easing(self.pos.0, end_x, elapsed, duration), easing(self.pos.1, end_y, elapsed, duration))
+    }
 }
 
 struct Pieces {
@@ -43,6 +64,7 @@ impl Pieces {
             square: shakmaty::square::E1,
             piece: Color::White.queen(),
             pos: (0.0, 0.0),
+            time: SteadyTime::now(),
         };
 
         let mut figurines = Vec::new();
@@ -61,6 +83,7 @@ impl Pieces {
                 square: sq,
                 piece: board.piece_at(sq).expect("enumerating"),
                 pos: (0.5 + sq.file() as f64, 7.5 - sq.rank() as f64),
+                time: SteadyTime::now(),
             }).collect()
         }
     }
@@ -73,7 +96,8 @@ impl Pieces {
         for figurine in &self.figurines {
             cr.push_group();
 
-            cr.translate(figurine.pos.0, figurine.pos.1);
+            let (x, y) = figurine.pos();
+            cr.translate(x, y);
             cr.rotate(state.orientation.fold(0.0, PI));
             cr.translate(-0.5, -0.5);
             cr.scale(state.piece_set.scale(), state.piece_set.scale());
