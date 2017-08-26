@@ -84,6 +84,12 @@ impl Figurine {
         (self.fading || self.pos != util::square_to_inverted(self.square))
     }
 
+    fn queue_animation(&self, state: &BoardState, widget: &DrawingArea) {
+        if self.is_animating(state.now) {
+            widget.queue_draw();
+        }
+    }
+
     fn render(&self, cr: &Context, state: &BoardState) {
         cr.push_group();
 
@@ -234,6 +240,12 @@ impl Pieces {
     pub fn is_animating(&self, now: SteadyTime) -> bool {
         self.figurines.iter().any(|f| f.is_animating(now))
     }
+
+    pub fn queue_animation(&self, state: &BoardState, widget: &DrawingArea) {
+        for figurine in &self.figurines {
+            figurine.queue_animation(state, widget);
+        }
+    }
 }
 
 struct BoardState {
@@ -322,10 +334,10 @@ impl BoardView {
                              gdk::POINTER_MOTION_MASK).bits() as i32);
 
         {
-            let state = Rc::downgrade(&v.state);
+            let weak_state = Rc::downgrade(&v.state);
             let weak_widget = Rc::downgrade(&v.widget);
             v.widget.connect_draw(move |widget, cr| {
-                if let Some(state) = state.upgrade() {
+                if let Some(state) = weak_state.upgrade() {
                     let mut state = state.borrow_mut();
                     state.now = SteadyTime::now();
                     let animating = state.pieces.is_animating(state.now);
@@ -344,11 +356,13 @@ impl BoardView {
                     draw_drag(cr, &state);
                     draw_promoting(cr, &state);
 
+                    let weak_state = weak_state.clone();
                     let weak_widget = weak_widget.clone();
                     if animating {
                         gtk::idle_add(move || {
-                            if let Some(widget) = weak_widget.upgrade() {
-                                widget.queue_draw();
+                            if let (Some(state), Some(widget)) = (weak_state.upgrade(), weak_widget.upgrade()) {
+                                let state = state.borrow();
+                                state.pieces.queue_animation(&state, &widget);
                             }
                             Continue(false)
                         });
