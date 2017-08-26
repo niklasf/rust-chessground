@@ -86,7 +86,28 @@ impl Figurine {
 
     fn queue_animation(&self, state: &BoardState, widget: &DrawingArea) {
         if self.is_animating(state.now) {
-            widget.queue_draw();
+            let matrix = util::compute_matrix(widget, state.orientation);
+            let pos = self.pos(state.now);
+
+            let (x1, y1) = matrix.transform_point(pos.0 - 0.5, pos.1 - 0.5);
+            let (x2, y2) = matrix.transform_point(pos.0 + 0.5, pos.1 + 0.5);
+            let (x3, y3) = matrix.transform_point(self.square.file() as f64, 7.0 - self.square.rank() as f64);
+            let (x4, y4) = matrix.transform_point(1.0 + self.square.file() as f64, 8.0 - self.square.rank() as f64);
+
+            let xmin = min(
+                min(x1.floor() as i32, x2.floor() as i32),
+                min(x3.floor() as i32, x4.floor() as i32));
+            let xmax = max(
+                max(x1.ceil() as i32, x2.ceil() as i32),
+                max(x3.ceil() as i32, x4.ceil() as i32));
+            let ymin = min(
+                min(y1.floor() as i32, y2.floor() as i32),
+                min(y3.floor() as i32, y4.floor() as i32));
+            let ymax = max(
+                max(y1.ceil() as i32, y2.ceil() as i32),
+                max(y3.ceil() as i32, y4.ceil() as i32));
+
+            widget.queue_draw_area(xmin, ymin, xmax - xmin, ymax - ymin);
         }
     }
 
