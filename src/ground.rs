@@ -42,19 +42,19 @@ struct BoardState {
 
 impl BoardState {
     fn user_move(&mut self, orig: Square, dest: Square) {
-        let m = { self.legals.drain(..).filter(|m| m.from() == Some(orig) && m.to() == dest).next() };
+        let m = self.legals.drain(..).find(|m| m.from() == Some(orig) && m.to() == dest);
         if let Some(m) = m {
             self.pos = self.pos.clone().play_unchecked(&m);
             self.pieces = self.pos.board().clone();
-            self.last_move = Some((m.to(), m.from().unwrap_or(m.to())));
+            self.last_move = Some((m.to(), m.from().unwrap_or_else(|| m.to())));
 
             // respond
             self.legals.clear();
             self.pos.legal_moves(&mut self.legals);
             if let Some(m) = self.legals.iter().next() {
-                self.pos = self.pos.clone().play_unchecked(&m);
+                self.pos = self.pos.clone().play_unchecked(m);
                 self.pieces = self.pos.board().clone();
-                self.last_move = Some((m.to(), m.from().unwrap_or(m.to())));
+                self.last_move = Some((m.to(), m.from().unwrap_or_else(|| m.to())));
             }
         }
 
@@ -185,7 +185,7 @@ impl BoardView {
     }
 
     pub fn widget(&self) -> &DrawingArea {
-        return &self.widget
+        &self.widget
     }
 }
 
@@ -471,13 +471,13 @@ fn draw(widget: &DrawingArea, cr: &Context, state: &BoardState) {
     cr.set_matrix(matrix);
 
     draw_border(cr);
-    draw_board(cr, &state);
-    draw_check(cr, &state);
-    draw_pieces(cr, &state);
+    draw_board(cr, state);
+    draw_check(cr, state);
+    draw_pieces(cr, state);
 
     state.drawable.render(cr);
 
-    draw_move_hints(cr, &state);
+    draw_move_hints(cr, state);
 
     draw_drag(cr, matrix, state);
     draw_promoting(cr, state);
