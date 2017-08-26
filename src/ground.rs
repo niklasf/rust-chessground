@@ -74,14 +74,28 @@ impl Figurine {
         }
     }
 
-    fn elapsed(&self) -> f64 {
-        (SteadyTime::now() - self.time).num_milliseconds() as f64 / 1000.0
+    fn elapsed(&self, now: SteadyTime) -> f64 {
+        (now - self.time).num_milliseconds() as f64 / 1000.0
     }
 
-    fn is_animating(&self) -> bool {
-        !self.dragging &&
-        (self.fading || self.pos != util::square_to_inverted(self.square)) &&
-        self.elapsed() <= 0.2
+    fn is_animating(&self, now: SteadyTime) -> bool {
+        !self.dragging && self.elapsed(now) <= 0.2 &&
+        (self.fading || self.pos != util::square_to_inverted(self.square))
+    }
+
+    fn render(&self, cr: &Context, state: &BoardState) {
+        cr.push_group();
+
+        let (x, y) = self.pos();
+        cr.translate(x, y);
+        cr.rotate(state.orientation.fold(0.0, PI));
+        cr.translate(-0.5, -0.5);
+        cr.scale(state.piece_set.scale(), state.piece_set.scale());
+
+        state.piece_set.by_piece(&self.piece).render_cairo(cr);
+
+        cr.pop_group_to_source();
+        cr.paint_with_alpha(self.alpha());
     }
 }
 
@@ -188,19 +202,19 @@ impl Pieces {
     }
 
     pub fn render(&self, cr: &Context, state: &BoardState) {
+        let now = SteadyTime::now();
+
         for figurine in &self.figurines {
-            cr.push_group();
+            if figurine.fading || !figurine.is_animating(now) {
+                figurine.render(cr, state);
+            }
+        }
 
-            let (x, y) = figurine.pos();
-            cr.translate(x, y);
-            cr.rotate(state.orientation.fold(0.0, PI));
-            cr.translate(-0.5, -0.5);
-            cr.scale(state.piece_set.scale(), state.piece_set.scale());
-
-            state.piece_set.by_piece(&figurine.piece).render_cairo(cr);
-
-            cr.pop_group_to_source();
-            cr.paint_with_alpha(figurine.alpha());
+        // draw currently animating pieces on top of others
+        for figurine in &self.figurines {
+            if !figurine.fading && figurine.is_animating(now) {
+                figurine.render(cr, state);
+            }
         }
     }
 
@@ -221,7 +235,8 @@ impl Pieces {
     }
 
     pub fn is_animating(&self) -> bool {
-        self.figurines.iter().any(|f| f.is_animating())
+        let now = SteadyTime::now();
+        self.figurines.iter().any(|f| f.is_animating(now))
     }
 }
 
