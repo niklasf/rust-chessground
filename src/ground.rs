@@ -478,7 +478,7 @@ fn drag_mouse_up(state: &mut BoardState, widget: &DrawingArea, square: Option<Sq
         widget.queue_draw();
 
         let dest = square.unwrap_or(dragging.square);
-        dragging.pos = util::invert_pos(widget, state.orientation, e.get_position());
+        dragging.pos = util::square_to_inverted(dest);
         dragging.time = SteadyTime::now();
         dragging.dragging = false;
 
