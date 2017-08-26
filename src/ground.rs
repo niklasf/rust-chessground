@@ -47,14 +47,19 @@ struct Figurine {
     pos: (f64, f64),
     time: SteadyTime,
     fading: bool,
+    dragging: bool,
 }
 
 impl Figurine {
     fn pos(&self) -> (f64, f64) {
-        let elapsed = (SteadyTime::now() - self.time).num_milliseconds() as f64;
-        let duration = 500.0;
-        let (end_x, end_y) =  (0.5 + self.square.file() as f64, 7.5 - self.square.rank() as f64);
-        (ease_in_out_cubic(self.pos.0, end_x, elapsed, duration), ease_in_out_cubic(self.pos.1, end_y, elapsed, duration))
+        if self.dragging {
+            self.pos
+        } else {
+            let elapsed = (SteadyTime::now() - self.time).num_milliseconds() as f64;
+            let duration = 500.0;
+            let (end_x, end_y) =  (0.5 + self.square.file() as f64, 7.5 - self.square.rank() as f64);
+            (ease_in_out_cubic(self.pos.0, end_x, elapsed, duration), ease_in_out_cubic(self.pos.1, end_y, elapsed, duration))
+        }
     }
 
     fn alpha(&self) -> f64 {
@@ -87,6 +92,7 @@ impl Pieces {
                 pos: (0.5 + sq.file() as f64, 7.5 - sq.rank() as f64),
                 time: SteadyTime::now(),
                 fading: false,
+                dragging: false,
             }).collect()
         }
     }
@@ -158,6 +164,7 @@ impl Pieces {
                 pos: (0.5 + square.file() as f64, 7.5 - square.rank() as f64),
                 time: now,
                 fading: false,
+                dragging: false,
             });
         }
 
@@ -188,6 +195,14 @@ impl Pieces {
                 cr.paint_with_alpha(figurine.alpha());
             }
         }
+    }
+
+    pub fn figurine_at(&self, square: Square) -> Option<&Figurine> {
+        self.figurines.iter().find(|f| !f.fading && f.square == square)
+    }
+
+    pub fn figurine_at_mut(&mut self, square: Square) -> Option<&mut Figurine> {
+        self.figurines.iter_mut().find(|f| !f.fading && f.square == square)
     }
 
     pub fn animate(&self, widget: &DrawingArea) -> Continue {
@@ -393,13 +408,11 @@ fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventB
 fn drag_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventButton) {
     if e.get_button() == 1 {
         if let Some(square) = square {
-            /* TODO state.drag = state.pieces.piece_at(square).map(|piece| Drag {
-                piece,
-                orig: square,
-                dest: square,
-                start: e.get_position(),
-                pos: e.get_position(),
-            }); */
+            if let Some(figurine) = state.pieces.figurine_at_mut(square) {
+                figurine.pos = util::invert_pos(widget, state.orientation, e.get_position());
+                figurine.time = SteadyTime::now();
+                figurine.dragging = true;
+            }
 
             widget.queue_draw();
         }

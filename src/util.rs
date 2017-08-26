@@ -34,3 +34,10 @@ pub fn pos_to_square(widget: &DrawingArea, orientation: Color, (x, y): (f64, f64
         }
     })
 }
+
+pub fn invert_pos(widget: &DrawingArea, orientation: Color, (x, y): (f64, f64)) -> (f64, f64) {
+    compute_matrix(widget, orientation)
+        .try_invert()
+        .map(|m| m.transform_point(x, y))
+        .unwrap_or((x, y))
+}
