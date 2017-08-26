@@ -26,8 +26,59 @@ use pieceset;
 use drawable::Drawable;
 use pieceset::PieceSet;
 
+struct Figurine {
+    square: Square,
+    piece: Piece,
+}
+
+struct Pieces {
+    figurines: Vec<Figurine>,
+}
+
+impl Pieces {
+    pub fn new() -> Pieces {
+        Pieces::new_from_board(&Board::new())
+    }
+
+    pub fn new_from_board(board: &Board) -> Pieces {
+        Pieces {
+            figurines: board.occupied().map(|sq| Figurine {
+                square: sq,
+                piece: board.piece_at(sq).expect("enumerating"),
+            }).collect()
+        }
+    }
+
+    pub fn occupied(&self) -> Bitboard {
+        self.figurines.iter().map(|f| f.square).collect()
+    }
+
+    pub fn render(&self, cr: &Context, state: &BoardState) {
+        for figurine in &self.figurines {
+            cr.push_group();
+            cr.translate(figurine.square.file() as f64, 7.0 - figurine.square.rank() as f64);
+
+            cr.translate(0.5, 0.5);
+            cr.rotate(state.orientation.fold(0.0, PI));
+            cr.translate(-0.5, -0.5);
+
+            cr.scale(0.0056, 0.0056);
+
+            state.piece_set.by_piece(&figurine.piece).render_cairo(cr);
+
+            cr.pop_group_to_source();
+
+            if state.drag.as_ref().map_or(false, |d| d.threshold() && d.orig == figurine.square) {
+                cr.paint_with_alpha(0.2);
+            } else {
+                cr.paint();
+            }
+        }
+    }
+}
+
 struct BoardState {
-    pieces: Board,
+    pieces: Pieces,
     orientation: Color,
     check: Option<Square>,
     selected: Option<Square>,
@@ -45,7 +96,7 @@ impl BoardState {
         let m = self.legals.drain(..).find(|m| m.from() == Some(orig) && m.to() == dest);
         if let Some(m) = m {
             self.pos = self.pos.clone().play_unchecked(&m);
-            self.pieces = self.pos.board().clone();
+            self.pieces = Pieces::new_from_board(self.pos.board());
             self.last_move = Some((m.to(), m.from().unwrap_or_else(|| m.to())));
 
             // respond
@@ -53,7 +104,7 @@ impl BoardState {
             self.pos.legal_moves(&mut self.legals);
             if let Some(m) = self.legals.iter().next() {
                 self.pos = self.pos.clone().play_unchecked(m);
-                self.pieces = self.pos.board().clone();
+                self.pieces = Pieces::new_from_board(self.pos.board());
                 self.last_move = Some((m.to(), m.from().unwrap_or_else(|| m.to())));
             }
         }
@@ -90,15 +141,12 @@ impl BoardState {
         let pos = Chess::default();
 
         let mut state = BoardState {
-            pieces: pos.board().clone(),
+            pieces: Pieces::new(),
             orientation: Color::White,
             check: None,
             last_move: None,
             selected: None,
-            promoting: Some(Promoting {
-                square: shakmaty::square::E8,
-                hover: Some(shakmaty::square::E7),
-            }),
+            promoting: None,
             drawable: Drawable::new(),
             piece_set: pieceset::PieceSet::merida(),
             legals: MoveList::new(),
@@ -199,7 +247,7 @@ fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventB
         {
             state.user_move(orig, dest);
         } else {
-            state.selected = dest.filter(|sq| state.pieces.occupied().contains(*sq));
+            // TODO state.selected = dest.filter(|sq| state.pieces.occupied().contains(*sq));
         }
     } else {
         state.selected = None;
@@ -211,13 +259,13 @@ fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventB
 fn drag_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventButton) {
     if e.get_button() == 1 {
         if let Some(square) = square {
-            state.drag = state.pieces.piece_at(square).map(|piece| Drag {
+            /* TODO state.drag = state.pieces.piece_at(square).map(|piece| Drag {
                 piece,
                 orig: square,
                 dest: square,
                 start: e.get_position(),
                 pos: e.get_position(),
-            });
+            }); */
 
             widget.queue_draw();
         }
@@ -320,30 +368,6 @@ fn draw_board(cr: &Context, state: &BoardState) {
         if dest != orig {
             cr.rectangle(dest.file() as f64, 7.0 - dest.rank() as f64, 1.0, 1.0);
             cr.fill();
-        }
-    }
-}
-
-fn draw_pieces(cr: &Context, state: &BoardState) {
-    for square in state.pieces.occupied() {
-        cr.push_group();
-        cr.translate(square.file() as f64, 7.0 - square.rank() as f64);
-
-        cr.translate(0.5, 0.5);
-        cr.rotate(state.orientation.fold(0.0, PI));
-        cr.translate(-0.5, -0.5);
-
-        cr.scale(0.0056, 0.0056);
-
-        let piece = state.pieces.piece_at(square).expect("enumerating");
-        state.piece_set.by_piece(&piece).render_cairo(cr);
-
-        cr.pop_group_to_source();
-
-        if state.drag.as_ref().map_or(false, |d| d.threshold() && d.orig == square) {
-            cr.paint_with_alpha(0.2);
-        } else {
-            cr.paint();
         }
     }
 }
@@ -473,8 +497,7 @@ fn draw(widget: &DrawingArea, cr: &Context, state: &BoardState) {
     draw_border(cr);
     draw_board(cr, state);
     draw_check(cr, state);
-    draw_pieces(cr, state);
-
+    state.pieces.render(cr, state);
     state.drawable.render(cr);
 
     draw_move_hints(cr, state);
