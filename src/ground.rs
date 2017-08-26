@@ -29,12 +29,16 @@ use pieceset;
 use drawable::Drawable;
 use pieceset::PieceSet;
 
-fn easing(start: f64, end: f64, elapsed: f64, duration: f64) -> f64 {
-    if elapsed > duration {
-        end
+fn ease_in_out_cubic(start: f64, end: f64, elapsed: f64, duration: f64) -> f64 {
+    let t = elapsed / duration;
+    let ease = if t >= 1.0 {
+        1.0
+    } else if t >= 0.5 {
+        (t - 1.0) * (2.0 * t - 2.0) * (2.0 * t - 2.0) + 1.0
     } else {
-        start + (end - start) * elapsed / duration
-    }
+        4.0 * t * t * t
+    };
+    start + (end - start) * ease
 }
 
 struct Figurine {
@@ -48,9 +52,9 @@ impl Figurine {
     fn pos(&self) -> (f64, f64) {
         let now = SteadyTime::now();
         let elapsed = (now - self.time).num_milliseconds() as f64;
-        let duration = 400.0;
+        let duration = 500.0;
         let (end_x, end_y) =  (0.5 + self.square.file() as f64, 7.5 - self.square.rank() as f64);
-        (easing(self.pos.0, end_x, elapsed, duration), easing(self.pos.1, end_y, elapsed, duration))
+        (ease_in_out_cubic(self.pos.0, end_x, elapsed, duration), ease_in_out_cubic(self.pos.1, end_y, elapsed, duration))
     }
 }
 
