@@ -52,7 +52,7 @@ struct Figurine {
 impl Figurine {
     fn pos(&self) -> (f64, f64) {
         let elapsed = (SteadyTime::now() - self.time).num_milliseconds() as f64;
-        let duration = 2000.0;
+        let duration = 500.0;
         let (end_x, end_y) =  (0.5 + self.square.file() as f64, 7.5 - self.square.rank() as f64);
         (ease_in_out_cubic(self.pos.0, end_x, elapsed, duration), ease_in_out_cubic(self.pos.1, end_y, elapsed, duration))
     }
@@ -60,7 +60,7 @@ impl Figurine {
     fn alpha(&self) -> f64 {
         if self.fading {
             let elapsed = (SteadyTime::now() - self.time).num_milliseconds() as f64;
-            let duration = 2000.0;
+            let duration = 500.0;
             ease_in_out_cubic(1.0, 0.0, elapsed, duration)
         } else {
             1.0
@@ -76,7 +76,7 @@ struct Pieces {
 impl Pieces {
     pub fn test() -> Pieces {
         let mut prev = Pieces::new();
-        let after = "r1bqk2r/ppp1nppp/2n5/1N2P3/3N4/8/PP1Q1PPP/R3KB1R".parse().expect("valid fen");
+        let after = "2r2k1R/p1pR4/2p2p2/8/5PP1/8/PP3r2/2K5".parse().expect("valid fen");
         prev.set_board(after);
         prev
     }
