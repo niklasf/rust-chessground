@@ -198,6 +198,9 @@ impl Widget for Ground {
             });
         }
 
+        drawing_area.set_size_request(9 * 10, 9 * 10);
+        drawing_area.set_hexpand(true);
+        drawing_area.set_vexpand(true);
         drawing_area.show();
 
         Ground {

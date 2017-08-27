@@ -81,9 +81,11 @@ impl Widget for Win {
 
     view! {
         gtk::Window {
-            #[name="ground"]
-            Ground {
-                UserMove(orig, dest, promotion) => MovePlayed(orig, dest, promotion),
+            gtk::Box {
+                #[name="ground"]
+                Ground {
+                    UserMove(orig, dest, promotion) => MovePlayed(orig, dest, promotion),
+                },
             },
             delete_event(_, _) => (Quit, Inhibit(false)),
         }
