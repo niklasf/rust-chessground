@@ -3,7 +3,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::f64::consts::PI;
 
-use shakmaty::{Square, Color, Role, Piece, Board, Bitboard, MoveList, Position, Chess, Setup};
+use shakmaty::{Square, Color, Role, Piece, Board, Bitboard, MoveList, Position, Chess};
 
 use gtk;
 use gtk::prelude::*;
@@ -507,7 +507,6 @@ struct BoardState {
     now: SteadyTime,
     promoting: Option<Promoting>,
     legals: MoveList,
-    pos: Chess,
 }
 
 impl BoardState {
@@ -523,8 +522,10 @@ impl BoardState {
 impl BoardState {
     fn new() -> Self {
         let pos = Chess::default();
+        let mut legals = MoveList::new();
+        pos.legal_moves(&mut legals);
 
-        let mut state = BoardState {
+        BoardState {
             pieces: Pieces::new(),
             orientation: Color::White,
             check: None,
@@ -534,14 +535,9 @@ impl BoardState {
             promoting: None,
             drawable: Drawable::new(),
             piece_set: pieceset::PieceSet::merida(),
-            legals: MoveList::new(),
-            pos: pos.clone(),
+            legals,
             now: SteadyTime::now(),
-        };
-
-        pos.legal_moves(&mut state.legals);
-
-        state
+        }
     }
 }
 
