@@ -50,7 +50,10 @@ impl Update for Win {
                 let mut legals = MoveList::new();
                 self.pos.legal_moves(&mut legals);
 
-                let m = legals.drain(..).find(|m| m.from() == Some(orig) && m.to() == dest && m.promotion() == promotion);
+                let m = legals.drain(..).find(|m| {
+                    m.from() == Some(orig) && m.to() == dest &&
+                    m.promotion() == promotion
+                });
 
                 let last_move = if let Some(m) = m {
                     self.pos = self.pos.clone().play_unchecked(&m);
