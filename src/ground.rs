@@ -329,7 +329,7 @@ impl BoardState {
         match self.pieces.board.piece_at(orig) {
             Some(Piece { role: Role::Pawn, color }) if color.fold(7, 0) == dest.rank() => {
                 self.promoting = Some(Promoting {
-                    orig, dest, hover: None,
+                    orig, dest, hover: Some(dest), hover_since: SteadyTime::now()
                 });
             },
             _ => self.on_user_move(orig, dest, None)
@@ -458,7 +458,7 @@ impl BoardView {
                     let mut state = state.borrow_mut();
                     let square = util::pos_to_square(widget, state.orientation, e.get_position());
 
-                    if !promoting_mouse_down(&mut state, widget, square, e) {
+                    if !promoting_mouse_down(&mut state, widget, square) {
                         selection_mouse_down(&mut state, widget, e);
                         drag_mouse_down(&mut state, widget, square, e);
                         state.drawable.mouse_down(widget, square, e);
@@ -489,8 +489,10 @@ impl BoardView {
                     let mut state = state.borrow_mut();
                     let square = util::pos_to_square(widget, state.orientation, e.get_position());
 
-                    drag_mouse_move(&mut state, widget, square, e);
-                    state.drawable.mouse_move(widget, square);
+                    if !promoting_mouse_move(&mut state, widget, square) {
+                        drag_mouse_move(&mut state, widget, square, e);
+                        state.drawable.mouse_move(widget, square);
+                    }
                 }
                 Inhibit(false)
             });
@@ -508,9 +510,10 @@ struct Promoting {
     orig: Square,
     dest: Square,
     hover: Option<Square>,
+    hover_since: SteadyTime,
 }
 
-fn promoting_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventButton) -> bool {
+fn promoting_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>) -> bool {
     if let Some(promoting) = state.promoting.take() {
         widget.queue_draw();
 
@@ -539,6 +542,27 @@ fn promoting_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Op
     }
 
     false
+}
+
+fn promoting_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>) -> bool {
+    if let Some(ref mut promoting) = state.promoting {
+        if let Some(hover) = promoting.hover {
+            queue_draw_square(widget, state.orientation, hover);
+        }
+
+        if promoting.hover != square {
+            promoting.hover = square;
+            promoting.hover_since = SteadyTime::now();
+        }
+
+        if let Some(hover) = promoting.hover {
+            queue_draw_square(widget, state.orientation, hover);
+        }
+
+        true
+    } else {
+        false
+    }
 }
 
 fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventButton) {
