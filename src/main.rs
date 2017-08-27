@@ -4,33 +4,31 @@ extern crate gtk;
 extern crate chessground;
 #[macro_use]
 extern crate relm;
+extern crate relm_attributes;
 #[macro_use]
 extern crate relm_derive;
+
 extern crate shakmaty;
 extern crate option_filter;
 extern crate rand;
-extern crate relm_attributes;
 
 use option_filter::OptionFilterExt;
-
 use rand::distributions::{Range, IndependentSample};
 
 use gtk::prelude::*;
-use relm::{Widget};
+use relm::Widget;
 use relm_attributes::widget;
 
 use shakmaty::{Square, Role, Chess, Position, MoveList, Setup};
-
 use chessground::{Ground, GroundMsg, UserMove};
 
+use self::Msg::*;
 
 #[derive(Msg)]
-pub enum WinMsg {
+pub enum Msg {
     Quit,
     MovePlayed(Square, Square, Option<Role>),
 }
-
-use WinMsg::*;
 
 #[widget]
 impl Widget for Win {
@@ -38,7 +36,7 @@ impl Widget for Win {
         Chess::default()
     }
 
-    fn update(&mut self, event: WinMsg) {
+    fn update(&mut self, event: Msg) {
         match event {
             Quit => {
                 gtk::main_quit()
