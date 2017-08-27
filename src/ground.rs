@@ -35,12 +35,13 @@ pub struct Model {
 
 #[derive(Msg)]
 pub enum GroundMsg {
-    UserMove { orig: Square, dest: Square },
+    PseudoMove { orig: Square, dest: Square },
+    UserMove { orig: Square, dest: Square, promotion: Option<Role> },
 }
 
 pub struct Ground {
     drawing_area: DrawingArea,
-    _model: Model,
+    model: Model,
 }
 
 impl Update for Ground {
@@ -55,6 +56,16 @@ impl Update for Ground {
     }
 
     fn update(&mut self, event: GroundMsg) {
+        let state = self.model.state.borrow();
+
+        match event {
+            GroundMsg::PseudoMove { orig, dest } if state.valid_move(orig, dest) => {
+                /* if let Some(m) = state.legals.iter().find(|m| m.from() == Some(orig) && m.to() == dest && m.promotion.is_none()) {
+
+                } */
+            },
+            _ => {}
+        }
     }
 }
 
@@ -172,7 +183,7 @@ impl Widget for Ground {
 
         Ground {
             drawing_area,
-            _model: model,
+            model,
         }
     }
 }
@@ -643,11 +654,9 @@ impl BoardState {
             self.selected = dest.filter(|sq| self.pieces.occupied().contains(*sq));
 
             if let (Some(orig), Some(dest)) = (orig, dest) {
-                if self.valid_move(orig, dest) {
-                    self.selected = None;
-                    context.stream.emit(GroundMsg::UserMove { orig, dest });
-                } else if orig == dest {
-                    self.selected = None;
+                self.selected = None;
+                if orig != dest {
+                    context.stream.emit(GroundMsg::PseudoMove { orig, dest });
                 }
             }
         }
