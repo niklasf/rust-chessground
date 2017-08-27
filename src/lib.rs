@@ -15,4 +15,4 @@ mod util;
 mod pieceset;
 mod ground;
 
-pub use ground::{Ground, BoardView};
+pub use ground::{Ground, GroundMsg};

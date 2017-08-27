@@ -21,7 +21,6 @@ use time::SteadyTime;
 use rand;
 use rand::distributions::{IndependentSample, Range};
 
-use relm;
 use relm::{Relm, Widget, Update};
 
 use util;
@@ -30,6 +29,7 @@ use drawable::Drawable;
 use pieceset::PieceSet;
 
 pub struct Model {
+    state: Rc<RefCell<BoardState>>,
 }
 
 #[derive(Msg)]
@@ -38,6 +38,7 @@ pub enum GroundMsg {
 
 pub struct Ground {
     drawing_area: DrawingArea,
+    _model: Model,
 }
 
 impl Update for Ground {
@@ -46,7 +47,9 @@ impl Update for Ground {
     type Msg = GroundMsg;
 
     fn model(_: &Relm<Self>, _: ()) -> Model {
-        Model { }
+        Model {
+            state: Rc::new(RefCell::new(BoardState::new())),
+        }
     }
 
     fn update(&mut self, event: GroundMsg) {
@@ -60,11 +63,100 @@ impl Widget for Ground {
         self.drawing_area.clone()
     }
 
-    fn view(relm: &Relm<Self>, model: Model) -> Self {
+    fn view(_relm: &Relm<Self>, model: Model) -> Self {
         let drawing_area = DrawingArea::new();
 
+        drawing_area.add_events((gdk::BUTTON_PRESS_MASK |
+                                 gdk::BUTTON_RELEASE_MASK |
+                                 gdk::POINTER_MOTION_MASK).bits() as i32);
+
+        {
+            let weak_state = Rc::downgrade(&model.state);
+            drawing_area.connect_draw(move |widget, cr| {
+                if let Some(state) = weak_state.upgrade() {
+                    let mut state = state.borrow_mut();
+                    state.now = SteadyTime::now();
+                    let animating = state.pieces.is_animating(state.now) || promoting_is_animating(&state);
+
+                    let matrix = util::compute_matrix(widget, state.orientation);
+                    cr.set_matrix(matrix);
+
+                    draw_border(cr, &state);
+                    draw_board(cr, &state);
+                    draw_check(cr, &state);
+                    state.pieces.render(cr, &state);
+                    state.drawable.render(cr);
+                    draw_move_hints(cr, &state);
+                    draw_drag(cr, &state);
+                    draw_promoting(cr, &state);
+
+                    let weak_state = weak_state.clone();
+                    let widget = widget.clone();
+                    if animating {
+                        gtk::idle_add(move || {
+                            if let Some(state) = weak_state.upgrade() {
+                                let state = state.borrow();
+                                state.pieces.queue_animation(&state, &widget);
+                                promoting_queue_animation(&state, &widget);
+                            }
+                            Continue(false)
+                        });
+                    }
+                }
+                Inhibit(false)
+            });
+        }
+
+        {
+            let state = Rc::downgrade(&model.state);
+            drawing_area.connect_button_press_event(move |widget, e| {
+                if let Some(state) = state.upgrade() {
+                    let mut state = state.borrow_mut();
+                    let square = util::pos_to_square(widget, state.orientation, e.get_position());
+
+                    if !promoting_mouse_down(&mut state, widget, square) {
+                        selection_mouse_down(&mut state, widget, e);
+                        drag_mouse_down(&mut state, widget, square, e);
+                        state.drawable.mouse_down(widget, square, e);
+                    }
+                }
+                Inhibit(false)
+            });
+        }
+
+        {
+            let state = Rc::downgrade(&model.state);
+            drawing_area.connect_button_release_event(move |widget, e| {
+                if let Some(state) = state.upgrade() {
+                    let mut state = state.borrow_mut();
+                    let square = util::pos_to_square(widget, state.orientation, e.get_position());
+
+                    drag_mouse_up(&mut state, widget, square);
+                    state.drawable.mouse_up(widget, square);
+                }
+                Inhibit(false)
+            });
+        }
+
+        {
+            let state = Rc::downgrade(&model.state);
+            drawing_area.connect_motion_notify_event(move |widget, e| {
+                if let Some(state) = state.upgrade() {
+                    let mut state = state.borrow_mut();
+                    let square = util::pos_to_square(widget, state.orientation, e.get_position());
+
+                    if !promoting_mouse_move(&mut state, widget, square) {
+                        drag_mouse_move(&mut state, widget, square, e);
+                        state.drawable.mouse_move(widget, square);
+                    }
+                }
+                Inhibit(false)
+            });
+        }
+
         Ground {
-            drawing_area
+            drawing_area,
+            _model: model,
         }
     }
 }
@@ -416,7 +508,7 @@ impl BoardState {
         let pos = Chess::default();
 
         let mut state = BoardState {
-            pieces: Pieces::new_from_board(pos.board()),
+            pieces: Pieces::new(),
             orientation: Color::White,
             check: None,
             last_move: None,
@@ -433,114 +525,6 @@ impl BoardState {
         pos.legal_moves(&mut state.legals);
 
         state
-    }
-}
-
-pub struct BoardView {
-    widget: DrawingArea,
-    state: Rc<RefCell<BoardState>>,
-}
-
-impl BoardView {
-    pub fn new() -> Self {
-        let v = BoardView {
-            widget: DrawingArea::new(),
-            state: Rc::new(RefCell::new(BoardState::new())),
-        };
-
-        v.widget.add_events((gdk::BUTTON_PRESS_MASK |
-                             gdk::BUTTON_RELEASE_MASK |
-                             gdk::POINTER_MOTION_MASK).bits() as i32);
-
-        {
-            let weak_state = Rc::downgrade(&v.state);
-            v.widget.connect_draw(move |widget, cr| {
-                if let Some(state) = weak_state.upgrade() {
-                    let mut state = state.borrow_mut();
-                    state.now = SteadyTime::now();
-                    let animating = state.pieces.is_animating(state.now) || promoting_is_animating(&state);
-
-                    let matrix = util::compute_matrix(widget, state.orientation);
-                    cr.set_matrix(matrix);
-
-                    draw_border(cr, &state);
-                    draw_board(cr, &state);
-                    draw_check(cr, &state);
-                    state.pieces.render(cr, &state);
-                    state.drawable.render(cr);
-                    draw_move_hints(cr, &state);
-                    draw_drag(cr, &state);
-                    draw_promoting(cr, &state);
-
-                    let weak_state = weak_state.clone();
-                    let widget = widget.clone();
-                    if animating {
-                        gtk::idle_add(move || {
-                            if let Some(state) = weak_state.upgrade() {
-                                let state = state.borrow();
-                                state.pieces.queue_animation(&state, &widget);
-                                promoting_queue_animation(&state, &widget);
-                            }
-                            Continue(false)
-                        });
-                    }
-                }
-                Inhibit(false)
-            });
-        }
-
-        {
-            let state = Rc::downgrade(&v.state);
-            v.widget.connect_button_press_event(move |widget, e| {
-                if let Some(state) = state.upgrade() {
-                    let mut state = state.borrow_mut();
-                    let square = util::pos_to_square(widget, state.orientation, e.get_position());
-
-                    if !promoting_mouse_down(&mut state, widget, square) {
-                        selection_mouse_down(&mut state, widget, e);
-                        drag_mouse_down(&mut state, widget, square, e);
-                        state.drawable.mouse_down(widget, square, e);
-                    }
-                }
-                Inhibit(false)
-            });
-        }
-
-        {
-            let state = Rc::downgrade(&v.state);
-            v.widget.connect_button_release_event(move |widget, e| {
-                if let Some(state) = state.upgrade() {
-                    let mut state = state.borrow_mut();
-                    let square = util::pos_to_square(widget, state.orientation, e.get_position());
-
-                    drag_mouse_up(&mut state, widget, square);
-                    state.drawable.mouse_up(widget, square);
-                }
-                Inhibit(false)
-            });
-        }
-
-        {
-            let state = Rc::downgrade(&v.state);
-            v.widget.connect_motion_notify_event(move |widget, e| {
-                if let Some(state) = state.upgrade() {
-                    let mut state = state.borrow_mut();
-                    let square = util::pos_to_square(widget, state.orientation, e.get_position());
-
-                    if !promoting_mouse_move(&mut state, widget, square) {
-                        drag_mouse_move(&mut state, widget, square, e);
-                        state.drawable.mouse_move(widget, square);
-                    }
-                }
-                Inhibit(false)
-            });
-        }
-
-        v
-    }
-
-    pub fn widget(&self) -> &DrawingArea {
-        &self.widget
     }
 }
 
