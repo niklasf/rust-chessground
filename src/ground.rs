@@ -22,7 +22,7 @@ use time::SteadyTime;
 use rand;
 use rand::distributions::{IndependentSample, Range};
 
-use relm::{Relm, Widget, Update};
+use relm::{Relm, Widget, Update, EventStream};
 
 use util;
 use pieceset;
@@ -35,7 +35,7 @@ pub struct Model {
 
 #[derive(Msg)]
 pub enum GroundMsg {
-    UserMove((Square, Square)),
+    UserMove { orig: Square, dest: Square },
 }
 
 pub struct Ground {
@@ -113,6 +113,8 @@ impl Widget for Ground {
             let state = Rc::downgrade(&model.state);
             let stream = relm.stream().clone();
             drawing_area.connect_button_press_event(move |widget, e| {
+                stream.emit(GroundMsg::UserMove { orig: shakmaty::square::D3,
+                                                  dest: shakmaty::square::D4 });
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
                     let square = util::pos_to_square(widget, state.orientation, e.get_position());
@@ -129,13 +131,20 @@ impl Widget for Ground {
 
         {
             let state = Rc::downgrade(&model.state);
+            let stream = relm.stream().clone();
             drawing_area.connect_button_release_event(move |widget, e| {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
-                    let square = util::pos_to_square(widget, state.orientation, e.get_position());
 
-                    drag_mouse_up(&mut state, widget, square);
-                    state.drawable.mouse_up(widget, square);
+                    let context = EventContext {
+                        drawing_area: widget,
+                        stream: &stream,
+                        pos: e.get_position(),
+                        square: util::pos_to_square(widget, state.orientation, e.get_position()),
+                    };
+
+                    state.drag_mouse_up(context);
+                    //state.drawable.mouse_up(widget, square);
                 }
                 Inhibit(false)
             });
@@ -162,6 +171,13 @@ impl Widget for Ground {
             _model: model,
         }
     }
+}
+
+struct EventContext<'a> {
+    drawing_area: &'a DrawingArea,
+    stream: &'a EventStream<GroundMsg>,
+    pos: (f64, f64),
+    square: Option<Square>,
 }
 
 pub const ANIMATE_DURATION: f64 = 0.2;
@@ -703,30 +719,32 @@ fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<
     }
 }
 
-fn drag_mouse_up(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>) {
-    state.drag_start = None;
+impl BoardState {
+    fn drag_mouse_up(&mut self, context: EventContext) {
+        self.drag_start = None;
 
-    let m = if let Some(dragging) = state.pieces.dragging_mut() {
-        widget.queue_draw();
+        let m = if let Some(dragging) = self.pieces.dragging_mut() {
+            context.drawing_area.queue_draw();
 
-        let dest = square.unwrap_or(dragging.square);
-        dragging.pos = util::square_to_inverted(dest);
-        dragging.time = SteadyTime::now();
-        dragging.dragging = false;
+            let dest = context.square.unwrap_or(dragging.square);
+            dragging.pos = util::square_to_inverted(dest);
+            dragging.time = SteadyTime::now();
+            dragging.dragging = false;
 
-        if dragging.square != dest && !dragging.fading {
-            state.selected = None;
-            Some((dragging.square, dest))
+            if dragging.square != dest && !dragging.fading {
+                self.selected = None;
+                Some((dragging.square, dest))
+            } else {
+                None
+            }
         } else {
             None
-        }
-    } else {
-        None
-    };
+        };
 
-    if let Some((orig, dest)) = m {
-        if state.valid_move(orig, dest) {
-            state.user_move(orig, dest);
+        if let Some((orig, dest)) = m {
+            if self.valid_move(orig, dest) {
+                self.user_move(orig, dest);
+            }
         }
     }
 }

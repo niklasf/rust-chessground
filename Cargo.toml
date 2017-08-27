@@ -11,6 +11,6 @@ cairo-rs = "0.2.0"
 rsvg = "0.2.0"
 time = "0.1"
 rand = "0.3"
-relm = "0.10"
-relm-derive = "0.10"
+relm = { version = "0.10", path = "../relm" }
+relm-derive = { version = "0.10", path = "../relm/relm-derive" }
 shakmaty = { version = "0.0.6", path = "../shakmaty" }
