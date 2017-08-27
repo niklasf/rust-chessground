@@ -49,7 +49,7 @@ impl Widget for Win {
                 });
 
                 let last_move = if let Some(m) = m {
-                    self.model = self.model.clone().play_unchecked(&m);
+                    self.model.play_unchecked(&m);
                     Some((m.from().unwrap_or_else(|| m.to()), m.to()))
                 } else {
                     return;
@@ -57,11 +57,10 @@ impl Widget for Win {
 
                 let last_move = if !self.model.is_game_over() {
                     // respond with a random move
-                    let mut rng = rand::thread_rng();
                     let legals = self.model.legals();
-                    let idx = Range::new(0, legals.len()).ind_sample(&mut rng);
-                    let m = &legals[idx];
-                    self.model = self.model.clone().play_unchecked(m);
+                    let random_index = Range::new(0, legals.len()).ind_sample(&mut rand::thread_rng());
+                    let m = &legals[random_index];
+                    self.model.play_unchecked(m);
                     Some((m.from().unwrap_or_else(|| m.to()), m.to()))
                 } else {
                     last_move
