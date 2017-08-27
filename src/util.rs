@@ -16,7 +16,7 @@ pub fn compute_matrix(widget: &DrawingArea, orientation: Color) -> Matrix {
     let size = min(w, h);
 
     matrix.translate(w as f64 / 2.0, h as f64 / 2.0);
-    matrix.scale(size as f64 / 10.0, size as f64 / 10.0);
+    matrix.scale(size as f64 / 9.0, size as f64 / 9.0);
     matrix.rotate(orientation.fold(0.0, PI));
     matrix.translate(-4.0, -4.0);
 
