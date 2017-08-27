@@ -113,8 +113,6 @@ impl Widget for Ground {
             let state = Rc::downgrade(&model.state);
             let stream = relm.stream().clone();
             drawing_area.connect_button_press_event(move |widget, e| {
-                stream.emit(GroundMsg::UserMove { orig: shakmaty::square::D3,
-                                                  dest: shakmaty::square::D4 });
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
 
@@ -647,7 +645,7 @@ impl BoardState {
             if let (Some(orig), Some(dest)) = (orig, dest) {
                 if self.valid_move(orig, dest) {
                     self.selected = None;
-                    self.user_move(orig, dest);
+                    context.stream.emit(GroundMsg::UserMove { orig, dest });
                 } else if orig == dest {
                     self.selected = None;
                 }
