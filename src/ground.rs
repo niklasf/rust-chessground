@@ -372,12 +372,6 @@ impl BoardState {
     }
 }
 
-struct Promoting {
-    orig: Square,
-    dest: Square,
-    hover: Option<Square>,
-}
-
 impl BoardState {
     fn new() -> Self {
         let fen: shakmaty::fen::Fen = "rnbqkbnr/ppppppPp/8/8/8/8/PPPPPP1P/RNBQKBNR".parse().expect("valid fen");
@@ -464,9 +458,11 @@ impl BoardView {
                     let mut state = state.borrow_mut();
                     let square = util::pos_to_square(widget, state.orientation, e.get_position());
 
-                    selection_mouse_down(&mut state, widget, e);
-                    drag_mouse_down(&mut state, widget, square, e);
-                    state.drawable.mouse_down(widget, square, e);
+                    if !promoting_mouse_down(&mut state, widget, e) {
+                        selection_mouse_down(&mut state, widget, e);
+                        drag_mouse_down(&mut state, widget, square, e);
+                        state.drawable.mouse_down(widget, square, e);
+                    }
                 }
                 Inhibit(false)
             });
@@ -506,6 +502,24 @@ impl BoardView {
     pub fn widget(&self) -> &DrawingArea {
         &self.widget
     }
+}
+
+struct Promoting {
+    orig: Square,
+    dest: Square,
+    hover: Option<Square>,
+}
+
+fn promoting_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventButton) -> bool {
+    if let Some(promoting) = state.promoting.take() {
+        // animate the figurine when cancelling
+        if let Some(figurine) = state.pieces.figurine_at_mut(promoting.orig) {
+            figurine.pos = util::square_to_inverted(promoting.dest);
+            figurine.time = SteadyTime::now();
+        }
+    }
+
+    false
 }
 
 fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventButton) {
