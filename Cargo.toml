@@ -1,5 +1,5 @@
 [package]
-name = "gtk-board"
+name = "chessground"
 version = "0.1.0"
 authors = ["Niklas Fiekas <niklas.fiekas@backscattering.de>"]
 

@@ -1,26 +1,17 @@
 extern crate gtk;
-extern crate gdk;
-extern crate cairo;
-extern crate rsvg;
-extern crate shakmaty;
-extern crate option_filter;
-extern crate time;
 extern crate rand;
+extern crate chessground;
 
 use gtk::prelude::*;
 use gtk::{Window, WindowType};
 
-mod drawable;
-mod util;
-mod pieceset;
-mod ground;
-
-use ground::BoardView;
+use chessground::BoardView;
 
 fn main() {
     gtk::init().expect("initialized gtk");
 
     let window = Window::new(WindowType::Toplevel);
+    window.set_title("Chessground demo");
     window.connect_delete_event(|_, _| {
         gtk::main_quit();
         Inhibit(false)
