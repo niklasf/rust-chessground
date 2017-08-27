@@ -855,37 +855,44 @@ fn draw_promoting(cr: &Context, state: &BoardState) {
         let mut light = square.is_light();
 
         for role in &[Role::Queen, Role::Rook, Role::Bishop, Role::Knight] {
+            cr.save();
             if square.is_light() {
                 cr.set_source_rgb(0.25, 0.25, 0.25);
             } else {
                 cr.set_source_rgb(0.18, 0.18, 0.18);
             }
             cr.rectangle(square.file() as f64, y, 1.0, 1.0);
+            cr.clip();
             cr.fill();
 
-            if promoting.hover == Some(square) {
+            let radius = if promoting.hover == Some(square) {
                 cr.set_source_rgb(
                     ease_in_out_cubic(0.69, 1.0, promoting.elapsed(state.now), 1.0),
                     ease_in_out_cubic(0.69, 0.65, promoting.elapsed(state.now), 1.0),
                     ease_in_out_cubic(0.69, 0.0, promoting.elapsed(state.now), 1.0));
+
+                ease_in_out_cubic(0.5, 0.5f64.hypot(0.5), promoting.elapsed(state.now), 1.0)
             } else {
                 cr.set_source_rgb(0.69, 0.69, 0.69);
-            }
+                0.5
+            };
+
             cr.arc(0.5 + square.file() as f64, y + 0.5 * offset,
-                   0.5, 0.0, 2.0 * PI);
+                   radius, 0.0, 2.0 * PI);
             cr.fill();
 
             cr.save();
             cr.translate(0.5 + square.file() as f64, y + 0.5 * offset);
-            cr.scale(0.707, 0.707);
+            cr.scale(2f64.sqrt() * radius, 2f64.sqrt() * radius);
             cr.translate(-0.5, -0.5);
-            cr.scale(0.0056, 0.0056);
+            cr.scale(state.piece_set.scale(), state.piece_set.scale());
             state.piece_set.by_piece(&role.of(Color::White)).render_cairo(cr);
             cr.restore();
 
             y += offset;
             light = !light;
             square = Square::from_coords(square.file(), square.rank() - offset as i8).expect("promotion dialog square on board");
+            cr.restore();
         }
     }
 }
