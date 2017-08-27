@@ -16,3 +16,4 @@ mod pieceset;
 mod ground;
 
 pub use ground::{Ground, GroundMsg};
+pub use GroundMsg::*;

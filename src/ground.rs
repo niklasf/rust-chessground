@@ -38,11 +38,7 @@ pub enum GroundMsg {
         last_move: Option<(Square, Square)>,
         check: Option<Square>,
     },
-    UserMove {
-        orig: Square,
-        dest: Square,
-        promotion: Option<Role>,
-    },
+    UserMove(Square, Square, Option<Role>)
 }
 
 pub struct Ground {
@@ -65,7 +61,7 @@ impl Update for Ground {
         let mut state = self.model.state.borrow_mut();
 
         match event {
-            GroundMsg::UserMove { orig, dest, promotion: None } if state.valid_move(orig, dest) => {
+            GroundMsg::UserMove(orig, dest, None) if state.valid_move(orig, dest) => {
                 if state.legals.iter().any(|m| m.from() == Some(orig) && m.to() == dest && m.promotion().is_some()) {
                     state.promoting = Some(Promoting {
                         orig,
@@ -201,6 +197,8 @@ impl Widget for Ground {
                 Inhibit(false)
             });
         }
+
+        drawing_area.show();
 
         Ground {
             drawing_area,
@@ -584,12 +582,7 @@ impl BoardState {
                     };
 
                     if role.is_some() {
-                        context.stream.emit(GroundMsg::UserMove {
-                            orig: promoting.orig,
-                            dest: promoting.dest,
-                            promotion: role,
-                        });
-
+                        context.stream.emit(GroundMsg::UserMove(promoting.orig, promoting.dest, role));
                         return true;
                     }
                 }
@@ -642,7 +635,7 @@ impl BoardState {
             if let (Some(orig), Some(dest)) = (orig, dest) {
                 self.selected = None;
                 if orig != dest {
-                    context.stream.emit(GroundMsg::UserMove { orig, dest, promotion: None });
+                    context.stream.emit(GroundMsg::UserMove(orig, dest, None));
                 }
             }
         }
@@ -743,7 +736,7 @@ impl BoardState {
 
         if let Some((orig, dest)) = m {
             if orig != dest {
-                context.stream.emit(GroundMsg::UserMove { orig, dest, promotion: None });
+                context.stream.emit(GroundMsg::UserMove(orig, dest, None));
             }
         }
     }
