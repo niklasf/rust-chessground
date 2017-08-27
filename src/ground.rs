@@ -143,8 +143,8 @@ impl Widget for Ground {
                         square: util::pos_to_square(widget, state.orientation, e.get_position()),
                     };
 
-                    state.drag_mouse_up(context);
-                    //state.drawable.mouse_up(widget, square);
+                    state.drag_mouse_up(&context);
+                    state.drawable.mouse_up(&context);
                 }
                 Inhibit(false)
             });
@@ -173,11 +173,11 @@ impl Widget for Ground {
     }
 }
 
-struct EventContext<'a> {
-    drawing_area: &'a DrawingArea,
-    stream: &'a EventStream<GroundMsg>,
-    pos: (f64, f64),
-    square: Option<Square>,
+pub struct EventContext<'a> {
+    pub drawing_area: &'a DrawingArea,
+    pub stream: &'a EventStream<GroundMsg>,
+    pub pos: (f64, f64),
+    pub square: Option<Square>,
 }
 
 pub const ANIMATE_DURATION: f64 = 0.2;
@@ -720,7 +720,7 @@ fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<
 }
 
 impl BoardState {
-    fn drag_mouse_up(&mut self, context: EventContext) {
+    fn drag_mouse_up(&mut self, context: &EventContext) {
         self.drag_start = None;
 
         let m = if let Some(dragging) = self.pieces.dragging_mut() {

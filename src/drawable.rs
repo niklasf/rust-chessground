@@ -13,6 +13,8 @@ use gtk::DrawingArea;
 use gdk::EventButton;
 use cairo::Context;
 
+use ground::EventContext;
+
 enum DrawBrush {
     Green,
     Red,
@@ -146,9 +148,9 @@ impl Drawable {
         }
     }
 
-    pub(crate) fn mouse_up(&mut self, widget: &DrawingArea, square: Option<Square>) {
+    pub(crate) fn mouse_up(&mut self, context: &EventContext) {
         if let Some(mut drawing) = self.drawing.take() {
-            drawing.dest = square.unwrap_or(drawing.orig);
+            drawing.dest = context.square.unwrap_or(drawing.orig);
 
             // remove or add shape
             let num_shapes = self.shapes.len();
@@ -157,7 +159,7 @@ impl Drawable {
                 self.shapes.push(drawing);
             }
 
-            widget.queue_draw();
+            context.drawing_area.queue_draw();
         }
     }
 
