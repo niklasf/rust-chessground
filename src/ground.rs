@@ -35,7 +35,6 @@ pub struct Model {
 
 #[derive(Msg)]
 pub enum GroundMsg {
-    PseudoMove { orig: Square, dest: Square },
     UserMove { orig: Square, dest: Square, promotion: Option<Role> },
 }
 
@@ -56,13 +55,20 @@ impl Update for Ground {
     }
 
     fn update(&mut self, event: GroundMsg) {
-        let state = self.model.state.borrow();
+        let mut state = self.model.state.borrow_mut();
 
         match event {
-            GroundMsg::PseudoMove { orig, dest } if state.valid_move(orig, dest) => {
-                /* if let Some(m) = state.legals.iter().find(|m| m.from() == Some(orig) && m.to() == dest && m.promotion.is_none()) {
+            GroundMsg::UserMove { orig, dest, promotion: None } if state.valid_move(orig, dest) => {
+                if state.legals.iter().any(|m| m.from() == Some(orig) && m.to() == dest && m.promotion().is_some()) {
+                    state.promoting = Some(Promoting {
+                        orig,
+                        dest,
+                        hover: Some(dest),
+                        hover_since: SteadyTime::now()
+                    });
 
-                } */
+                    self.drawing_area.queue_draw();
+                }
             },
             _ => {}
         }
@@ -134,7 +140,7 @@ impl Widget for Ground {
                         square: util::pos_to_square(widget, state.orientation, e.get_position()),
                     };
 
-                    if !promoting_mouse_down(&mut state, widget, context.square) {
+                    if !state.promoting_mouse_down(&context) {
                         state.selection_mouse_down(&context, e);
                         drag_mouse_down(&mut state, widget, context.square, e);
                         state.drawable.mouse_down(widget, context.square, e);
@@ -490,17 +496,6 @@ struct BoardState {
 }
 
 impl BoardState {
-    fn user_move(&mut self, orig: Square, dest: Square) {
-        match self.pieces.board.piece_at(orig) {
-            Some(Piece { role: Role::Pawn, color }) if color.fold(7, 0) == dest.rank() => {
-                self.promoting = Some(Promoting {
-                    orig, dest, hover: Some(dest), hover_since: SteadyTime::now()
-                });
-            },
-            _ => self.on_user_move(orig, dest, None)
-        }
-    }
-
     fn on_user_move(&mut self, orig: Square, dest: Square, promotion: Option<Role>) {
         println!("user move: {} {}", orig, dest);
 
@@ -579,39 +574,46 @@ impl Promoting {
     }
 }
 
-fn promoting_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>) -> bool {
-    if let Some(promoting) = state.promoting.take() {
-        widget.queue_draw();
+impl BoardState {
+    fn promoting_mouse_down(&mut self, context: &EventContext) -> bool {
+        if let Some(promoting) = self.promoting.take() {
+            context.drawing_area.queue_draw();
 
-        // animate the figurine when cancelling
-        if let Some(figurine) = state.pieces.figurine_at_mut(promoting.orig) {
-            figurine.pos = util::square_to_inverted(promoting.dest);
-            figurine.time = SteadyTime::now();
-        }
+            // animate the figurine when cancelling
+            if let Some(figurine) = self.pieces.figurine_at_mut(promoting.orig) {
+                figurine.pos = util::square_to_inverted(promoting.dest);
+                figurine.time = SteadyTime::now();
+            }
 
-        if let Some(square) = square {
-            let side = promoting.orientation();
+            if let Some(square) = context.square {
+                let side = promoting.orientation();
 
-            if square.file() == promoting.dest.file() {
-                let role = match square.rank() {
-                    r if r == side.fold(7, 0) => Some(Role::Queen),
-                    r if r == side.fold(6, 1) => Some(Role::Rook),
-                    r if r == side.fold(5, 2) => Some(Role::Bishop),
-                    r if r == side.fold(4, 3) => Some(Role::Knight),
-                    r if r == side.fold(3, 4) => Some(Role::King),
-                    r if r == side.fold(2, 5) => Some(Role::Pawn),
-                    _ => None,
-                };
+                if square.file() == promoting.dest.file() {
+                    let role = match square.rank() {
+                        r if r == side.fold(7, 0) => Some(Role::Queen),
+                        r if r == side.fold(6, 1) => Some(Role::Rook),
+                        r if r == side.fold(5, 2) => Some(Role::Bishop),
+                        r if r == side.fold(4, 3) => Some(Role::Knight),
+                        r if r == side.fold(3, 4) => Some(Role::King),
+                        r if r == side.fold(2, 5) => Some(Role::Pawn),
+                        _ => None,
+                    };
 
-                if role.is_some() {
-                    state.on_user_move(promoting.orig, promoting.dest, role);
-                    return true;
+                    if role.is_some() {
+                        context.stream.emit(GroundMsg::UserMove {
+                            orig: promoting.orig,
+                            dest: promoting.dest,
+                            promotion: role,
+                        });
+
+                        return true;
+                    }
                 }
             }
         }
-    }
 
-    false
+        false
+    }
 }
 
 fn promoting_is_animating(state: &BoardState) -> bool {
@@ -656,7 +658,7 @@ impl BoardState {
             if let (Some(orig), Some(dest)) = (orig, dest) {
                 self.selected = None;
                 if orig != dest {
-                    context.stream.emit(GroundMsg::PseudoMove { orig, dest });
+                    context.stream.emit(GroundMsg::UserMove { orig, dest, promotion: None });
                 }
             }
         }
@@ -757,7 +759,7 @@ impl BoardState {
 
         if let Some((orig, dest)) = m {
             if self.valid_move(orig, dest) {
-                self.user_move(orig, dest);
+                context.stream.emit(GroundMsg::UserMove { orig, dest, promotion: None });
             }
         }
     }

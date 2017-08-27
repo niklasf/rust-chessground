@@ -50,7 +50,7 @@ impl Widget for Win {
 
         window.show_all();
 
-        connect!(ground@GroundMsg::PseudoMove { orig, dest }, relm, println!("hello {} {}", orig, dest));
+        connect!(ground@GroundMsg::UserMove { orig, dest, promotion }, relm, println!("got user move {} {} {:?}", orig, dest, promotion));
         connect!(relm, window, connect_delete_event(_, _), return (Some(WinMsg::Quit), Inhibit(false)));
 
         Win {
