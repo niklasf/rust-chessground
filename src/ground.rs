@@ -413,7 +413,7 @@ impl BoardView {
                     let matrix = util::compute_matrix(widget, state.orientation);
                     cr.set_matrix(matrix);
 
-                    draw_border(cr);
+                    draw_border(cr, &state);
                     draw_board(cr, &state);
                     draw_check(cr, &state);
                     state.pieces.render(cr, &state);
@@ -606,7 +606,19 @@ fn drag_mouse_up(state: &mut BoardState, widget: &DrawingArea, square: Option<Sq
     }
 }
 
-fn draw_border(cr: &Context) {
+fn draw_text(cr: &Context, orientation: Color, (x, y): (f64, f64), text: &str) {
+    let font = cr.font_extents();
+    let e = cr.text_extents(text);
+
+    cr.save();
+    cr.translate(x, y);
+    cr.rotate(orientation.fold(0.0, PI));
+    cr.move_to(-0.5 * e.width, 0.5 * font.ascent);
+    cr.show_text(text);
+    cr.restore();
+}
+
+fn draw_border(cr: &Context, state: &BoardState) {
     let border = cairo::SolidPattern::from_rgb(0.2, 0.2, 0.5);
     cr.set_source(&border);
     cr.rectangle(-0.5, -0.5, 9.0, 9.0);
@@ -614,26 +626,15 @@ fn draw_border(cr: &Context) {
 
     cr.set_font_size(0.20);
     cr.set_source_rgb(0.8, 0.8, 0.8);
-    let font = cr.font_extents();
 
     for (rank, glyph) in ["1", "2", "3", "4", "5", "6", "7", "8"].iter().enumerate() {
-        let e = cr.text_extents(glyph);
-
-        cr.move_to(-0.5 + (0.5 - e.width) * 0.5, 8.0 - rank as f64 - (1.0 - font.ascent) * 0.5);
-        cr.show_text(glyph);
-
-        cr.move_to(8.0 + (0.5 - e.width) * 0.5, 8.0 - rank as f64 - (1.0 - font.ascent) * 0.5);
-        cr.show_text(glyph);
+        draw_text(cr, state.orientation, (-0.25, 7.5 - rank as f64), glyph);
+        draw_text(cr, state.orientation, (8.25, 7.5 - rank as f64), glyph);
     }
 
     for (file, glyph) in ["a", "b", "c", "d", "e", "f", "g", "h"].iter().enumerate() {
-        let e = cr.text_extents(glyph);
-
-        cr.move_to(file as f64 + (1.0 - e.width) * 0.5, 0.0 - (0.5 - font.ascent) * 0.5);
-        cr.show_text(glyph);
-
-        cr.move_to(file as f64 + (1.0 - e.width) * 0.5, 8.5 - (0.5 - font.ascent) * 0.5);
-        cr.show_text(glyph);
+        draw_text(cr, state.orientation, (0.5 + file as f64, -0.25), glyph);
+        draw_text(cr, state.orientation, (0.5 + file as f64, 8.25), glyph);
     }
 }
 
