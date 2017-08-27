@@ -30,7 +30,7 @@ use pieceset;
 use drawable::Drawable;
 use pieceset::PieceSet;
 
-pub const ANIMATE_DURATION: f64 = 0.2;
+pub const ANIMATE_DURATION: f64 = 5.0;
 
 fn ease_in_out_cubic(start: f64, end: f64, elapsed: f64, duration: f64) -> f64 {
     let t = elapsed / duration;
@@ -332,14 +332,14 @@ impl BoardState {
                     orig, dest, hover: None,
                 });
             },
-            _ => self.on_user_move(orig, dest)
+            _ => self.on_user_move(orig, dest, None)
         }
     }
 
-    fn on_user_move(&mut self, orig: Square, dest: Square) {
+    fn on_user_move(&mut self, orig: Square, dest: Square, promotion: Option<Role>) {
         println!("user move: {} {}", orig, dest);
 
-        let m = self.legals.drain(..).find(|m| m.from() == Some(orig) && m.to() == dest);
+        let m = self.legals.drain(..).find(|m| m.from() == Some(orig) && m.to() == dest && m.promotion() == promotion);
         if let Some(m) = m {
             self.pos = self.pos.clone().play_unchecked(&m);
             self.pieces.set_board(self.pos.board());
@@ -458,7 +458,7 @@ impl BoardView {
                     let mut state = state.borrow_mut();
                     let square = util::pos_to_square(widget, state.orientation, e.get_position());
 
-                    if !promoting_mouse_down(&mut state, widget, e) {
+                    if !promoting_mouse_down(&mut state, widget, square, e) {
                         selection_mouse_down(&mut state, widget, e);
                         drag_mouse_down(&mut state, widget, square, e);
                         state.drawable.mouse_down(widget, square, e);
@@ -510,12 +510,18 @@ struct Promoting {
     hover: Option<Square>,
 }
 
-fn promoting_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventButton) -> bool {
+fn promoting_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventButton) -> bool {
     if let Some(promoting) = state.promoting.take() {
         // animate the figurine when cancelling
         if let Some(figurine) = state.pieces.figurine_at_mut(promoting.orig) {
             figurine.pos = util::square_to_inverted(promoting.dest);
             figurine.time = SteadyTime::now();
+        }
+
+        if let Some(square) = square {
+            if square.file() == promoting.dest.file() {
+                state.on_user_move(promoting.orig, promoting.dest, Some(Role::Knight));
+            }
         }
     }
 
