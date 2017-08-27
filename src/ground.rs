@@ -3,7 +3,6 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::f64::consts::PI;
 
-use shakmaty;
 use shakmaty::{Square, Color, Role, Piece, Board, Bitboard, MoveList, Position, Chess, Setup};
 
 use gtk;
@@ -19,8 +18,6 @@ use rsvg::HandleExt;
 use option_filter::OptionFilterExt;
 
 use time::SteadyTime;
-use rand;
-use rand::distributions::{IndependentSample, Range};
 
 use relm::{Relm, Widget, Update, EventStream};
 
@@ -35,6 +32,7 @@ pub struct Model {
 
 #[derive(Msg)]
 pub enum GroundMsg {
+    SetPosition { board: Board, legals: MoveList, last_move: Option<(Square, Square)>, check: Option<Square> },
     UserMove { orig: Square, dest: Square, promotion: Option<Role> },
 }
 
@@ -69,6 +67,14 @@ impl Update for Ground {
 
                     self.drawing_area.queue_draw();
                 }
+            },
+            GroundMsg::SetPosition { board, legals, last_move, check } => {
+                state.pieces.set_board(board);
+                state.legals = legals;
+                state.last_move = last_move;
+                state.check = check;
+
+                self.drawing_area.queue_draw();
             },
             _ => {}
         }
@@ -345,7 +351,7 @@ impl Pieces {
         }
     }
 
-    pub fn set_board(&mut self, board: &Board) {
+    pub fn set_board(&mut self, board: Board) {
         let now = SteadyTime::now();
 
         // clean and freeze previous animation
@@ -419,7 +425,7 @@ impl Pieces {
             });
         }
 
-        self.board = board.clone();
+        self.board = board;
     }
 
     pub fn occupied(&self) -> Bitboard {
@@ -496,33 +502,6 @@ struct BoardState {
 }
 
 impl BoardState {
-    fn on_user_move(&mut self, orig: Square, dest: Square, promotion: Option<Role>) {
-        println!("user move: {} {}", orig, dest);
-
-        let m = self.legals.drain(..).find(|m| m.from() == Some(orig) && m.to() == dest && m.promotion() == promotion);
-        if let Some(m) = m {
-            self.pos = self.pos.clone().play_unchecked(&m);
-            self.pieces.set_board(self.pos.board());
-            self.last_move = Some((m.to(), m.from().unwrap_or_else(|| m.to())));
-
-            // respond
-            self.legals.clear();
-            self.pos.legal_moves(&mut self.legals);
-            if !self.legals.is_empty() {
-                let mut rng = rand::thread_rng();
-                let idx = Range::new(0, self.legals.len()).ind_sample(&mut rng);
-                let m = &self.legals[idx];
-                self.pos = self.pos.clone().play_unchecked(m);
-                self.pieces.set_board(self.pos.board());
-                self.last_move = Some((m.to(), m.from().unwrap_or_else(|| m.to())));
-            }
-        }
-
-        self.legals.clear();
-        self.pos.legal_moves(&mut self.legals);
-        self.check = self.pos.board().king_of(self.pos.turn()).filter(|_| self.pos.checkers().any());
-    }
-
     fn move_targets(&self, orig: Square) -> Bitboard {
         self.legals.iter().filter(|m| m.from() == Some(orig)).map(|m| m.to()).collect()
     }
@@ -758,7 +737,7 @@ impl BoardState {
         };
 
         if let Some((orig, dest)) = m {
-            if self.valid_move(orig, dest) {
+            if orig != dest {
                 context.stream.emit(GroundMsg::UserMove { orig, dest, promotion: None });
             }
         }
