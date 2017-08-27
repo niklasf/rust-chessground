@@ -117,12 +117,18 @@ impl Widget for Ground {
                                                   dest: shakmaty::square::D4 });
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
-                    let square = util::pos_to_square(widget, state.orientation, e.get_position());
 
-                    if !promoting_mouse_down(&mut state, widget, square) {
-                        selection_mouse_down(&mut state, widget, e);
-                        drag_mouse_down(&mut state, widget, square, e);
-                        state.drawable.mouse_down(widget, square, e);
+                    let context = EventContext {
+                        drawing_area: &widget,
+                        stream: &stream,
+                        pos: e.get_position(),
+                        square: util::pos_to_square(widget, state.orientation, e.get_position()),
+                    };
+
+                    if !promoting_mouse_down(&mut state, widget, context.square) {
+                        state.selection_mouse_down(&context, e);
+                        drag_mouse_down(&mut state, widget, context.square, e);
+                        state.drawable.mouse_down(widget, context.square, e);
                     }
                 }
                 Inhibit(false)
@@ -630,25 +636,26 @@ fn promoting_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Op
     consume
 }
 
-fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventButton) {
-    let orig = state.selected.take();
+impl BoardState {
+    fn selection_mouse_down(&mut self, context: &EventContext, e: &EventButton) {
+        let orig = self.selected.take();
 
-    if e.get_button() == 1 {
-        let dest = util::pos_to_square(widget, state.orientation, e.get_position());
+        if e.get_button() == 1 {
+            let dest = context.square;
+            self.selected = dest.filter(|sq| self.pieces.occupied().contains(*sq));
 
-        state.selected = dest.filter(|sq| state.pieces.occupied().contains(*sq));
-
-        if let (Some(orig), Some(dest)) = (orig, dest) {
-            if state.valid_move(orig, dest) {
-                state.selected = None;
-                state.user_move(orig, dest);
-            } else if orig == dest {
-                state.selected = None;
+            if let (Some(orig), Some(dest)) = (orig, dest) {
+                if self.valid_move(orig, dest) {
+                    self.selected = None;
+                    self.user_move(orig, dest);
+                } else if orig == dest {
+                    self.selected = None;
+                }
             }
         }
-    }
 
-    widget.queue_draw();
+        context.drawing_area.queue_draw();
+    }
 }
 
 fn drag_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventButton) {
