@@ -3,6 +3,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::f64::consts::PI;
 
+use shakmaty;
 use shakmaty::{Square, Color, Role, Piece, Board, Bitboard, MoveList, Position, Chess, Setup};
 
 use gtk;
@@ -34,6 +35,7 @@ pub struct Model {
 
 #[derive(Msg)]
 pub enum GroundMsg {
+    UserMove((Square, Square)),
 }
 
 pub struct Ground {
@@ -63,7 +65,7 @@ impl Widget for Ground {
         self.drawing_area.clone()
     }
 
-    fn view(_relm: &Relm<Self>, model: Model) -> Self {
+    fn view(relm: &Relm<Self>, model: Model) -> Self {
         let drawing_area = DrawingArea::new();
 
         drawing_area.add_events((gdk::BUTTON_PRESS_MASK |
@@ -109,6 +111,7 @@ impl Widget for Ground {
 
         {
             let state = Rc::downgrade(&model.state);
+            let stream = relm.stream().clone();
             drawing_area.connect_button_press_event(move |widget, e| {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();

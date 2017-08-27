@@ -9,7 +9,7 @@ use gtk::prelude::*;
 use gtk::{Window, WindowType};
 use relm::{Relm, Update, Widget, Component, ContainerWidget};
 
-use chessground::Ground;
+use chessground::{Ground, GroundMsg};
 
 #[derive(Msg)]
 enum WinMsg {
@@ -50,6 +50,7 @@ impl Widget for Win {
 
         window.show_all();
 
+        connect!(ground@GroundMsg::UserMove(ref e), relm, println!("hello"));
         connect!(relm, window, connect_delete_event(_, _), return (Some(WinMsg::Quit), Inhibit(false)));
 
         Win {
