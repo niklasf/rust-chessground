@@ -19,7 +19,7 @@ use gtk::prelude::*;
 use relm::Widget;
 use relm_attributes::widget;
 
-use shakmaty::{Square, Role, Chess, Position, MoveList, Setup};
+use shakmaty::{Square, Role, Chess, Position, Setup};
 use chessground::{Ground, GroundMsg, UserMove};
 
 use self::Msg::*;
@@ -42,10 +42,8 @@ impl Widget for Win {
                 gtk::main_quit()
             },
             MovePlayed(orig, dest, promotion) => {
-                let mut legals = MoveList::new();
-                self.model.legal_moves(&mut legals);
-
-                let m = legals.drain(..).find(|m| {
+                let legals = self.model.legals();
+                let m = legals.iter().find(|m| {
                     m.from() == Some(orig) && m.to() == dest &&
                     m.promotion() == promotion
                 });
@@ -57,12 +55,10 @@ impl Widget for Win {
                     return;
                 };
 
-                legals.clear();
-                self.model.legal_moves(&mut legals);
-
-                let last_move = if !legals.is_empty() {
+                let last_move = if !self.model.is_game_over() {
                     // respond with a random move
                     let mut rng = rand::thread_rng();
+                    let legals = self.model.legals();
                     let idx = Range::new(0, legals.len()).ind_sample(&mut rng);
                     let m = &legals[idx];
                     self.model = self.model.clone().play_unchecked(m);
@@ -71,14 +67,13 @@ impl Widget for Win {
                     last_move
                 };
 
-                legals.clear();
-                self.model.legal_moves(&mut legals);
-
                 self.ground.emit(GroundMsg::SetPosition {
                     board: self.model.board().clone(),
-                    legals,
+                    legals: self.model.legals(),
                     last_move,
-                    check: self.model.board().king_of(self.model.turn()).filter(|_| self.model.checkers().any())
+                    check: self.model.board()
+                               .king_of(self.model.turn())
+                               .filter(|_| self.model.checkers().any())
                 });
             }
         }
