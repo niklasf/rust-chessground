@@ -374,8 +374,7 @@ impl BoardState {
 
 impl BoardState {
     fn new() -> Self {
-        let fen: shakmaty::fen::Fen = "rnbqkbnr/ppppppPp/8/8/8/8/PPPPPP1P/RNBQKBNR".parse().expect("valid fen");
-        let pos: Chess = fen.position().expect("legal position");
+        let pos = Chess::default();
 
         let mut state = BoardState {
             pieces: Pieces::new_from_board(pos.board()),
