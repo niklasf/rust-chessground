@@ -60,7 +60,7 @@ impl PieceSet {
                 rook: Handle::new_from_str(include_str!("merida/wR.svg")).expect("merida/wR.svg"),
                 queen: Handle::new_from_str(include_str!("merida/wQ.svg")).expect("merida/wQ.svg"),
                 king: Handle::new_from_str(include_str!("merida/wK.svg")).expect("merida/wK.svg"),
-            }
+            },
         }
     }
 }

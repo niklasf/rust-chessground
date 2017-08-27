@@ -32,8 +32,17 @@ pub struct Model {
 
 #[derive(Msg)]
 pub enum GroundMsg {
-    SetPosition { board: Board, legals: MoveList, last_move: Option<(Square, Square)>, check: Option<Square> },
-    UserMove { orig: Square, dest: Square, promotion: Option<Role> },
+    SetPosition {
+        board: Board,
+        legals: MoveList,
+        last_move: Option<(Square, Square)>,
+        check: Option<Square>,
+    },
+    UserMove {
+        orig: Square,
+        dest: Square,
+        promotion: Option<Role>,
+    },
 }
 
 pub struct Ground {

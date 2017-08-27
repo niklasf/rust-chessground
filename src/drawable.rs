@@ -101,7 +101,10 @@ impl Drawable {
         }
     }
 
-    pub(crate) fn mouse_down(&mut self, widget: &DrawingArea, square: Option<Square>, e: &EventButton) {
+    pub(crate) fn mouse_down(&mut self,
+                             widget: &DrawingArea,
+                             square: Option<Square>,
+                             e: &EventButton) {
         if !self.enabled {
             return;
         }
@@ -112,7 +115,7 @@ impl Drawable {
                     self.shapes.clear();
                     widget.queue_draw();
                 }
-            },
+            }
             3 => {
                 self.drawing = square.map(|square| {
                     let brush = if e.get_state().contains(gdk::MOD1_MASK | gdk::SHIFT_MASK) {
@@ -133,8 +136,8 @@ impl Drawable {
                 });
 
                 widget.queue_draw();
-            },
-            _ => {},
+            }
+            _ => {}
         }
     }
 

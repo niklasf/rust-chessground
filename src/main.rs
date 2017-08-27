@@ -23,7 +23,11 @@ use chessground::{Ground, GroundMsg};
 #[derive(Msg)]
 enum WinMsg {
     Quit,
-    UserMove { orig: Square, dest: Square, promotion: Option<Role> },
+    UserMove {
+        orig: Square,
+        dest: Square,
+        promotion: Option<Role>,
+    },
 }
 
 struct Win {
