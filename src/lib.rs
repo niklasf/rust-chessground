@@ -6,10 +6,13 @@ extern crate shakmaty;
 extern crate option_filter;
 extern crate time;
 extern crate rand;
+extern crate relm;
+#[macro_use]
+extern crate relm_derive;
 
 mod drawable;
 mod util;
 mod pieceset;
 mod ground;
 
-pub use ground::BoardView;
+pub use ground::{Ground, BoardView};

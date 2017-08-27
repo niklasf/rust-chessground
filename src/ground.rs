@@ -1,10 +1,3 @@
-extern crate gtk;
-extern crate gdk;
-extern crate cairo;
-extern crate rsvg;
-extern crate shakmaty;
-extern crate option_filter;
-
 use std::cmp::{min, max};
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -12,9 +5,12 @@ use std::f64::consts::PI;
 
 use shakmaty::{Square, Color, Role, Piece, Board, Bitboard, MoveList, Position, Chess, Setup};
 
+use gtk;
 use gtk::prelude::*;
 use gtk::DrawingArea;
+use gdk;
 use gdk::{EventButton, EventMotion};
+use cairo;
 use cairo::prelude::*;
 use cairo::{Context, RadialGradient};
 use rsvg::HandleExt;
@@ -25,10 +21,53 @@ use time::SteadyTime;
 use rand;
 use rand::distributions::{IndependentSample, Range};
 
+use relm;
+use relm::{Relm, Widget, Update};
+
 use util;
 use pieceset;
 use drawable::Drawable;
 use pieceset::PieceSet;
+
+pub struct Model {
+}
+
+#[derive(Msg)]
+pub enum GroundMsg {
+}
+
+pub struct Ground {
+    drawing_area: DrawingArea,
+}
+
+impl Update for Ground {
+    type Model = Model;
+    type ModelParam = ();
+    type Msg = GroundMsg;
+
+    fn model(_: &Relm<Self>, _: ()) -> Model {
+        Model { }
+    }
+
+    fn update(&mut self, event: GroundMsg) {
+    }
+}
+
+impl Widget for Ground {
+    type Root = DrawingArea;
+
+    fn root(&self) -> Self::Root {
+        self.drawing_area.clone()
+    }
+
+    fn view(relm: &Relm<Self>, model: Model) -> Self {
+        let drawing_area = DrawingArea::new();
+
+        Ground {
+            drawing_area
+        }
+    }
+}
 
 pub const ANIMATE_DURATION: f64 = 0.2;
 
