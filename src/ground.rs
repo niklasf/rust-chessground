@@ -518,6 +518,10 @@ impl Promoting {
     fn elapsed(&self, now: SteadyTime) -> f64 {
         (now - self.hover_since).num_milliseconds() as f64 / 1000.0
     }
+
+    fn orientation(&self) -> Color {
+        Color::from_bool(self.dest.rank() > 4)
+    }
 }
 
 fn promoting_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>) -> bool {
@@ -531,12 +535,15 @@ fn promoting_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Op
         }
 
         if let Some(square) = square {
+            let side = promoting.orientation();
+
             if square.file() == promoting.dest.file() {
                 let role = match square.rank() {
-                    7 | 0 => Some(Role::Queen),
-                    6 | 1 => Some(Role::Rook),
-                    5 | 2 => Some(Role::Bishop),
-                    4 | 3 => Some(Role::Knight),
+                    r if r == side.fold(7, 0) => Some(Role::Queen),
+                    r if r == side.fold(6, 1) => Some(Role::Rook),
+                    r if r == side.fold(5, 2) => Some(Role::Bishop),
+                    r if r == side.fold(4, 3) => Some(Role::Knight),
+                    r if r == side.fold(3, 4) => Some(Role::King),
                     _ => None,
                 };
 
@@ -844,54 +851,54 @@ fn draw_drag(cr: &Context, state: &BoardState) {
 
 fn draw_promoting(cr: &Context, state: &BoardState) {
     if let Some(ref promoting) = state.promoting {
-        let mut square = promoting.dest;
-
         cr.rectangle(0.0, 0.0, 8.0, 8.0);
         cr.set_source_rgba(0.0, 0.0, 0.0, 0.5);
         cr.fill();
 
-        let offset = if square.rank() < 4 { -1.0 } else { 1.0 };
-        let mut y = 7.0 - square.rank() as f64;
-        let mut light = square.is_light();
+        let mut light = promoting.dest.is_light();
+        let mut rank = promoting.orientation().fold(7i8, 0i8);
+        let offset = promoting.orientation().fold(-1, 0);
 
-        for role in &[Role::Queen, Role::Rook, Role::Bishop, Role::Knight] {
+        for role in &[Role::Queen, Role::Rook, Role::Bishop, Role::Knight, Role::King] {
             cr.save();
-            if square.is_light() {
+            cr.rectangle(promoting.dest.file() as f64, 7.0 - rank as f64, 1.0, 1.0);
+            cr.clip_preserve();
+
+            if light {
                 cr.set_source_rgb(0.25, 0.25, 0.25);
             } else {
                 cr.set_source_rgb(0.18, 0.18, 0.18);
             }
-            cr.rectangle(square.file() as f64, y, 1.0, 1.0);
-            cr.clip_preserve();
             cr.fill();
 
-            let radius = if promoting.hover == Some(square) {
-                cr.set_source_rgb(
-                    ease_in_out_cubic(0.69, 1.0, promoting.elapsed(state.now), 1.0),
-                    ease_in_out_cubic(0.69, 0.65, promoting.elapsed(state.now), 1.0),
-                    ease_in_out_cubic(0.69, 0.0, promoting.elapsed(state.now), 1.0));
+            let radius = match promoting.hover {
+                Some(hover) if hover.file() == promoting.dest.file() && hover.rank() == rank => {
+                    cr.set_source_rgb(
+                        ease_in_out_cubic(0.69, 1.0, promoting.elapsed(state.now), 1.0),
+                        ease_in_out_cubic(0.69, 0.65, promoting.elapsed(state.now), 1.0),
+                        ease_in_out_cubic(0.69, 0.0, promoting.elapsed(state.now), 1.0));
 
-                ease_in_out_cubic(0.5, 0.5f64.hypot(0.5), promoting.elapsed(state.now), 1.0)
-            } else {
-                cr.set_source_rgb(0.69, 0.69, 0.69);
-                0.5
+                    ease_in_out_cubic(0.5, 0.5f64.hypot(0.5), promoting.elapsed(state.now), 1.0)
+                },
+                _ => {
+                    cr.set_source_rgb(0.69, 0.69, 0.69);
+                    0.5
+                },
             };
 
-            cr.arc(0.5 + square.file() as f64, y + 0.5 * offset,
-                   radius, 0.0, 2.0 * PI);
+            cr.arc(0.5 + promoting.dest.file() as f64, 7.5 - rank as f64, radius, 0.0, 2.0 * PI);
             cr.fill();
 
             cr.save();
-            cr.translate(0.5 + square.file() as f64, y + 0.5 * offset);
+            cr.translate(0.5 + promoting.dest.file() as f64, 7.5 - rank as f64);
             cr.scale(2f64.sqrt() * radius, 2f64.sqrt() * radius);
             cr.translate(-0.5, -0.5);
             cr.scale(state.piece_set.scale(), state.piece_set.scale());
             state.piece_set.by_piece(&role.of(Color::White)).render_cairo(cr);
             cr.restore();
 
-            y += offset;
+            rank += offset;
             light = !light;
-            square = Square::from_coords(square.file(), square.rank() - offset as i8).expect("promotion dialog square on board");
             cr.restore();
         }
     }
