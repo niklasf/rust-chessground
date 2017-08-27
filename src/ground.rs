@@ -162,10 +162,10 @@ impl Pieces {
     pub fn new_from_board(board: &Board) -> Pieces {
         Pieces {
             board: board.clone(),
-            figurines: board.occupied().map(|sq| Figurine {
-                square: sq,
-                piece: board.piece_at(sq).expect("enumerating"),
-                pos: (0.5 + sq.file() as f64, 7.5 - sq.rank() as f64),
+            figurines: board.pieces().map(|(square, piece)| Figurine {
+                square,
+                piece,
+                pos: (0.5 + square.file() as f64, 7.5 - square.rank() as f64),
                 time: SteadyTime::now(),
                 fading: false,
                 replaced: false,
