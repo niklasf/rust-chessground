@@ -398,14 +398,14 @@ impl BoardState {
 }
 
 pub struct BoardView {
-    widget: Rc<DrawingArea>,
+    widget: DrawingArea,
     state: Rc<RefCell<BoardState>>,
 }
 
 impl BoardView {
     pub fn new() -> Self {
         let v = BoardView {
-            widget: Rc::new(DrawingArea::new()),
+            widget: DrawingArea::new(),
             state: Rc::new(RefCell::new(BoardState::new())),
         };
 
@@ -415,7 +415,6 @@ impl BoardView {
 
         {
             let weak_state = Rc::downgrade(&v.state);
-            let weak_widget = Rc::downgrade(&v.widget);
             v.widget.connect_draw(move |widget, cr| {
                 if let Some(state) = weak_state.upgrade() {
                     let mut state = state.borrow_mut();
@@ -435,10 +434,10 @@ impl BoardView {
                     draw_promoting(cr, &state);
 
                     let weak_state = weak_state.clone();
-                    let weak_widget = weak_widget.clone();
+                    let widget = widget.clone();
                     if animating {
                         gtk::idle_add(move || {
-                            if let (Some(state), Some(widget)) = (weak_state.upgrade(), weak_widget.upgrade()) {
+                            if let Some(state) = weak_state.upgrade() {
                                 let state = state.borrow();
                                 state.pieces.queue_animation(&state, &widget);
                                 promoting_queue_animation(&state, &widget);
