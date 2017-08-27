@@ -553,6 +553,12 @@ fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<
     }
 
     if let Some(dragging) = state.pieces.dragging_mut() {
+        // ensure orig square is selected
+        if state.selected != Some(dragging.square) {
+            state.selected = Some(dragging.square);
+            widget.queue_draw();
+        }
+
         // invalidate previous
         queue_draw_rect(widget, state.orientation, dragging.pos.0 - 0.5, dragging.pos.1 - 0.5, 1.0, 1.0);
         queue_draw_square(widget, state.orientation, dragging.square);
