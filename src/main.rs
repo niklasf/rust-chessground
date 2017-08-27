@@ -6,38 +6,83 @@ extern crate relm;
 extern crate relm_derive;
 extern crate shakmaty;
 extern crate option_filter;
+extern crate rand;
 
 use option_filter::OptionFilterExt;
+
+use rand::distributions::{Range, IndependentSample};
 
 use gtk::prelude::*;
 use gtk::{Window, WindowType};
 use relm::{Relm, Update, Widget, Component, ContainerWidget};
 
-use shakmaty::{Chess, Position, MoveList, Setup};
+use shakmaty::{Square, Role, Chess, Position, MoveList, Setup};
 
 use chessground::{Ground, GroundMsg};
 
 #[derive(Msg)]
 enum WinMsg {
     Quit,
+    UserMove { orig: Square, dest: Square, promotion: Option<Role> },
 }
 
 struct Win {
-    _ground: Component<Ground>,
     window: Window,
+    ground: Component<Ground>,
+    pos: Chess,
 }
 
 impl Update for Win {
-    type Model = ();
+    type Model = Chess;
     type ModelParam = ();
     type Msg = WinMsg;
 
     fn model(_: &Relm<Self>, _: ()) -> Self::Model {
+        Chess::default()
     }
 
     fn update(&mut self, event: Self::Msg) {
         match event {
-            WinMsg::Quit => gtk::main_quit(),
+            WinMsg::Quit => {
+                gtk::main_quit()
+            },
+            WinMsg::UserMove { orig, dest, promotion } => {
+                let mut legals = MoveList::new();
+                self.pos.legal_moves(&mut legals);
+
+                let m = legals.drain(..).find(|m| m.from() == Some(orig) && m.to() == dest && m.promotion() == promotion);
+
+                let last_move = if let Some(m) = m {
+                    self.pos = self.pos.clone().play_unchecked(&m);
+                    Some((m.from().unwrap_or_else(|| m.to()), m.to()))
+                } else {
+                    None
+                };
+
+                legals.clear();
+                self.pos.legal_moves(&mut legals);
+
+                let last_move = if !legals.is_empty() {
+                    // respond with a random move
+                    let mut rng = rand::thread_rng();
+                    let idx = Range::new(0, legals.len()).ind_sample(&mut rng);
+                    let m = &legals[idx];
+                    self.pos = self.pos.clone().play_unchecked(m);
+                    Some((m.from().unwrap_or_else(|| m.to()), m.to()))
+                } else {
+                    last_move
+                };
+
+                legals.clear();
+                self.pos.legal_moves(&mut legals);
+
+                self.ground.emit(GroundMsg::SetPosition {
+                    board: self.pos.board().clone(),
+                    legals,
+                    last_move,
+                    check: self.pos.board().king_of(self.pos.turn()).filter(|_| self.pos.checkers().any())
+                });
+            }
         }
     }
 }
@@ -49,62 +94,22 @@ impl Widget for Win {
         self.window.clone()
     }
 
-    fn view(relm: &Relm<Self>, _model: Self::Model) -> Self {
+    fn view(relm: &Relm<Self>, pos: Self::Model) -> Self {
         let window = Window::new(WindowType::Toplevel);
         let ground = window.add_widget::<Ground, _>(relm, ());
 
         window.show_all();
 
-        connect!(ground @ GroundMsg::UserMove { orig, dest, promotion }, ground, {
+        connect!(ground @ GroundMsg::UserMove { orig, dest, promotion }, relm, {
             println!("got user move {} {} {:?}", orig, dest, promotion);
-
-            let pos = Chess::default();
-            let mut legals = MoveList::new();
-            pos.legal_moves(&mut legals);
-
-            let m = legals.drain(..).find(|m| m.from() == Some(orig) && m.to() == dest && m.promotion() == promotion);
-            let pos = if let Some(m) = m {
-                pos.clone().play_unchecked(&m)
-            } else {
-                pos
-            };
-
-            legals.clear();
-            pos.legal_moves(&mut legals);
-
-            GroundMsg::SetPosition {
-                board: pos.board().clone(),
-                legals,
-                last_move: None,
-                check: pos.board().king_of(pos.turn()).filter(|_| pos.checkers().any()),
-            }
-
-                /* self.pieces.set_board(self.pos.board());
-                self.last_move = Some((m.to(), m.from().unwrap_or_else(|| m.to())));
-
-                // respond
-                self.legals.clear();
-                self.pos.legal_moves(&mut self.legals);
-                if !self.legals.is_empty() {
-                    let mut rng = rand::thread_rng();
-                    let idx = Range::new(0, self.legals.len()).ind_sample(&mut rng);
-                    let m = &self.legals[idx];
-                    self.pos = self.pos.clone().play_unchecked(m);
-                    self.pieces.set_board(self.pos.board());
-                    self.last_move = Some((m.to(), m.from().unwrap_or_else(|| m.to())));
-                }
-            }
-
-            self.legals.clear();
-            self.pos.legal_moves(&mut self.legals);
-            self.check = self.pos.board().king_of(self.pos.turn()).filter(|_| self.pos.checkers().any()); */
-
+            WinMsg::UserMove { orig, dest, promotion }
         });
 
         connect!(relm, window, connect_delete_event(_, _), return (Some(WinMsg::Quit), Inhibit(false)));
 
         Win {
-            _ground: ground,
+            ground,
+            pos,
             window,
         }
     }
