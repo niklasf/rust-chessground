@@ -544,6 +544,7 @@ fn promoting_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Op
                     r if r == side.fold(5, 2) => Some(Role::Bishop),
                     r if r == side.fold(4, 3) => Some(Role::Knight),
                     r if r == side.fold(3, 4) => Some(Role::King),
+                    r if r == side.fold(2, 5) => Some(Role::Pawn),
                     _ => None,
                 };
 
@@ -855,7 +856,15 @@ fn draw_promoting(cr: &Context, state: &BoardState) {
         cr.set_source_rgba(0.0, 0.0, 0.0, 0.5);
         cr.fill();
 
-        for (offset, role) in [Role::Queen, Role::Rook, Role::Bishop, Role::Knight, Role::King].iter().enumerate() {
+        for (offset, role) in [Role::Queen, Role::Rook, Role::Bishop, Role::Knight, Role::King, Role::Pawn].iter().enumerate() {
+            if !state.legals.iter().any(|m| {
+                m.from() == Some(promoting.orig) &&
+                m.to() == promoting.dest &&
+                m.promotion() == Some(*role)
+            }) {
+                continue;
+            }
+
             let rank = promoting.orientation().fold(7 - offset as i8, offset as i8);
             let light = promoting.dest.file() + rank & 1 == 1;
 
