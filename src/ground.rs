@@ -30,7 +30,7 @@ use pieceset;
 use drawable::Drawable;
 use pieceset::PieceSet;
 
-pub const ANIMATE_DURATION: f64 = 5.0;
+pub const ANIMATE_DURATION: f64 = 0.2;
 
 fn ease_in_out_cubic(start: f64, end: f64, elapsed: f64, duration: f64) -> f64 {
     let t = elapsed / duration;
@@ -512,6 +512,8 @@ struct Promoting {
 
 fn promoting_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventButton) -> bool {
     if let Some(promoting) = state.promoting.take() {
+        widget.queue_draw();
+
         // animate the figurine when cancelling
         if let Some(figurine) = state.pieces.figurine_at_mut(promoting.orig) {
             figurine.pos = util::square_to_inverted(promoting.dest);
@@ -520,7 +522,18 @@ fn promoting_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Op
 
         if let Some(square) = square {
             if square.file() == promoting.dest.file() {
-                state.on_user_move(promoting.orig, promoting.dest, Some(Role::Knight));
+                let role = match square.rank() {
+                    7 | 0 => Some(Role::Queen),
+                    6 | 1 => Some(Role::Rook),
+                    5 | 2 => Some(Role::Bishop),
+                    4 | 3 => Some(Role::Knight),
+                    _ => None,
+                };
+
+                if role.is_some() {
+                    state.on_user_move(promoting.orig, promoting.dest, role);
+                    return true;
+                }
             }
         }
     }
