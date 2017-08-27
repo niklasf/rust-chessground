@@ -862,7 +862,7 @@ fn draw_promoting(cr: &Context, state: &BoardState) {
                 cr.set_source_rgb(0.18, 0.18, 0.18);
             }
             cr.rectangle(square.file() as f64, y, 1.0, 1.0);
-            cr.clip();
+            cr.clip_preserve();
             cr.fill();
 
             let radius = if promoting.hover == Some(square) {
