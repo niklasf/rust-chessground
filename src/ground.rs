@@ -127,6 +127,13 @@ impl Figurine {
     }
 
     fn render(&self, cr: &Context, state: &BoardState) {
+        if let Some(ref promoting) = state.promoting {
+            // hide piece while promotion dialog is open
+            if promoting.orig == self.square {
+                return;
+            }
+        }
+
         cr.push_group();
 
         let (x, y) = self.pos(state.now);
@@ -319,6 +326,17 @@ struct BoardState {
 
 impl BoardState {
     fn user_move(&mut self, orig: Square, dest: Square) {
+        match self.pieces.board.piece_at(orig) {
+            Some(Piece { role: Role::Pawn, color }) if color.fold(7, 0) == dest.rank() => {
+                self.promoting = Some(Promoting {
+                    orig, dest, hover: None,
+                });
+            },
+            _ => self.on_user_move(orig, dest)
+        }
+    }
+
+    fn on_user_move(&mut self, orig: Square, dest: Square) {
         println!("user move: {} {}", orig, dest);
 
         let m = self.legals.drain(..).find(|m| m.from() == Some(orig) && m.to() == dest);
@@ -355,7 +373,8 @@ impl BoardState {
 }
 
 struct Promoting {
-    square: Square,
+    orig: Square,
+    dest: Square,
     hover: Option<Square>,
 }
 
@@ -751,7 +770,7 @@ fn draw_drag(cr: &Context, state: &BoardState) {
 
 fn draw_promoting(cr: &Context, state: &BoardState) {
     if let Some(ref promoting) = state.promoting {
-        let mut square = promoting.square;
+        let mut square = promoting.dest;
 
         cr.rectangle(0.0, 0.0, 8.0, 8.0);
         cr.set_source_rgba(0.0, 0.0, 0.0, 0.5);
