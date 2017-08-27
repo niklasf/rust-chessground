@@ -366,7 +366,7 @@ impl BoardState {
 
         let mut state = BoardState {
             pieces: Pieces::new_from_board(pos.board()),
-            orientation: Color::Black,
+            orientation: Color::White,
             check: None,
             last_move: None,
             selected: None,
@@ -611,6 +611,30 @@ fn draw_border(cr: &Context) {
     cr.set_source(&border);
     cr.rectangle(-0.5, -0.5, 9.0, 9.0);
     cr.fill();
+
+    cr.set_font_size(0.20);
+    cr.set_source_rgb(0.8, 0.8, 0.8);
+    let font = cr.font_extents();
+
+    for (rank, glyph) in ["1", "2", "3", "4", "5", "6", "7", "8"].iter().enumerate() {
+        let e = cr.text_extents(glyph);
+
+        cr.move_to(-0.5 + (0.5 - e.width) * 0.5, 8.0 - rank as f64 - (1.0 - font.ascent) * 0.5);
+        cr.show_text(glyph);
+
+        cr.move_to(8.0 + (0.5 - e.width) * 0.5, 8.0 - rank as f64 - (1.0 - font.ascent) * 0.5);
+        cr.show_text(glyph);
+    }
+
+    for (file, glyph) in ["a", "b", "c", "d", "e", "f", "g", "h"].iter().enumerate() {
+        let e = cr.text_extents(glyph);
+
+        cr.move_to(file as f64 + (1.0 - e.width) * 0.5, 0.0 - (0.5 - font.ascent) * 0.5);
+        cr.show_text(glyph);
+
+        cr.move_to(file as f64 + (1.0 - e.width) * 0.5, 8.5 - (0.5 - font.ascent) * 0.5);
+        cr.show_text(glyph);
+    }
 }
 
 fn draw_board(cr: &Context, state: &BoardState) {
@@ -643,7 +667,6 @@ fn draw_board(cr: &Context, state: &BoardState) {
             }
         }
     }
-
 
     if let Some((orig, dest)) = state.last_move {
         cr.set_source_rgba(0.61, 0.78, 0.0, 0.41);
