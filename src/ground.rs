@@ -421,7 +421,7 @@ impl BoardView {
                 if let Some(state) = weak_state.upgrade() {
                     let mut state = state.borrow_mut();
                     state.now = SteadyTime::now();
-                    let animating = state.pieces.is_animating(state.now);
+                    let animating = state.pieces.is_animating(state.now) || promoting_is_animating(&state);
 
                     let matrix = util::compute_matrix(widget, state.orientation);
                     cr.set_matrix(matrix);
@@ -442,6 +442,7 @@ impl BoardView {
                             if let (Some(state), Some(widget)) = (weak_state.upgrade(), weak_widget.upgrade()) {
                                 let state = state.borrow();
                                 state.pieces.queue_animation(&state, &widget);
+                                promoting_queue_animation(&state, &widget);
                             }
                             Continue(false)
                         });
@@ -513,6 +514,12 @@ struct Promoting {
     hover_since: SteadyTime,
 }
 
+impl Promoting {
+    fn elapsed(&self, now: SteadyTime) -> f64 {
+        (now - self.hover_since).num_milliseconds() as f64 / 1000.0
+    }
+}
+
 fn promoting_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>) -> bool {
     if let Some(promoting) = state.promoting.take() {
         widget.queue_draw();
@@ -544,25 +551,35 @@ fn promoting_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Op
     false
 }
 
-fn promoting_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>) -> bool {
-    if let Some(ref mut promoting) = state.promoting {
-        if let Some(hover) = promoting.hover {
-            queue_draw_square(widget, state.orientation, hover);
-        }
+fn promoting_is_animating(state: &BoardState) -> bool {
+    if let Some(ref promoting) = state.promoting {
+        promoting.hover.is_some() && promoting.elapsed(state.now) <= 1.0
+    } else {
+        false
+    }
+}
 
+fn promoting_queue_animation(state: &BoardState, widget: &DrawingArea) {
+    if let Some(Promoting { hover: Some(hover), .. }) = state.promoting {
+        queue_draw_square(widget, state.orientation, hover);
+    }
+}
+
+fn promoting_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>) -> bool {
+    promoting_queue_animation(state, widget);
+
+    let consume = if let Some(ref mut promoting) = state.promoting {
         if promoting.hover != square {
             promoting.hover = square;
             promoting.hover_since = SteadyTime::now();
         }
-
-        if let Some(hover) = promoting.hover {
-            queue_draw_square(widget, state.orientation, hover);
-        }
-
         true
     } else {
         false
-    }
+    };
+
+    promoting_queue_animation(state, widget);
+    consume
 }
 
 fn selection_mouse_down(state: &mut BoardState, widget: &DrawingArea, e: &EventButton) {
@@ -847,7 +864,10 @@ fn draw_promoting(cr: &Context, state: &BoardState) {
             cr.fill();
 
             if promoting.hover == Some(square) {
-                cr.set_source_rgb(1.0, 0.65, 0.0);
+                cr.set_source_rgb(
+                    ease_in_out_cubic(0.69, 1.0, promoting.elapsed(state.now), 1.0),
+                    ease_in_out_cubic(0.69, 0.65, promoting.elapsed(state.now), 1.0),
+                    ease_in_out_cubic(0.69, 0.0, promoting.elapsed(state.now), 1.0));
             } else {
                 cr.set_source_rgb(0.69, 0.69, 0.69);
             }
