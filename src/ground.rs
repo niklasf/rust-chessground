@@ -855,11 +855,10 @@ fn draw_promoting(cr: &Context, state: &BoardState) {
         cr.set_source_rgba(0.0, 0.0, 0.0, 0.5);
         cr.fill();
 
-        let mut light = promoting.dest.is_light();
-        let mut rank = promoting.orientation().fold(7i8, 0i8);
-        let offset = promoting.orientation().fold(-1, 0);
+        for (offset, role) in [Role::Queen, Role::Rook, Role::Bishop, Role::Knight, Role::King].iter().enumerate() {
+            let rank = promoting.orientation().fold(7 - offset as i8, offset as i8);
+            let light = promoting.dest.file() + rank & 1 == 1;
 
-        for role in &[Role::Queen, Role::Rook, Role::Bishop, Role::Knight, Role::King] {
             cr.save();
             cr.rectangle(promoting.dest.file() as f64, 7.0 - rank as f64, 1.0, 1.0);
             cr.clip_preserve();
@@ -889,16 +888,12 @@ fn draw_promoting(cr: &Context, state: &BoardState) {
             cr.arc(0.5 + promoting.dest.file() as f64, 7.5 - rank as f64, radius, 0.0, 2.0 * PI);
             cr.fill();
 
-            cr.save();
             cr.translate(0.5 + promoting.dest.file() as f64, 7.5 - rank as f64);
             cr.scale(2f64.sqrt() * radius, 2f64.sqrt() * radius);
             cr.translate(-0.5, -0.5);
             cr.scale(state.piece_set.scale(), state.piece_set.scale());
             state.piece_set.by_piece(&role.of(Color::White)).render_cairo(cr);
-            cr.restore();
 
-            rank += offset;
-            light = !light;
             cr.restore();
         }
     }
