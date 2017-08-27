@@ -63,7 +63,7 @@ impl Update for Win {
                     self.pos = self.pos.clone().play_unchecked(&m);
                     Some((m.from().unwrap_or_else(|| m.to()), m.to()))
                 } else {
-                    None
+                    return;
                 };
 
                 legals.clear();
