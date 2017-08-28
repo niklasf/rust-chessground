@@ -243,7 +243,7 @@ impl State {
     }
 }
 
-pub struct EventContext<'a> {
+pub(crate) struct EventContext<'a> {
     pub drawing_area: &'a DrawingArea,
     pub stream: &'a EventStream<GroundMsg>,
     pub square: Option<Square>,
