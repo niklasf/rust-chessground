@@ -169,7 +169,7 @@ impl Promoting {
             cr.scale(2f64.sqrt() * radius, 2f64.sqrt() * radius);
             cr.translate(-0.5, -0.5);
             cr.scale(state.piece_set.scale(), state.piece_set.scale());
-            state.piece_set.by_piece(&role.of(Color::White)).render_cairo(cr);
+            state.piece_set.by_piece(&role.of(self.orientation())).render_cairo(cr);
 
             cr.restore();
         }
