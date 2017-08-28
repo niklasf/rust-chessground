@@ -4,6 +4,16 @@ rust-chessground
 A chessboard widget for [Relm/GTK](https://github.com/antoyo/relm).
 Inspired by [chessground.js](https://github.com/ornicar/chessground).
 
+[![Build Status](https://travis-ci.org/niklasf/rust-chessground.svg?branch=master)](https://travis-ci.org/niklasf/rust-chessground)
+[![crates.io](https://img.shields.io/crates/v/chessground.svg)](https://crates.io/crates/chessground)
+
+<p align="center">
+<img src="/screenshot.png" alt="Screenshot">
+</p>
+
+Features
+--------
+
 * Uses vocabulary from [Shakmaty](https://github.com/niklasf/shakmaty) but is
   chess rule agnostic.
 * Can show legal move hints
@@ -15,10 +25,8 @@ Inspired by [chessground.js](https://github.com/ornicar/chessground).
 * Draw circles and arrows on the board
 * Smooth animations
 
-<p align="center">
-<img src="/screenshot.png" alt="Screenshot">
-</p>
-
+Only a minimum of the features is exposed in the public API. Feel free to
+request more.
 
 Documentation
 -------------
@@ -91,12 +99,6 @@ fn main() {
     Win::run(()).expect("initialized gtk");
 }
 ```
-
-Features
---------
-
-Only a minimum of the features is exposed in the public API. Feel free to
-request more.
 
 License
 -------

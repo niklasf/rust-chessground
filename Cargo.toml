@@ -21,3 +21,6 @@ relm = "0.10"
 relm-derive = "0.10"
 relm-attributes = "0.10"
 shakmaty = "0.0.7"
+
+[badges]
+travis-ci = { repository = "rust-chessground", branch = "master" }
