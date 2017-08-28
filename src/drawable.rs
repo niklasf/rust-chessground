@@ -95,7 +95,7 @@ impl Drawable {
         }
     }
 
-    pub fn mouse_down(&mut self, ctx: &EventContext, e: &EventButton) {
+    pub(crate) fn mouse_down(&mut self, ctx: &EventContext, e: &EventButton) {
         if !self.enabled {
             return;
         }
@@ -133,7 +133,7 @@ impl Drawable {
         }
     }
 
-    pub fn mouse_move(&mut self, ctx: &EventContext) {
+    pub(crate) fn mouse_move(&mut self, ctx: &EventContext) {
         if let Some(ref mut drawing) = self.drawing {
             let dest = ctx.square.unwrap_or(drawing.orig);
             if drawing.dest != dest {
@@ -143,7 +143,7 @@ impl Drawable {
         }
     }
 
-    pub fn mouse_up(&mut self, ctx: &EventContext) {
+    pub(crate) fn mouse_up(&mut self, ctx: &EventContext) {
         if let Some(mut drawing) = self.drawing.take() {
             if self.enabled {
                 drawing.dest = ctx.square.unwrap_or(drawing.orig);
@@ -162,7 +162,7 @@ impl Drawable {
         }
     }
 
-    pub fn draw(&self, cr: &Context) {
+    pub(crate) fn draw(&self, cr: &Context) {
         for shape in &self.shapes {
             shape.draw(cr);
         }
