@@ -27,7 +27,7 @@ use drawable::Drawable;
 use pieceset::PieceSet;
 
 pub struct Model {
-    state: Rc<RefCell<BoardState>>,
+    state: Rc<RefCell<State>>,
 }
 
 #[derive(Msg)]
@@ -54,17 +54,18 @@ impl Update for Ground {
 
     fn model(_: &Relm<Self>, _: ()) -> Model {
         Model {
-            state: Rc::new(RefCell::new(BoardState::new())),
+            state: Rc::new(RefCell::new(State::new())),
         }
     }
 
     fn update(&mut self, event: GroundMsg) {
         let mut state = self.model.state.borrow_mut();
+        let board_state = &mut state.board_state;
 
         match event {
-            GroundMsg::UserMove(orig, dest, None) if state.valid_move(orig, dest) => {
-                if state.legals.iter().any(|m| m.from() == Some(orig) && m.to() == dest && m.promotion().is_some()) {
-                    state.promoting = Some(Promoting {
+            GroundMsg::UserMove(orig, dest, None) if board_state.valid_move(orig, dest) => {
+                if board_state.legals.iter().any(|m| m.from() == Some(orig) && m.to() == dest && m.promotion().is_some()) {
+                    board_state.promoting = Some(Promoting {
                         orig,
                         dest,
                         hover: Some(dest),
@@ -75,10 +76,10 @@ impl Update for Ground {
                 }
             },
             GroundMsg::SetPosition { board, legals, last_move, check } => {
-                state.pieces.set_board(board);
-                state.legals = legals;
-                state.last_move = last_move;
-                state.check = check;
+                board_state.pieces.set_board(board);
+                board_state.legals = legals;
+                board_state.last_move = last_move;
+                board_state.check = check;
 
                 self.drawing_area.queue_draw();
             },
@@ -106,20 +107,22 @@ impl Widget for Ground {
             drawing_area.connect_draw(move |widget, cr| {
                 if let Some(state) = weak_state.upgrade() {
                     let mut state = state.borrow_mut();
-                    state.now = SteadyTime::now();
-                    let animating = state.pieces.is_animating(state.now) || promoting_is_animating(&state);
+                    state.board_state.now = SteadyTime::now();
 
-                    let matrix = util::compute_matrix(widget, state.orientation);
+                    let animating = state.board_state.pieces.is_animating(state.board_state.now) ||
+                                    promoting_is_animating(&state.board_state);
+
+                    let matrix = util::compute_matrix(widget, state.board_state.orientation);
                     cr.set_matrix(matrix);
 
-                    draw_border(cr, &state);
-                    draw_board(cr, &state);
-                    draw_check(cr, &state);
-                    state.pieces.render(cr, &state);
+                    draw_border(cr, &state.board_state);
+                    draw_board(cr, &state.board_state);
+                    draw_check(cr, &state.board_state);
+                    state.board_state.pieces.render(cr, &state.board_state);
                     state.drawable.draw(cr);
-                    draw_move_hints(cr, &state);
-                    draw_drag(cr, &state);
-                    draw_promoting(cr, &state);
+                    draw_move_hints(cr, &state.board_state);
+                    draw_drag(cr, &state.board_state);
+                    draw_promoting(cr, &state.board_state);
 
                     let weak_state = weak_state.clone();
                     let widget = widget.clone();
@@ -127,8 +130,8 @@ impl Widget for Ground {
                         gtk::idle_add(move || {
                             if let Some(state) = weak_state.upgrade() {
                                 let state = state.borrow();
-                                state.pieces.queue_animation(&state, &widget);
-                                promoting_queue_animation(&state, &widget);
+                                state.board_state.pieces.queue_animation(&state.board_state, &widget);
+                                promoting_queue_animation(&state.board_state, &widget);
                             }
                             Continue(false)
                         });
@@ -149,12 +152,12 @@ impl Widget for Ground {
                         drawing_area: &widget,
                         stream: &stream,
                         pos: e.get_position(),
-                        square: util::pos_to_square(widget, state.orientation, e.get_position()),
+                        square: util::pos_to_square(widget, state.board_state.orientation, e.get_position()),
                     };
 
-                    if !state.promoting_mouse_down(&ctx) {
-                        state.selection_mouse_down(&ctx, e);
-                        drag_mouse_down(&mut state, widget, ctx.square, e);
+                    if !state.board_state.promoting_mouse_down(&ctx) {
+                        state.board_state.selection_mouse_down(&ctx, e);
+                        drag_mouse_down(&mut state.board_state, widget, ctx.square, e);
                         state.drawable.mouse_down(&ctx, e);
                     }
                 }
@@ -173,10 +176,10 @@ impl Widget for Ground {
                         drawing_area: widget,
                         stream: &stream,
                         pos: e.get_position(),
-                        square: util::pos_to_square(widget, state.orientation, e.get_position()),
+                        square: util::pos_to_square(widget, state.board_state.orientation, e.get_position()),
                     };
 
-                    state.drag_mouse_up(&ctx);
+                    state.board_state.drag_mouse_up(&ctx);
                     state.drawable.mouse_up(&ctx);
                 }
                 Inhibit(false)
@@ -194,11 +197,11 @@ impl Widget for Ground {
                         drawing_area: widget,
                         stream: &stream,
                         pos: e.get_position(),
-                        square: util::pos_to_square(widget, state.orientation, e.get_position()),
+                        square: util::pos_to_square(widget, state.board_state.orientation, e.get_position()),
                     };
 
-                    if !promoting_mouse_move(&mut state, widget, ctx.square) {
-                        drag_mouse_move(&mut state, widget, ctx.square, e);
+                    if !promoting_mouse_move(&mut state.board_state, widget, ctx.square) {
+                        drag_mouse_move(&mut state.board_state, widget, ctx.square, e);
                         state.drawable.mouse_move(&ctx);
                     }
                 }
@@ -213,6 +216,20 @@ impl Widget for Ground {
         Ground {
             drawing_area,
             model,
+        }
+    }
+}
+
+struct State {
+    board_state: BoardState,
+    drawable: Drawable,
+}
+
+impl State {
+    fn new() -> State {
+        State {
+            board_state: BoardState::new(),
+            drawable: Drawable::new(),
         }
     }
 }
@@ -511,7 +528,6 @@ struct BoardState {
     last_move: Option<(Square, Square)>,
     drag_start: Option<DragStart>,
     piece_set: PieceSet,
-    drawable: Drawable,
     now: SteadyTime,
     promoting: Option<Promoting>,
     legals: MoveList,
@@ -541,7 +557,6 @@ impl BoardState {
             selected: None,
             drag_start: None,
             promoting: None,
-            drawable: Drawable::new(),
             piece_set: pieceset::PieceSet::merida(),
             legals,
             now: SteadyTime::now(),
