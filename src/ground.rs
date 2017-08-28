@@ -135,7 +135,6 @@ impl Widget for Ground {
                     let ctx = EventContext {
                         drawing_area: &widget,
                         stream: &stream,
-                        pos: e.get_position(),
                         square: util::pos_to_square(widget, state.board_state.orientation, e.get_position()),
                     };
 
@@ -155,7 +154,6 @@ impl Widget for Ground {
                     let ctx = EventContext {
                         drawing_area: widget,
                         stream: &stream,
-                        pos: e.get_position(),
                         square: util::pos_to_square(widget, state.board_state.orientation, e.get_position()),
                     };
 
@@ -175,7 +173,6 @@ impl Widget for Ground {
                     let ctx = EventContext {
                         drawing_area: widget,
                         stream: &stream,
-                        pos: e.get_position(),
                         square: util::pos_to_square(widget, state.board_state.orientation, e.get_position()),
                     };
 
@@ -249,7 +246,6 @@ impl State {
 pub struct EventContext<'a> {
     pub drawing_area: &'a DrawingArea,
     pub stream: &'a EventStream<GroundMsg>,
-    pub pos: (f64, f64),
     pub square: Option<Square>,
 }
 
