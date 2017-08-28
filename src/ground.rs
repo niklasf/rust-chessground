@@ -15,7 +15,7 @@ use cairo::{Context, Matrix};
 
 use relm::{Relm, Widget, Update, EventStream};
 
-use shakmaty::{Square, Role, Board, MoveList};
+use shakmaty::{Square, Role, Board, MoveList, Position};
 
 use util::pos_to_square;
 use pieces::Pieces;
@@ -31,12 +31,6 @@ pub struct Model {
 
 #[derive(Msg)]
 pub enum GroundMsg {
-    SetPosition {
-        board: Board,
-        legals: MoveList,
-        last_move: Option<(Square, Square)>,
-        check: Option<Square>,
-    },
     UserMove(Square, Square, Option<Role>),
     ShapesChanged,
 }
@@ -62,18 +56,10 @@ impl Update for Ground {
 
         match event {
             GroundMsg::UserMove(orig, dest, None) if state.board_state.valid_move(orig, dest) => {
-                if state.board_state.legals.iter().any(|m| m.from() == Some(orig) && m.to() == dest && m.promotion().is_some()) {
+                if state.board_state.legals().iter().any(|m| m.from() == Some(orig) && m.to() == dest && m.promotion().is_some()) {
                     state.promotable.start_promoting(orig, dest);
                     self.drawing_area.queue_draw();
                 }
-            },
-            GroundMsg::SetPosition { board, legals, last_move, check } => {
-                state.pieces.set_board(board);
-                state.board_state.legals = legals;
-                state.board_state.last_move = last_move;
-                state.board_state.check = check;
-
-                self.drawing_area.queue_draw();
             },
             _ => {}
         }
@@ -169,6 +155,14 @@ impl Widget for Ground {
     }
 }
 
+impl Ground {
+    pub fn set_position<P: Position>(&mut self, pos: &P) {
+        let mut state = self.model.state.borrow_mut();
+        state.board_state.set_position(pos);
+        state.pieces.set_board(pos.board());
+    }
+}
+
 struct State {
     board_state: BoardState,
     drawable: Drawable,
@@ -256,7 +250,7 @@ impl<'a> WidgetContext<'a> {
 
         matrix.translate(w as f64 / 2.0, h as f64 / 2.0);
         matrix.scale(size as f64 / 9.0, size as f64 / 9.0);
-        matrix.rotate(board_state.orientation.fold(0.0, PI));
+        matrix.rotate(board_state.orientation().fold(0.0, PI));
         matrix.translate(-4.0, -4.0);
 
         WidgetContext {

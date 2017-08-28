@@ -5,16 +5,16 @@ use option_filter::OptionFilterExt;
 use cairo::prelude::*;
 use cairo::{Context, RadialGradient};
 
-use shakmaty::{Color, Square, Role, Bitboard, Chess, Position, MoveList};
+use shakmaty::{Color, Square, Role, Bitboard, Chess, Position, Move, MoveList};
 
 use pieceset::PieceSet;
 
 pub struct BoardState {
-    pub(crate) orientation: Color,
-    pub(crate) check: Option<Square>,
-    pub(crate) last_move: Option<(Square, Square)>,
-    pub(crate) piece_set: PieceSet,
-    pub(crate) legals: MoveList,
+    orientation: Color,
+    check: Option<Square>,
+    last_move: Option<(Square, Square)>,
+    piece_set: PieceSet,
+    legals: MoveList,
 }
 
 impl BoardState {
@@ -23,13 +23,25 @@ impl BoardState {
     }
 
     pub fn from_position<P: Position>(pos: &P) -> Self {
-        BoardState {
+        let mut state = BoardState {
             orientation: pos.turn(),
-            check: pos.board().king_of(pos.turn()).filter(|_| pos.checkers().any()),
+            check: None,
             last_move: None,
             piece_set: PieceSet::merida(),
-            legals: pos.legals(),
-        }
+            legals: MoveList::new(),
+        };
+
+        state.set_position(pos);
+        state
+    }
+
+    pub fn set_position<P: Position>(&mut self, pos: &P) {
+        self.check = pos.board().king_of(pos.turn()).filter(|_| pos.checkers().any());
+        self.legals = pos.legals();
+    }
+
+    pub fn set_last_move(&mut self, m: Option<&Move>) {
+        self.last_move = m.map(|m| (m.from().unwrap_or_else(|| m.to()), m.to()));
     }
 
     pub fn move_targets(&self, orig: Square) -> Bitboard {
@@ -44,6 +56,22 @@ impl BoardState {
         self.legals.iter().any(|m| {
             m.from() == Some(orig) && m.to() == dest && m.promotion() == promotion
         })
+    }
+
+    pub fn legals(&self) -> &MoveList {
+        &self.legals
+    }
+
+    pub fn set_orientation(&mut self, orientation: Color) {
+        self.orientation = orientation;
+    }
+
+    pub fn orientation(&self) -> Color {
+        self.orientation
+    }
+
+    pub fn piece_set(&self) -> &PieceSet {
+        &self.piece_set
     }
 
     pub(crate) fn draw(&self, cr: &Context) {

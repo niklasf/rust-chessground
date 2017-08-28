@@ -12,15 +12,14 @@ extern crate shakmaty;
 extern crate option_filter;
 extern crate rand;
 
-use option_filter::OptionFilterExt;
 use rand::distributions::{Range, IndependentSample};
 
 use gtk::prelude::*;
 use relm::Widget;
 use relm_attributes::widget;
 
-use shakmaty::{Square, Role, Chess, Position, Setup};
-use chessground::{Ground, GroundMsg, UserMove, ShapesChanged};
+use shakmaty::{Square, Role, Chess, Position};
+use chessground::{Ground, UserMove, ShapesChanged};
 
 use self::Msg::*;
 
@@ -67,14 +66,7 @@ impl Widget for Win {
                     last_move
                 };
 
-                self.ground.emit(GroundMsg::SetPosition {
-                    board: self.model.board().clone(),
-                    legals: self.model.legals(),
-                    last_move,
-                    check: self.model.board()
-                               .king_of(self.model.turn())
-                               .filter(|_| self.model.checkers().any())
-                });
+                //self.ground.set_position(self.model);
             }
         }
     }

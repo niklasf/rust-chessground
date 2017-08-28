@@ -61,7 +61,7 @@ impl Pieces {
         }
     }
 
-    pub fn set_board(&mut self, board: Board) {
+    pub fn set_board(&mut self, board: &Board) {
         let now = SteadyTime::now();
 
         // clean and freeze previous animation
@@ -135,7 +135,7 @@ impl Pieces {
             });
         }
 
-        self.board = board;
+        self.board = board.clone();
     }
 
     pub fn occupied(&self) -> Bitboard {
@@ -351,10 +351,10 @@ impl Pieces {
         if let Some(dragging) = self.dragging() {
             cr.push_group();
             cr.translate(dragging.pos.0, dragging.pos.1);
-            cr.rotate(state.orientation.fold(0.0, PI));
+            cr.rotate(state.orientation().fold(0.0, PI));
             cr.translate(-0.5, -0.5);
-            cr.scale(state.piece_set.scale(), state.piece_set.scale());
-            state.piece_set.by_piece(&dragging.piece).render_cairo(cr);
+            cr.scale(state.piece_set().scale(), state.piece_set().scale());
+            state.piece_set().by_piece(&dragging.piece).render_cairo(cr);
             cr.pop_group_to_source();
             cr.paint_with_alpha(dragging.drag_alpha(now));
         }
@@ -437,11 +437,11 @@ impl Figurine {
 
         let (x, y) = self.pos(now);
         cr.translate(x, y);
-        cr.rotate(board_state.orientation.fold(0.0, PI));
+        cr.rotate(board_state.orientation().fold(0.0, PI));
         cr.translate(-0.5, -0.5);
-        cr.scale(board_state.piece_set.scale(), board_state.piece_set.scale());
+        cr.scale(board_state.piece_set().scale(), board_state.piece_set().scale());
 
-        board_state.piece_set.by_piece(&self.piece).render_cairo(cr);
+        board_state.piece_set().by_piece(&self.piece).render_cairo(cr);
 
         cr.pop_group_to_source();
         cr.paint_with_alpha(self.alpha(now));

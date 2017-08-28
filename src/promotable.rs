@@ -167,8 +167,8 @@ impl Promoting {
             cr.translate(0.5 + self.dest.file() as f64, 7.5 - rank as f64);
             cr.scale(2f64.sqrt() * radius, 2f64.sqrt() * radius);
             cr.translate(-0.5, -0.5);
-            cr.scale(state.piece_set.scale(), state.piece_set.scale());
-            state.piece_set.by_piece(&role.of(self.orientation())).render_cairo(cr);
+            cr.scale(state.piece_set().scale(), state.piece_set().scale());
+            state.piece_set().by_piece(&role.of(self.orientation())).render_cairo(cr);
 
             cr.restore();
         }
