@@ -351,6 +351,19 @@ impl Pieces {
             }
         }
     }
+
+    pub(crate) fn draw_drag(&self, cr: &Context, state: &BoardState) {
+        if let Some(dragging) = self.dragging() {
+            cr.push_group();
+            cr.translate(dragging.pos.0, dragging.pos.1);
+            cr.rotate(state.orientation.fold(0.0, PI));
+            cr.translate(-0.5, -0.5);
+            cr.scale(state.piece_set.scale(), state.piece_set.scale());
+            state.piece_set.by_piece(&dragging.piece).render_cairo(cr);
+            cr.pop_group_to_source();
+            cr.paint_with_alpha(dragging.drag_alpha(state.now));
+        }
+    }
 }
 
 impl Figurine {

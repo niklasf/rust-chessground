@@ -12,7 +12,6 @@ use gdk::{EventButton, EventMotion};
 use cairo;
 use cairo::prelude::*;
 use cairo::{Context, RadialGradient};
-use rsvg::HandleExt;
 
 use time::SteadyTime;
 
@@ -112,7 +111,7 @@ impl Widget for Ground {
                     draw_check(cr, &state.board_state);
                     state.pieces.draw(cr, &state.board_state, &state.promotable);
                     state.drawable.draw(cr);
-                    draw_drag(cr, &state.board_state, &state.pieces);
+                    state.pieces.draw_drag(cr, &state.board_state);
                     state.promotable.draw(cr, &state.board_state);
 
                     let weak_state = weak_state.clone();
@@ -358,18 +357,5 @@ fn draw_check(cr: &Context, state: &BoardState) {
         gradient.add_color_stop_rgba(0.89, 0.66, 0.0, 0.0, 0.0);
         cr.set_source(&gradient);
         cr.paint();
-    }
-}
-
-fn draw_drag(cr: &Context, state: &BoardState, pieces: &Pieces) {
-    if let Some(dragging) = pieces.dragging() {
-        cr.push_group();
-        cr.translate(dragging.pos.0, dragging.pos.1);
-        cr.rotate(state.orientation.fold(0.0, PI));
-        cr.translate(-0.5, -0.5);
-        cr.scale(state.piece_set.scale(), state.piece_set.scale());
-        state.piece_set.by_piece(&dragging.piece).render_cairo(cr);
-        cr.pop_group_to_source();
-        cr.paint_with_alpha(dragging.drag_alpha(state.now));
     }
 }
