@@ -34,6 +34,7 @@ pub struct Model {
 #[derive(Msg)]
 pub enum GroundMsg {
     Flip,
+    SetOrientation(Color),
     SetPos(Pos),
     SetBoard(Board),
     UserMove(Square, Square, Option<Role>),
@@ -96,6 +97,10 @@ impl Update for Ground {
             GroundMsg::Flip => {
                 let orientation = state.board_state.orientation();
                 state.board_state.set_orientation(!orientation);
+                self.drawing_area.queue_draw();
+            },
+            GroundMsg::SetOrientation(color) => {
+                self.board_state.set_orientation(orientation);
                 self.drawing_area.queue_draw();
             },
             GroundMsg::SetPos(pos) => {
