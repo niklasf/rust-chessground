@@ -71,7 +71,7 @@ impl Update for Ground {
                 }
             },
             GroundMsg::SetPosition { board, legals, last_move, check } => {
-                state.board_state.pieces.set_board(board);
+                state.pieces.set_board(board);
                 state.board_state.legals = legals;
                 state.board_state.last_move = last_move;
                 state.board_state.check = check;
@@ -104,19 +104,19 @@ impl Widget for Ground {
                     let mut state = state.borrow_mut();
                     state.board_state.now = SteadyTime::now();
 
-                    let animating = state.board_state.pieces.is_animating(state.board_state.now) ||
+                    let animating = state.pieces.is_animating(state.board_state.now) ||
                                     state.promotable.is_animating();
 
                     let matrix = util::compute_matrix(widget, state.board_state.orientation);
                     cr.set_matrix(matrix);
 
                     draw_border(cr, &state.board_state);
-                    draw_board(cr, &state.board_state);
+                    draw_board(cr, &state.board_state, &state.pieces);
                     draw_check(cr, &state.board_state);
-                    state.board_state.pieces.render(cr, &state.board_state, &state.promotable);
+                    state.pieces.render(cr, &state.board_state, &state.promotable);
                     state.drawable.draw(cr);
-                    draw_move_hints(cr, &state.board_state);
-                    draw_drag(cr, &state.board_state);
+                    draw_move_hints(cr, &state.board_state, &state.pieces);
+                    draw_drag(cr, &state.board_state, &state.pieces);
                     state.promotable.draw(cr, &state.board_state);
 
                     let weak_state = weak_state.clone();
@@ -125,7 +125,7 @@ impl Widget for Ground {
                         gtk::idle_add(move || {
                             if let Some(state) = weak_state.upgrade() {
                                 let state = state.borrow();
-                                state.board_state.pieces.queue_animation(&state.board_state, &widget);
+                                state.pieces.queue_animation(&state.board_state, &widget);
                                 state.promotable.queue_animation(&state.board_state, &widget);
                             }
                             Continue(false)
@@ -170,8 +170,7 @@ impl Widget for Ground {
                         square: util::pos_to_square(widget, state.board_state.orientation, e.get_position()),
                     };
 
-                    state.board_state.drag_mouse_up(&ctx);
-                    state.drawable.mouse_up(&ctx);
+                    button_release_event(&mut state, &ctx);
                 }
                 Inhibit(false)
             });
@@ -208,9 +207,14 @@ impl Widget for Ground {
     }
 }
 
+fn button_release_event(state: &mut State, ctx: &EventContext) {
+    state.board_state.drag_mouse_up(&mut state.pieces, &ctx);
+    state.drawable.mouse_up(&ctx);
+}
+
 fn motion_notify_event(state: &mut State, ctx: &EventContext, e: &EventMotion) {
     state.promotable.mouse_move(&state.board_state, &ctx);
-    drag_mouse_move(&mut state.board_state, ctx.drawing_area, ctx.square, e);
+    drag_mouse_move(&mut state.board_state, &mut state.pieces, ctx.drawing_area, ctx.square, e);
     state.drawable.mouse_move(&ctx);
 }
 
@@ -218,9 +222,9 @@ fn button_press_event(state: &mut State, ctx: &EventContext, e: &EventButton) {
     let promotable = &mut state.promotable;
     let board_state = &mut state.board_state;
 
-    if let Inhibit(false) = promotable.mouse_down(board_state, &ctx) {
-        board_state.selection_mouse_down(&ctx, e);
-        drag_mouse_down(board_state, ctx.drawing_area, ctx.square, e);
+    if let Inhibit(false) = promotable.mouse_down(&mut state.pieces, &ctx) {
+        board_state.selection_mouse_down(&state.pieces, &ctx, e);
+        drag_mouse_down(board_state, &mut state.pieces, ctx.drawing_area, ctx.square, e);
         state.drawable.mouse_down(&ctx, e);
     }
 }
@@ -229,6 +233,7 @@ struct State {
     board_state: BoardState,
     drawable: Drawable,
     promotable: Promotable,
+    pieces: Pieces,
 }
 
 impl State {
@@ -237,6 +242,7 @@ impl State {
             board_state: BoardState::new(),
             drawable: Drawable::new(),
             promotable: Promotable::new(),
+            pieces: Pieces::new(),
         }
     }
 }
@@ -254,7 +260,6 @@ struct DragStart {
 }
 
 pub(crate) struct BoardState {
-    pub(crate) pieces: Pieces,
     pub(crate) orientation: Color,
     check: Option<Square>,
     selected: Option<Square>,
@@ -282,7 +287,6 @@ impl BoardState {
         pos.legal_moves(&mut legals);
 
         BoardState {
-            pieces: Pieces::new(),
             orientation: Color::White,
             check: None,
             last_move: None,
@@ -296,12 +300,12 @@ impl BoardState {
 }
 
 impl BoardState {
-    fn selection_mouse_down(&mut self, context: &EventContext, e: &EventButton) {
+    fn selection_mouse_down(&mut self, pieces: &Pieces, context: &EventContext, e: &EventButton) {
         let orig = self.selected.take();
 
         if e.get_button() == 1 {
             let dest = context.square;
-            self.selected = dest.filter(|sq| self.pieces.occupied().contains(*sq));
+            self.selected = dest.filter(|sq| pieces.occupied().contains(*sq));
 
             if let (Some(orig), Some(dest)) = (orig, dest) {
                 self.selected = None;
@@ -315,10 +319,10 @@ impl BoardState {
     }
 }
 
-fn drag_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventButton) {
+fn drag_mouse_down(state: &mut BoardState, pieces: &Pieces, widget: &DrawingArea, square: Option<Square>, e: &EventButton) {
     if e.get_button() == 1 {
         if let Some(square) = square {
-            if state.pieces.figurine_at(square).is_some() {
+            if pieces.occupied().contains(square) {
                 state.drag_start = Some(DragStart {
                     pos: util::invert_pos(widget, state.orientation, e.get_position()),
                     square,
@@ -328,19 +332,19 @@ fn drag_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Option<
     }
 }
 
-fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventMotion) {
+fn drag_mouse_move(state: &mut BoardState, pieces: &mut Pieces, widget: &DrawingArea, square: Option<Square>, e: &EventMotion) {
     let pos = util::invert_pos(widget, state.orientation, e.get_position());
 
     if let Some(ref drag_start) = state.drag_start {
         let drag_distance = (drag_start.pos.0 - pos.0).hypot(drag_start.pos.1 - pos.1);
         if drag_distance >= 0.1 {
-            if let Some(dragging) = state.pieces.figurine_at_mut(drag_start.square) {
+            if let Some(dragging) = pieces.figurine_at_mut(drag_start.square) {
                 dragging.dragging = true;
             }
         }
     }
 
-    if let Some(dragging) = state.pieces.dragging_mut() {
+    if let Some(dragging) = pieces.dragging_mut() {
         // ensure orig square is selected
         if state.selected != Some(dragging.square) {
             state.selected = Some(dragging.square);
@@ -367,10 +371,10 @@ fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<
 }
 
 impl BoardState {
-    fn drag_mouse_up(&mut self, context: &EventContext) {
+    fn drag_mouse_up(&mut self, pieces: &mut Pieces, context: &EventContext) {
         self.drag_start = None;
 
-        let m = if let Some(dragging) = self.pieces.dragging_mut() {
+        let m = if let Some(dragging) = pieces.dragging_mut() {
             context.drawing_area.queue_draw();
 
             let dest = context.square.unwrap_or(dragging.square);
@@ -428,7 +432,7 @@ fn draw_border(cr: &Context, state: &BoardState) {
     }
 }
 
-fn draw_board(cr: &Context, state: &BoardState) {
+fn draw_board(cr: &Context, state: &BoardState, pieces: &Pieces) {
     let light = cairo::SolidPattern::from_rgb(0.87, 0.89, 0.90);
     let dark = cairo::SolidPattern::from_rgb(0.55, 0.64, 0.68);
 
@@ -450,7 +454,7 @@ fn draw_board(cr: &Context, state: &BoardState) {
         cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
         cr.fill();
 
-        if let Some(hovered) = state.pieces.dragging().and_then(|d| util::inverted_to_square(d.pos)) {
+        if let Some(hovered) = pieces.dragging().and_then(|d| util::inverted_to_square(d.pos)) {
             if state.valid_move(selected, hovered) {
                 cr.rectangle(hovered.file() as f64, 7.0 - hovered.rank() as f64, 1.0, 1.0);
                 cr.set_source_rgba(0.08, 0.47, 0.11, 0.25);
@@ -471,7 +475,7 @@ fn draw_board(cr: &Context, state: &BoardState) {
     }
 }
 
-fn draw_move_hints(cr: &Context, state: &BoardState) {
+fn draw_move_hints(cr: &Context, state: &BoardState, pieces: &Pieces) {
     if let Some(selected) = state.selected {
         cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
 
@@ -479,7 +483,7 @@ fn draw_move_hints(cr: &Context, state: &BoardState) {
         let corner = 1.8 * radius;
 
         for square in state.move_targets(selected) {
-            if state.pieces.occupied().contains(square) {
+            if pieces.occupied().contains(square) {
                 cr.move_to(square.file() as f64, 7.0 - square.rank() as f64);
                 cr.rel_line_to(corner, 0.0);
                 cr.rel_line_to(-corner, corner);
@@ -526,8 +530,8 @@ fn draw_check(cr: &Context, state: &BoardState) {
     }
 }
 
-fn draw_drag(cr: &Context, state: &BoardState) {
-    if let Some(dragging) = state.pieces.dragging() {
+fn draw_drag(cr: &Context, state: &BoardState, pieces: &Pieces) {
+    if let Some(dragging) = pieces.dragging() {
         cr.push_group();
         cr.translate(dragging.pos.0, dragging.pos.1);
         cr.rotate(state.orientation.fold(0.0, PI));

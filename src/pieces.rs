@@ -248,10 +248,6 @@ impl Pieces {
         }
     }
 
-    pub fn figurine_at(&self, square: Square) -> Option<&Figurine> {
-        self.figurines.iter().find(|f| !f.fading && f.square == square)
-    }
-
     pub fn figurine_at_mut(&mut self, square: Square) -> Option<&mut Figurine> {
         self.figurines.iter_mut().find(|f| !f.fading && f.square == square)
     }

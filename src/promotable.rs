@@ -11,6 +11,7 @@ use shakmaty::{Square, Color, Role};
 
 use util;
 use util::{ease_in_out_cubic, queue_draw_square};
+use pieces::Pieces;
 use ground::{EventContext, BoardState, GroundMsg};
 
 pub struct Promotable {
@@ -70,12 +71,12 @@ impl Promotable {
         self.queue_animation(board_state, ctx.drawing_area);
     }
 
-    pub(crate) fn mouse_down(&mut self, board_state: &mut BoardState, ctx: &EventContext) -> Inhibit {
+    pub(crate) fn mouse_down(&mut self, pieces: &mut Pieces, ctx: &EventContext) -> Inhibit {
         if let Some(promoting) = self.promoting.take() {
             ctx.drawing_area.queue_draw();
 
             // animate the figurine when cancelling
-            if let Some(figurine) = board_state.pieces.figurine_at_mut(promoting.orig) {
+            if let Some(figurine) = pieces.figurine_at_mut(promoting.orig) {
                 figurine.pos = util::square_to_inverted(promoting.dest);
                 figurine.time = SteadyTime::now();
             }
