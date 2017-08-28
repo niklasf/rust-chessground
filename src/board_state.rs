@@ -5,7 +5,7 @@ use option_filter::OptionFilterExt;
 use cairo::prelude::*;
 use cairo::{Context, RadialGradient};
 
-use shakmaty::{Color, Square, Role, Bitboard, Chess, Position, Move, MoveList};
+use shakmaty::{Color, Square, Role, Bitboard, Chess, Position, MoveList};
 
 use pieceset::PieceSet;
 
@@ -40,8 +40,8 @@ impl BoardState {
         self.legals = pos.legals();
     }
 
-    pub fn set_last_move(&mut self, m: Option<&Move>) {
-        self.last_move = m.map(|m| (m.from().unwrap_or_else(|| m.to()), m.to()));
+    pub fn set_last_move(&mut self, m: Option<(Square, Square)>) {
+        self.last_move = m;
     }
 
     pub fn set_check(&mut self, king: Option<Square>) {

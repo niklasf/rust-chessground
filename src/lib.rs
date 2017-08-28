@@ -17,5 +17,5 @@ mod promotable;
 mod drawable;
 mod util;
 
-pub use ground::{Ground, GroundMsg};
+pub use ground::{Ground, GroundMsg, Pos};
 pub use GroundMsg::*;

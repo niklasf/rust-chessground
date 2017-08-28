@@ -3,6 +3,8 @@ use std::cell::RefCell;
 use std::f64::consts::PI;
 use std::cmp::{min, max};
 
+use option_filter::OptionFilterExt;
+
 use time::SteadyTime;
 
 use gtk;
@@ -15,7 +17,7 @@ use cairo::{Context, Matrix};
 
 use relm::{Relm, Widget, Update, EventStream};
 
-use shakmaty::{Square, Role, Board, MoveList, Position};
+use shakmaty::{Square, Role, Board, Move, MoveList, Chess, Position};
 
 use util::pos_to_square;
 use pieces::Pieces;
@@ -31,9 +33,43 @@ pub struct Model {
 
 #[derive(Msg)]
 pub enum GroundMsg {
+    SetPos(Pos),
     SetBoard(Board),
     UserMove(Square, Square, Option<Role>),
     ShapesChanged,
+}
+
+pub struct Pos {
+    board: Board,
+    legals: MoveList,
+    check: Option<Square>,
+    last_move: Option<(Square, Square)>,
+}
+
+impl Pos {
+    pub fn new<P: Position>(p: &P) -> Pos {
+        Pos {
+            board: p.board().clone(),
+            legals: p.legals(),
+            check: p.board().king_of(p.turn()).filter(|_| p.checkers().any()),
+            last_move: None,
+        }
+    }
+
+    pub fn set_last_move(&mut self, m: &Move) {
+        self.last_move = Some((m.from().unwrap_or_else(|| m.to()), m.to()))
+    }
+
+    pub fn with_last_move(mut self, m: &Move) -> Self {
+        self.set_last_move(m);
+        self
+    }
+}
+
+impl Default for Pos {
+    fn default() -> Pos {
+        Pos::new(&Chess::default())
+    }
 }
 
 pub struct Ground {
@@ -56,6 +92,12 @@ impl Update for Ground {
         let mut state = self.model.state.borrow_mut();
 
         match event {
+            GroundMsg::SetPos(pos) => {
+                state.pieces.set_board(&pos.board);
+                state.board_state.set_check(pos.check);
+                state.board_state.set_last_move(pos.last_move);
+                *state.board_state.legals_mut() = pos.legals;
+            },
             GroundMsg::SetBoard(board) => {
                 state.pieces.set_board(&board);
                 state.board_state.set_check(None);

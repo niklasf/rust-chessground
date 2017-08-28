@@ -9,7 +9,6 @@ extern crate relm_attributes;
 extern crate relm_derive;
 
 extern crate shakmaty;
-extern crate option_filter;
 extern crate rand;
 
 use rand::distributions::{Range, IndependentSample};
@@ -19,7 +18,7 @@ use relm::Widget;
 use relm_attributes::widget;
 
 use shakmaty::{Square, Role, Chess, Position};
-use chessground::{Ground, UserMove, ShapesChanged};
+use chessground::{Ground, UserMove, SetPos, Pos};
 
 use self::Msg::*;
 
@@ -32,8 +31,7 @@ pub enum Msg {
 #[widget]
 impl Widget for Win {
     fn model() -> Chess {
-        let fen: shakmaty::fen::Fen = "rnbqk2r/p1ppppPp/6p1/1p6/8/8/PPPPPP1P/RNBQKBNR w KQkq b6 0 5".parse().expect("valid fen");
-        fen.position().expect("legal position")
+        Chess::default()
     }
 
     fn update(&mut self, event: Msg) {
@@ -50,23 +48,23 @@ impl Widget for Win {
 
                 let last_move = if let Some(m) = m {
                     self.model.play_unchecked(&m);
-                    Some((m.from().unwrap_or_else(|| m.to()), m.to()))
+                    m
                 } else {
                     return;
                 };
 
-                let last_move = if !self.model.is_game_over() {
+                let legals = self.model.legals();
+                let last_move = if !legals.is_empty() {
                     // respond with a random move
-                    let legals = self.model.legals();
                     let random_index = Range::new(0, legals.len()).ind_sample(&mut rand::thread_rng());
                     let m = &legals[random_index];
                     self.model.play_unchecked(m);
-                    Some((m.from().unwrap_or_else(|| m.to()), m.to()))
+                    m
                 } else {
                     last_move
                 };
 
-                //self.ground.set_position(self.model);
+                self.ground.emit(SetPos(Pos::new(&self.model).with_last_move(last_move)));
             }
         }
     }
@@ -77,7 +75,6 @@ impl Widget for Win {
                 #[name="ground"]
                 Ground {
                     UserMove(orig, dest, promotion) => MovePlayed(orig, dest, promotion),
-                    ShapesChanged => println!("shapes changed"),
                 },
             },
             delete_event(_, _) => (Quit, Inhibit(false)),
