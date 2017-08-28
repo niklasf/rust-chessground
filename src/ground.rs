@@ -99,7 +99,7 @@ impl Pos {
         self.check = king;
     }
 
-    pub fn with_check(mut self, king: Square) {
+    pub fn with_check(mut self, king: Square) -> Pos {
         self.check = Some(king);
         self
     }
@@ -109,8 +109,8 @@ impl Pos {
         self.legals = legals;
     }
 
-    pub fn with_legals(mut self, legals: MoveList) {
-        self.legels = legals;
+    pub fn with_legals(mut self, legals: MoveList) -> Pos {
+        self.legals = legals;
         self
     }
 }
