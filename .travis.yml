@@ -1,5 +1,7 @@
 language: rust
 sudo: false
 
-rust:
- - nightly
+matrix:
+  allow_failures:
+    rust:
+     - nightly
