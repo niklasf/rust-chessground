@@ -147,7 +147,7 @@ impl Promoting {
             // draw piece
             let radius = match self.hover {
                 Some(hover) if hover.file() == self.dest.file() && hover.rank() == rank => {
-                    let elapsed = self.elapsed(now);
+                    let elapsed = self.elapsed(now) / 0.5;
 
                     cr.set_source_rgb(ease(0.69, 1.0, elapsed),
                                       ease(0.69, 0.65, elapsed),
