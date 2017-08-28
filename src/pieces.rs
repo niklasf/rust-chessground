@@ -238,7 +238,9 @@ impl Pieces {
             ctx.widget().queue_draw();
 
             let dest = ctx.square().unwrap_or(dragging.square);
-            dragging.pos = ctx.pos();
+
+            // snap to square
+            dragging.pos = square_to_pos(dest);
             dragging.time = ctx.now();
             dragging.dragging = false;
 
