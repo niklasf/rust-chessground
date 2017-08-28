@@ -370,8 +370,8 @@ impl Figurine {
         } else if self.fading {
             self.pos
         } else {
-            (ease(self.pos.0, end.0, self.elapsed(now), ANIMATE_DURATION),
-             ease(self.pos.1, end.1, self.elapsed(now), ANIMATE_DURATION))
+            (ease(self.pos.0, end.0, self.elapsed(now) / ANIMATE_DURATION),
+             ease(self.pos.1, end.1, self.elapsed(now) / ANIMATE_DURATION))
         }
     }
 
@@ -390,7 +390,7 @@ impl Figurine {
 
     fn alpha_easing(&self, base: f64, now: SteadyTime) -> f64 {
         if self.fading {
-            base * ease(1.0, 0.0, self.elapsed(now), ANIMATE_DURATION)
+            base * ease(1.0, 0.0, self.elapsed(now) / ANIMATE_DURATION)
         } else {
             base
         }

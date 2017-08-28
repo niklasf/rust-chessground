@@ -8,9 +8,9 @@ pub fn fmax(a: f64, b: f64) -> f64 {
     if a > b { a } else { b }
 }
 
-pub fn ease(start: f64, end: f64, elapsed: f64, duration: f64) -> f64 {
+pub fn ease(start: f64, end: f64, t: f64) -> f64 {
     // cubic in out easing
-    let t = fmax(0.0, fmin(1.0, elapsed / duration));
+    let t = fmax(0.0, fmin(1.0, t));
     let ease = if t >= 0.5 {
         (t - 1.0) * (2.0 * t - 2.0) * (2.0 * t - 2.0) + 1.0
     } else {

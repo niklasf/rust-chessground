@@ -150,11 +150,11 @@ impl Promoting {
                 Some(hover) if hover.file() == self.dest.file() && hover.rank() == rank => {
                     let elapsed = self.elapsed();
 
-                    cr.set_source_rgb(ease(0.69, 1.0, elapsed, 1.0),
-                                      ease(0.69, 0.65, elapsed, 1.0),
-                                      ease(0.69, 0.0, elapsed, 1.0));
+                    cr.set_source_rgb(ease(0.69, 1.0, elapsed),
+                                      ease(0.69, 0.65, elapsed),
+                                      ease(0.69, 0.0, elapsed));
 
-                    ease(0.5, 0.5f64.hypot(0.5), elapsed, 1.0)
+                    ease(0.5, 0.5f64.hypot(0.5), elapsed)
                 },
                 _ => {
                     cr.set_source_rgb(0.69, 0.69, 0.69);
