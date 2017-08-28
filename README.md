@@ -1,15 +1,13 @@
 rust-chessground
 ================
 
-A chessboard widget for [Relm/GTK](https://github.com/antoyo/relm).
-Inspired by [chessground.js](https://github.com/ornicar/chessground).
-
 [![Build Status](https://travis-ci.org/niklasf/rust-chessground.svg?branch=master)](https://travis-ci.org/niklasf/rust-chessground)
 [![crates.io](https://img.shields.io/crates/v/chessground.svg)](https://crates.io/crates/chessground)
 
-<p align="center">
-<img src="/screenshot.png" alt="">
-</p>
+A chessboard widget for [Relm/GTK](https://github.com/antoyo/relm).
+Inspired by [chessground.js](https://github.com/ornicar/chessground).
+
+![](/screenshot.png)
 
 Features
 --------
