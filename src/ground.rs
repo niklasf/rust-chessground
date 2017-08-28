@@ -1,6 +1,7 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::f64::consts::PI;
+use std::cmp::{min, max};
 
 use shakmaty::{Square, Color, Role, Board, Bitboard, MoveList, Position, Chess};
 
@@ -15,9 +16,8 @@ use cairo::{Context, RadialGradient, Matrix};
 
 use relm::{Relm, Widget, Update, EventStream};
 
-use util;
-use util::pos_to_square;
 use pieceset;
+use util::pos_to_square;
 use pieces::Pieces;
 use drawable::Drawable;
 use promotable::Promotable;
@@ -102,8 +102,8 @@ impl Widget for Ground {
                     let animating = state.is_animating();
 
                     // set transform
-                    let matrix = util::compute_matrix(widget, state.board_state.orientation);
-                    cr.set_matrix(matrix);
+                    let ctx = WidgetContext::new(&state.board_state, widget);
+                    cr.set_matrix(ctx.matrix());
 
                     // draw
                     state.board_state.draw(cr);
@@ -230,23 +230,32 @@ impl State {
 
 pub(crate) struct WidgetContext<'a> {
     matrix: Matrix,
-    board_state: &'a BoardState,
     drawing_area: &'a DrawingArea,
 }
 
 impl<'a> WidgetContext<'a> {
     fn new(board_state: &'a BoardState, drawing_area: &'a DrawingArea) -> WidgetContext<'a> {
-        let matrix = util::compute_matrix(drawing_area, board_state.orientation);
+        let w = drawing_area.get_allocated_width();
+        let h = drawing_area.get_allocated_height();
+        let size = max(min(w, h), 9);
+
+        let mut matrix = Matrix::identity();
+
+        matrix.translate(w as f64 / 2.0, h as f64 / 2.0);
+        matrix.scale(size as f64 / 9.0, size as f64 / 9.0);
+        matrix.rotate(board_state.orientation.fold(0.0, PI));
+        matrix.translate(-4.0, -4.0);
 
         WidgetContext {
             matrix,
-            board_state,
             drawing_area
         }
     }
 
-    fn invert_pos(&self, pos: (f64, f64)) -> (f64, f64) {
-        util::invert_pos(self.drawing_area, self.board_state.orientation, pos)
+    fn invert_pos(&self, (x, y): (f64, f64)) -> (f64, f64) {
+        self.matrix()
+            .try_invert().expect("transform invertible")
+            .transform_point(x, y)
     }
 
     pub fn matrix(&self) -> Matrix {
@@ -258,11 +267,20 @@ impl<'a> WidgetContext<'a> {
     }
 
     pub fn queue_draw_square(&self, square: Square) {
-        util::queue_draw_square(self.drawing_area, self.board_state.orientation, square)
+        self.queue_draw_rect(square.file() as f64, 7.0 - square.rank() as f64, 1.0, 1.0);
     }
 
-    pub fn queue_draw_rect(&self, x1: f64, y1: f64, x2: f64, y2: f64) {
-        util::queue_draw_rect(self.drawing_area, self.board_state.orientation, x1, y1, x2, y2);
+    pub fn queue_draw_rect(&self, x: f64, y: f64, width: f64, height: f64) {
+        let matrix = self.matrix();
+        let (x1, y1) = matrix.transform_point(x, y);
+        let (x2, y2) = matrix.transform_point(x + width, y + height);
+
+        let xmin = min(x1.floor() as i32, x2.floor() as i32);
+        let ymin = min(y1.floor() as i32, y2.floor() as i32);
+        let xmax = max(x1.ceil() as i32, x2.ceil() as i32);
+        let ymax = max(y1.ceil() as i32, y2.ceil() as i32);
+
+        self.drawing_area.queue_draw_area(xmin, ymin, xmax - xmin, ymax - ymin);
     }
 }
 

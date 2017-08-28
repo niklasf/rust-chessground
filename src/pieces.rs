@@ -418,7 +418,7 @@ impl Figurine {
             let ymin = fmin(fmin(y1, y2), fmin(y3, y4));
             let ymax = fmax(fmax(y1, y2), fmax(y3, y4));
 
-            ctx.queue_draw_rect(xmin, ymin, xmax, ymax);
+            ctx.queue_draw_rect(xmin, ymin, xmax - xmin, ymax - ymin);
         }
     }
 
