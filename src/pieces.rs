@@ -158,7 +158,8 @@ impl Pieces {
         self.figurines.iter_mut().find(|f| f.dragging)
     }
 
-    pub fn is_animating(&self, now: SteadyTime) -> bool {
+    pub fn is_animating(&self) -> bool {
+        let now = SteadyTime::now();
         self.figurines.iter().any(|f| f.is_animating(now))
     }
 
@@ -264,8 +265,9 @@ impl Pieces {
     }
 
     pub(crate) fn queue_animation(&self, state: &BoardState, widget: &DrawingArea) {
+        let now = SteadyTime::now();
         for figurine in &self.figurines {
-            figurine.queue_animation(state, widget);
+            figurine.queue_animation(state, widget, now);
         }
     }
 
@@ -361,7 +363,7 @@ impl Pieces {
             cr.scale(state.piece_set.scale(), state.piece_set.scale());
             state.piece_set.by_piece(&dragging.piece).render_cairo(cr);
             cr.pop_group_to_source();
-            cr.paint_with_alpha(dragging.drag_alpha(state.now));
+            cr.paint_with_alpha(dragging.drag_alpha(SteadyTime::now()));
         }
     }
 }
@@ -409,10 +411,10 @@ impl Figurine {
         (self.fading || self.pos != util::square_to_inverted(self.square))
     }
 
-    fn queue_animation(&self, state: &BoardState, widget: &DrawingArea) {
-        if self.is_animating(state.now) {
+    fn queue_animation(&self, state: &BoardState, widget: &DrawingArea, now: SteadyTime) {
+        if self.is_animating(now) {
             let matrix = util::compute_matrix(widget, state.orientation);
-            let pos = self.pos(state.now);
+            let pos = self.pos(now);
 
             let (x1, y1) = matrix.transform_point(pos.0 - 0.5, pos.1 - 0.5);
             let (x2, y2) = matrix.transform_point(pos.0 + 0.5, pos.1 + 0.5);
@@ -442,9 +444,11 @@ impl Figurine {
             return;
         }
 
+        let now = SteadyTime::now();
+
         cr.push_group();
 
-        let (x, y) = self.pos(board_state.now);
+        let (x, y) = self.pos(now);
         cr.translate(x, y);
         cr.rotate(board_state.orientation.fold(0.0, PI));
         cr.translate(-0.5, -0.5);
@@ -453,6 +457,6 @@ impl Figurine {
         board_state.piece_set.by_piece(&self.piece).render_cairo(cr);
 
         cr.pop_group_to_source();
-        cr.paint_with_alpha(self.alpha(board_state.now));
+        cr.paint_with_alpha(self.alpha(now));
     }
 }

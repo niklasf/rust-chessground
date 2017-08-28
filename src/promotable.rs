@@ -51,9 +51,9 @@ impl Promotable {
         })
     }
 
-    pub(crate) fn queue_animation(&self, board_state: &BoardState, drawing_area: &DrawingArea) {
+    pub(crate) fn queue_animation(&self, state: &BoardState, drawing_area: &DrawingArea) {
         if let Some(Promoting { hover: Some(square), .. }) = self.promoting {
-            queue_draw_square(drawing_area, board_state.orientation, square);
+            queue_draw_square(drawing_area, state.orientation, square);
         }
     }
 

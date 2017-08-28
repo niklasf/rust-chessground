@@ -13,8 +13,6 @@ use cairo;
 use cairo::prelude::*;
 use cairo::{Context, RadialGradient};
 
-use time::SteadyTime;
-
 use relm::{Relm, Widget, Update, EventStream};
 
 use util;
@@ -97,29 +95,27 @@ impl Widget for Ground {
             let weak_state = Rc::downgrade(&model.state);
             drawing_area.connect_draw(move |widget, cr| {
                 if let Some(state) = weak_state.upgrade() {
-                    let mut state = state.borrow_mut();
-                    state.board_state.now = SteadyTime::now();
+                    let state = state.borrow();
+                    let animating = state.is_animating();
 
-                    let animating = state.pieces.is_animating(state.board_state.now) ||
-                                    state.promotable.is_animating();
-
+                    // set transform
                     let matrix = util::compute_matrix(widget, state.board_state.orientation);
                     cr.set_matrix(matrix);
 
+                    // draw
                     state.board_state.draw(cr);
                     state.pieces.draw(cr, &state.board_state, &state.promotable);
                     state.drawable.draw(cr);
                     state.pieces.draw_drag(cr, &state.board_state);
                     state.promotable.draw(cr, &state.board_state);
 
+                    // queue next draw for animation
                     let weak_state = weak_state.clone();
                     let widget = widget.clone();
                     if animating {
                         gtk::idle_add(move || {
                             if let Some(state) = weak_state.upgrade() {
-                                let state = state.borrow();
-                                state.pieces.queue_animation(&state.board_state, &widget);
-                                state.promotable.queue_animation(&state.board_state, &widget);
+                                state.borrow().queue_animation(&widget);
                             }
                             Continue(false)
                         });
@@ -217,6 +213,15 @@ impl State {
         }
     }
 
+    fn is_animating(&self) -> bool {
+        self.promotable.is_animating() || self.pieces.is_animating()
+    }
+
+    fn queue_animation(&self, drawing_area: &DrawingArea) {
+        self.pieces.queue_animation(&self.board_state, drawing_area);
+        self.promotable.queue_animation(&self.board_state, drawing_area);
+    }
+
     fn button_release_event(&mut self, ctx: &EventContext) {
         self.pieces.drag_mouse_up(&ctx);
         self.drawable.mouse_up(&ctx);
@@ -253,7 +258,6 @@ pub(crate) struct BoardState {
     check: Option<Square>,
     last_move: Option<(Square, Square)>,
     pub(crate) piece_set: PieceSet,
-    pub(crate) now: SteadyTime,
     legals: MoveList,
 }
 
@@ -269,7 +273,6 @@ impl BoardState {
             last_move: None,
             piece_set: pieceset::PieceSet::merida(),
             legals,
-            now: SteadyTime::now(),
         }
     }
 
