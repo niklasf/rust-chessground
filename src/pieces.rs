@@ -10,8 +10,7 @@ use rsvg::HandleExt;
 
 use shakmaty::{Square, Piece, Bitboard, Board};
 
-use util;
-use util::{ease_in_out_cubic, fmin, fmax};
+use util::{fmin, fmax, ease, pos_to_square, square_to_pos};
 use promotable::Promotable;
 use ground::{BoardState, GroundMsg, EventContext, WidgetContext};
 
@@ -215,7 +214,7 @@ impl Pieces {
             // invalidate previous
             ctx.widget().queue_draw_rect(dragging.pos.0 - 0.5, dragging.pos.1 - 0.5, 1.0, 1.0);
             ctx.widget().queue_draw_square(dragging.square);
-            if let Some(sq) = util::inverted_to_square(dragging.pos) {
+            if let Some(sq) = pos_to_square(dragging.pos) {
                 ctx.widget().queue_draw_square(sq);
             }
 
@@ -238,7 +237,7 @@ impl Pieces {
             ctx.widget().queue_draw();
 
             let dest = ctx.square.unwrap_or(dragging.square);
-            dragging.pos = util::square_to_inverted(dest);
+            dragging.pos = square_to_pos(dest);
             dragging.time = SteadyTime::now();
             dragging.dragging = false;
 
@@ -296,7 +295,7 @@ impl Pieces {
             cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
             cr.fill();
 
-            if let Some(hovered) = self.dragging().and_then(|d| util::inverted_to_square(d.pos)) {
+            if let Some(hovered) = self.dragging().and_then(|d| pos_to_square(d.pos)) {
                 if state.valid_move(selected, hovered) {
                     cr.rectangle(hovered.file() as f64, 7.0 - hovered.rank() as f64, 1.0, 1.0);
                     cr.set_source_rgba(0.08, 0.47, 0.11, 0.25);
@@ -364,14 +363,14 @@ impl Pieces {
 
 impl Figurine {
     fn pos(&self, now: SteadyTime) -> (f64, f64) {
-        let end = util::square_to_inverted(self.square);
+        let end = square_to_pos(self.square);
         if self.dragging {
             end
         } else if self.fading {
             self.pos
         } else {
-            (ease_in_out_cubic(self.pos.0, end.0, self.elapsed(now), ANIMATE_DURATION),
-             ease_in_out_cubic(self.pos.1, end.1, self.elapsed(now), ANIMATE_DURATION))
+            (ease(self.pos.0, end.0, self.elapsed(now), ANIMATE_DURATION),
+             ease(self.pos.1, end.1, self.elapsed(now), ANIMATE_DURATION))
         }
     }
 
@@ -390,7 +389,7 @@ impl Figurine {
 
     fn alpha_easing(&self, base: f64, now: SteadyTime) -> f64 {
         if self.fading {
-            base * ease_in_out_cubic(1.0, 0.0, self.elapsed(now), ANIMATE_DURATION)
+            base * ease(1.0, 0.0, self.elapsed(now), ANIMATE_DURATION)
         } else {
             base
         }
@@ -402,7 +401,7 @@ impl Figurine {
 
     fn is_animating(&self, now: SteadyTime) -> bool {
         !self.dragging && self.elapsed(now) <= ANIMATE_DURATION &&
-        (self.fading || self.pos != util::square_to_inverted(self.square))
+        (self.fading || self.pos != square_to_pos(self.square))
     }
 
     fn queue_animation(&self, ctx: &WidgetContext, now: SteadyTime) {

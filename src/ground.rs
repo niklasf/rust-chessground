@@ -16,6 +16,7 @@ use cairo::{Context, RadialGradient, Matrix};
 use relm::{Relm, Widget, Update, EventStream};
 
 use util;
+use util::pos_to_square;
 use pieceset;
 use pieces::Pieces;
 use drawable::Drawable;
@@ -280,7 +281,7 @@ impl<'a> EventContext<'a> {
     {
         let widget = WidgetContext::new(board_state, drawing_area);
         let pos = widget.invert_pos(pos);
-        let square = util::inverted_to_square(pos);
+        let square = pos_to_square(pos);
 
         EventContext {
             widget,

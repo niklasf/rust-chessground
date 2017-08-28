@@ -8,8 +8,7 @@ use rsvg::HandleExt;
 
 use shakmaty::{Square, Color, Role};
 
-use util;
-use util::ease_in_out_cubic;
+use util::{ease, square_to_pos};
 use pieces::Pieces;
 use ground::{WidgetContext, EventContext, GroundMsg, BoardState};
 
@@ -76,7 +75,7 @@ impl Promotable {
 
             // animate the figurine when cancelling
             if let Some(figurine) = pieces.figurine_at_mut(promoting.orig) {
-                figurine.pos = util::square_to_inverted(promoting.dest);
+                figurine.pos = square_to_pos(promoting.dest);
                 figurine.time = SteadyTime::now();
             }
 
@@ -150,12 +149,11 @@ impl Promoting {
                 Some(hover) if hover.file() == self.dest.file() && hover.rank() == rank => {
                     let elapsed = self.elapsed();
 
-                    cr.set_source_rgb(
-                        ease_in_out_cubic(0.69, 1.0, elapsed, 1.0),
-                        ease_in_out_cubic(0.69, 0.65, elapsed, 1.0),
-                        ease_in_out_cubic(0.69, 0.0, elapsed, 1.0));
+                    cr.set_source_rgb(ease(0.69, 1.0, elapsed, 1.0),
+                                      ease(0.69, 0.65, elapsed, 1.0),
+                                      ease(0.69, 0.0, elapsed, 1.0));
 
-                    ease_in_out_cubic(0.5, 0.5f64.hypot(0.5), elapsed, 1.0)
+                    ease(0.5, 0.5f64.hypot(0.5), elapsed, 1.0)
                 },
                 _ => {
                     cr.set_source_rgb(0.69, 0.69, 0.69);
