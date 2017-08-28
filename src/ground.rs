@@ -106,9 +106,7 @@ impl Widget for Ground {
                     let matrix = util::compute_matrix(widget, state.board_state.orientation);
                     cr.set_matrix(matrix);
 
-                    draw_border(cr, &state.board_state);
-                    draw_board(cr, &state.board_state, &state.pieces);
-                    draw_check(cr, &state.board_state);
+                    state.board_state.draw(cr);
                     state.pieces.draw(cr, &state.board_state, &state.promotable);
                     state.drawable.draw(cr);
                     state.pieces.draw_drag(cr, &state.board_state);
@@ -260,16 +258,6 @@ pub(crate) struct BoardState {
 }
 
 impl BoardState {
-    pub fn move_targets(&self, orig: Square) -> Bitboard {
-        self.legals.iter().filter(|m| m.from() == Some(orig)).map(|m| m.to()).collect()
-    }
-
-    pub fn valid_move(&self, orig: Square, dest: Square) -> bool {
-        self.move_targets(orig).contains(dest)
-    }
-}
-
-impl BoardState {
     fn new() -> Self {
         let pos = Chess::default();
         let mut legals = MoveList::new();
@@ -284,78 +272,94 @@ impl BoardState {
             now: SteadyTime::now(),
         }
     }
-}
 
-fn draw_text(cr: &Context, orientation: Color, (x, y): (f64, f64), text: &str) {
-    let font = cr.font_extents();
-    let e = cr.text_extents(text);
-
-    cr.save();
-    cr.translate(x, y);
-    cr.rotate(orientation.fold(0.0, PI));
-    cr.move_to(-0.5 * e.width, 0.5 * font.ascent);
-    cr.show_text(text);
-    cr.restore();
-}
-
-fn draw_border(cr: &Context, state: &BoardState) {
-    let border = cairo::SolidPattern::from_rgb(0.2, 0.2, 0.5);
-    cr.set_source(&border);
-    cr.rectangle(-0.5, -0.5, 9.0, 9.0);
-    cr.fill();
-
-    cr.set_font_size(0.20);
-    cr.set_source_rgb(0.8, 0.8, 0.8);
-
-    for (rank, glyph) in ["1", "2", "3", "4", "5", "6", "7", "8"].iter().enumerate() {
-        draw_text(cr, state.orientation, (-0.25, 7.5 - rank as f64), glyph);
-        draw_text(cr, state.orientation, (8.25, 7.5 - rank as f64), glyph);
+    pub fn move_targets(&self, orig: Square) -> Bitboard {
+        self.legals.iter().filter(|m| m.from() == Some(orig)).map(|m| m.to()).collect()
     }
 
-    for (file, glyph) in ["a", "b", "c", "d", "e", "f", "g", "h"].iter().enumerate() {
-        draw_text(cr, state.orientation, (0.5 + file as f64, -0.25), glyph);
-        draw_text(cr, state.orientation, (0.5 + file as f64, 8.25), glyph);
-    }
-}
-
-fn draw_board(cr: &Context, state: &BoardState, _pieces: &Pieces) {
-    let light = cairo::SolidPattern::from_rgb(0.87, 0.89, 0.90);
-    let dark = cairo::SolidPattern::from_rgb(0.55, 0.64, 0.68);
-
-    cr.rectangle(0.0, 0.0, 8.0, 8.0);
-    cr.set_source(&dark);
-    cr.fill();
-
-    cr.set_source(&light);
-
-    for square in Bitboard::all() {
-        if square.is_light() {
-            cr.rectangle(square.file() as f64, 7.0 - square.rank() as f64, 1.0, 1.0);
-            cr.fill();
-        }
+    pub fn valid_move(&self, orig: Square, dest: Square) -> bool {
+        self.move_targets(orig).contains(dest)
     }
 
-    if let Some((orig, dest)) = state.last_move {
-        cr.set_source_rgba(0.61, 0.78, 0.0, 0.41);
-        cr.rectangle(orig.file() as f64, 7.0 - orig.rank() as f64, 1.0, 1.0);
+    fn draw(&self, cr: &Context) {
+        self.draw_border(cr);
+        self.draw_board(cr);
+        self.draw_last_move(cr);
+        self.draw_check(cr);
+    }
+
+    fn draw_border(&self, cr: &Context) {
+        cr.set_source_rgb(0.2, 0.2, 0.5);
+        cr.rectangle(-0.5, -0.5, 9.0, 9.0);
         cr.fill();
 
-        if dest != orig {
-            cr.rectangle(dest.file() as f64, 7.0 - dest.rank() as f64, 1.0, 1.0);
-            cr.fill();
+        cr.set_font_size(0.20);
+        cr.set_source_rgb(0.8, 0.8, 0.8);
+
+        for (rank, glyph) in ["1", "2", "3", "4", "5", "6", "7", "8"].iter().enumerate() {
+            self.draw_text(cr, (-0.25, 7.5 - rank as f64), glyph);
+            self.draw_text(cr, (8.25, 7.5 - rank as f64), glyph);
+        }
+
+        for (file, glyph) in ["a", "b", "c", "d", "e", "f", "g", "h"].iter().enumerate() {
+            self.draw_text(cr, (0.5 + file as f64, -0.25), glyph);
+            self.draw_text(cr, (0.5 + file as f64, 8.25), glyph);
         }
     }
-}
 
-fn draw_check(cr: &Context, state: &BoardState) {
-    if let Some(check) = state.check {
-        let cx = 0.5 + check.file() as f64;
-        let cy = 7.5 - check.rank() as f64;
-        let gradient = RadialGradient::new(cx, cy, 0.0, cx, cy, 0.5f64.hypot(0.5));
-        gradient.add_color_stop_rgba(0.0, 1.0, 0.0, 0.0, 1.0);
-        gradient.add_color_stop_rgba(0.25, 0.91, 0.0, 0.0, 1.0);
-        gradient.add_color_stop_rgba(0.89, 0.66, 0.0, 0.0, 0.0);
-        cr.set_source(&gradient);
-        cr.paint();
+    fn draw_text(&self, cr: &Context, (x, y): (f64, f64), text: &str) {
+        let font = cr.font_extents();
+        let e = cr.text_extents(text);
+
+        cr.save();
+        cr.translate(x, y);
+        cr.rotate(self.orientation.fold(0.0, PI));
+        cr.move_to(-0.5 * e.width, 0.5 * font.ascent);
+        cr.show_text(text);
+        cr.restore();
+    }
+
+    fn draw_board(&self, cr: &Context) {
+        let light = cairo::SolidPattern::from_rgb(0.87, 0.89, 0.90);
+        let dark = cairo::SolidPattern::from_rgb(0.55, 0.64, 0.68);
+
+        cr.rectangle(0.0, 0.0, 8.0, 8.0);
+        cr.set_source(&dark);
+        cr.fill();
+
+        cr.set_source(&light);
+
+        for square in Bitboard::all() {
+            if square.is_light() {
+                cr.rectangle(square.file() as f64, 7.0 - square.rank() as f64, 1.0, 1.0);
+                cr.fill();
+            }
+        }
+    }
+
+    fn draw_last_move(&self, cr: &Context) {
+        if let Some((orig, dest)) = self.last_move {
+            cr.set_source_rgba(0.61, 0.78, 0.0, 0.41);
+            cr.rectangle(orig.file() as f64, 7.0 - orig.rank() as f64, 1.0, 1.0);
+            cr.fill();
+
+            if dest != orig {
+                cr.rectangle(dest.file() as f64, 7.0 - dest.rank() as f64, 1.0, 1.0);
+                cr.fill();
+            }
+        }
+    }
+
+    fn draw_check(&self, cr: &Context) {
+        if let Some(check) = self.check {
+            let cx = 0.5 + check.file() as f64;
+            let cy = 7.5 - check.rank() as f64;
+            let gradient = RadialGradient::new(cx, cy, 0.0, cx, cy, 0.5f64.hypot(0.5));
+            gradient.add_color_stop_rgba(0.0, 1.0, 0.0, 0.0, 1.0);
+            gradient.add_color_stop_rgba(0.25, 0.91, 0.0, 0.0, 1.0);
+            gradient.add_color_stop_rgba(0.89, 0.66, 0.0, 0.0, 0.0);
+            cr.set_source(&gradient);
+            cr.paint();
+        }
     }
 }
