@@ -56,24 +56,21 @@ impl Promotable {
         }
     }
 
-    pub(crate) fn mouse_move(&mut self, board_state: &BoardState, ctx: &EventContext) -> bool {
+    pub(crate) fn mouse_move(&mut self, board_state: &BoardState, ctx: &EventContext) {
         self.queue_animation(board_state, ctx.drawing_area);
 
-        let consume = if let Some(ref mut promoting) = self.promoting {
+        if let Some(ref mut promoting) = self.promoting {
             if promoting.hover != ctx.square {
                 promoting.hover = ctx.square;
                 promoting.time = SteadyTime::now();
+
             }
-            true
-        } else {
-            false
-        };
+        }
 
         self.queue_animation(board_state, ctx.drawing_area);
-        consume
     }
 
-    pub(crate) fn mouse_down(&mut self, board_state: &mut BoardState, ctx: &EventContext) -> bool {
+    pub(crate) fn mouse_down(&mut self, board_state: &mut BoardState, ctx: &EventContext) -> Inhibit {
         if let Some(promoting) = self.promoting.take() {
             ctx.drawing_area.queue_draw();
 
@@ -99,13 +96,13 @@ impl Promotable {
 
                     if role.is_some() {
                         ctx.stream.emit(GroundMsg::UserMove(promoting.orig, promoting.dest, role));
-                        return true;
+                        return Inhibit(true);
                     }
                 }
             }
         }
 
-        false
+        Inhibit(false)
     }
 
     pub(crate) fn draw(&self, cr: &Context, board_state: &BoardState) {
@@ -123,6 +120,7 @@ impl Promoting {
     }
 
     fn draw(&self, cr: &Context, board_state: &BoardState) {
+        // make the board darker
         cr.rectangle(0.0, 0.0, 8.0, 8.0);
         cr.set_source_rgba(0.0, 0.0, 0.0, 0.5);
         cr.fill();
@@ -143,6 +141,7 @@ impl Promoting {
             cr.rectangle(self.dest.file() as f64, 7.0 - rank as f64, 1.0, 1.0);
             cr.clip_preserve();
 
+            // draw background
             if light {
                 cr.set_source_rgb(0.25, 0.25, 0.25);
             } else {
@@ -150,6 +149,7 @@ impl Promoting {
             }
             cr.fill();
 
+            // draw piece
             let radius = match self.hover {
                 Some(hover) if hover.file() == self.dest.file() && hover.rank() == rank => {
                     let elapsed = self.elapsed();

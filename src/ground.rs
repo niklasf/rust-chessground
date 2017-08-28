@@ -209,17 +209,16 @@ impl Widget for Ground {
 }
 
 fn motion_notify_event(state: &mut State, ctx: &EventContext, e: &EventMotion) {
-    if !state.promotable.mouse_move(&state.board_state, &ctx) {
-        drag_mouse_move(&mut state.board_state, ctx.drawing_area, ctx.square, e);
-        state.drawable.mouse_move(&ctx);
-    }
+    state.promotable.mouse_move(&state.board_state, &ctx);
+    drag_mouse_move(&mut state.board_state, ctx.drawing_area, ctx.square, e);
+    state.drawable.mouse_move(&ctx);
 }
 
 fn button_press_event(state: &mut State, ctx: &EventContext, e: &EventButton) {
     let promotable = &mut state.promotable;
     let board_state = &mut state.board_state;
 
-    if !promotable.mouse_down(board_state, &ctx) {
+    if let Inhibit(false) = promotable.mouse_down(board_state, &ctx) {
         board_state.selection_mouse_down(&ctx, e);
         drag_mouse_down(board_state, ctx.drawing_area, ctx.square, e);
         state.drawable.mouse_down(&ctx, e);
