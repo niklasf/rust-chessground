@@ -4,7 +4,9 @@ rust-chessground
 A chessboard widget for Relm/GTK. Inspired by
 [chessground.js](https://github.com/ornicar/chessground).
 
-![Screenshot](/screenshot.png)
+<p align="center">
+<img src="/screenshot.png" alt="Screenshot">
+</p>
 
 Features
 --------
@@ -28,4 +30,4 @@ License
 -------
 
 Chessground is licensed under the GPL-3.0 (or any later version at your
-option). See the COPYING file for the full license text.
+option). See the COPYING file for the full license.
