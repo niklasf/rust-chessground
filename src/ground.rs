@@ -17,7 +17,7 @@ use cairo::{Context, Matrix};
 
 use relm::{Relm, Widget, Update, EventStream};
 
-use shakmaty::{Square, Role, Board, Move, MoveList, Chess, Position};
+use shakmaty::{Square, Color, Role, Board, Move, MoveList, Chess, Position};
 
 use util::pos_to_square;
 use pieces::Pieces;
@@ -33,14 +33,22 @@ pub struct Model {
 
 #[derive(Msg)]
 pub enum GroundMsg {
+    /// Flip the board.
     Flip,
+    /// Set the board orientation.
     SetOrientation(Color),
+    /// Set up a position for play.
     SetPos(Pos),
+    /// Set up a board.
     SetBoard(Board),
+
+    /// Sent when the completed a piece drag or move.
     UserMove(Square, Square, Option<Role>),
+    /// Sent when shapes are added, removed or cleared.
     ShapesChanged,
 }
 
+/// A position configuration.
 pub struct Pos {
     board: Board,
     legals: MoveList,
@@ -49,6 +57,7 @@ pub struct Pos {
 }
 
 impl Pos {
+    /// Creates a new position configuration.
     pub fn new<P: Position>(p: &P) -> Pos {
         Pos {
             board: p.board().clone(),
@@ -62,6 +71,7 @@ impl Pos {
         self.last_move = Some((m.from().unwrap_or_else(|| m.to()), m.to()))
     }
 
+    /// Adds a hint for the last move, that can be displayed on the board.
     pub fn with_last_move(mut self, m: &Move) -> Self {
         self.set_last_move(m);
         self
@@ -74,6 +84,7 @@ impl Default for Pos {
     }
 }
 
+/// Chessground, a chess board widget.
 pub struct Ground {
     drawing_area: DrawingArea,
     model: Model,
@@ -99,8 +110,8 @@ impl Update for Ground {
                 state.board_state.set_orientation(!orientation);
                 self.drawing_area.queue_draw();
             },
-            GroundMsg::SetOrientation(color) => {
-                self.board_state.set_orientation(orientation);
+            GroundMsg::SetOrientation(orientation) => {
+                state.board_state.set_orientation(orientation);
                 self.drawing_area.queue_draw();
             },
             GroundMsg::SetPos(pos) => {
