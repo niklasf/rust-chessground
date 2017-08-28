@@ -92,6 +92,12 @@ fn main() {
 }
 ```
 
+Features
+--------
+
+Only a minimum of the features is exposed in the public API. Feel free to
+request more.
+
 License
 -------
 
