@@ -98,6 +98,13 @@ fn main() {
 }
 ```
 
+Piece sets
+----------
+
+Set | Author | License
+--- | --- | ---
+Merida | Armando Hernandez Marroquin | [GPL-2+](https://www.gnu.org/licenses/gpl-2.0.txt)
+
 License
 -------
 
