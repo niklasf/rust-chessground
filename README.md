@@ -13,7 +13,7 @@ Features
 --------
 
 * Uses vocabulary from [Shakmaty](https://github.com/niklasf/shakmaty) but is
-  chess rule agnostic.
+  chess rule agnostic
 * Can show legal move hints
 * Check hints
 * Move pieces by click
