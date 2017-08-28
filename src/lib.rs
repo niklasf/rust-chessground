@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+//! A chessboard widget for Relm/GTK.
+
 extern crate gtk;
 extern crate gdk;
 extern crate cairo;
@@ -32,8 +34,6 @@ mod pieces;
 mod promotable;
 mod drawable;
 mod util;
-
-//! A chessboard widget for Relm/GTK.
 
 pub use ground::{Ground, GroundMsg, Pos};
 pub use GroundMsg::*;
