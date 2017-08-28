@@ -11,7 +11,7 @@ use gdk;
 use gdk::{EventButton, EventMotion};
 use cairo;
 use cairo::prelude::*;
-use cairo::{Context, RadialGradient};
+use cairo::{Context, RadialGradient, Matrix};
 
 use relm::{Relm, Widget, Update, EventStream};
 
@@ -196,8 +196,9 @@ impl State {
     }
 
     fn queue_animation(&self, drawing_area: &DrawingArea) {
-        self.pieces.queue_animation(&self.board_state, drawing_area);
-        self.promotable.queue_animation(&self.board_state, drawing_area);
+        let ctx = WidgetContext::new(&self.board_state, drawing_area);
+        self.pieces.queue_animation(&ctx);
+        self.promotable.queue_animation(&ctx);
     }
 
     fn button_release_event(&mut self, stream: &Stream, drawing_area: &DrawingArea, e: &EventButton) {
@@ -208,8 +209,8 @@ impl State {
 
     fn motion_notify_event(&mut self, stream: &Stream, drawing_area: &DrawingArea, e: &EventMotion) {
         let ctx = EventContext::new(&self.board_state, stream, drawing_area, e.get_position());
-        self.promotable.mouse_move(&self.board_state, &ctx);
-        self.pieces.drag_mouse_move(&self.board_state, &ctx, e);
+        self.promotable.mouse_move(&ctx);
+        self.pieces.drag_mouse_move(&ctx);
         self.drawable.mouse_move(&ctx);
     }
 
@@ -220,16 +221,53 @@ impl State {
 
         if let Inhibit(false) = promotable.mouse_down(pieces, &ctx) {
             pieces.selection_mouse_down(&ctx, e);
-            pieces.drag_mouse_down(&self.board_state, &ctx, e);
+            pieces.drag_mouse_down(&ctx, e);
             self.drawable.mouse_down(&ctx, e);
         }
     }
 }
 
-pub(crate) struct EventContext<'a> {
-    pub board_state: &'a BoardState,
-    pub stream: &'a Stream,
+pub(crate) struct WidgetContext<'a> {
+    matrix: Matrix,
+    board_state: &'a BoardState,
     drawing_area: &'a DrawingArea,
+}
+
+impl<'a> WidgetContext<'a> {
+    fn new(board_state: &'a BoardState, drawing_area: &'a DrawingArea) -> WidgetContext<'a> {
+        let matrix = util::compute_matrix(drawing_area, board_state.orientation);
+
+        WidgetContext {
+            matrix,
+            board_state,
+            drawing_area
+        }
+    }
+
+    fn invert_pos(&self, pos: (f64, f64)) -> (f64, f64) {
+        util::invert_pos(self.drawing_area, self.board_state.orientation, pos)
+    }
+
+    pub fn matrix(&self) -> Matrix {
+        self.matrix
+    }
+
+    pub fn queue_draw(&self) {
+        self.drawing_area.queue_draw()
+    }
+
+    pub fn queue_draw_square(&self, square: Square) {
+        util::queue_draw_square(self.drawing_area, self.board_state.orientation, square)
+    }
+
+    pub fn queue_draw_rect(&self, x1: f64, y1: f64, x2: f64, y2: f64) {
+        util::queue_draw_rect(self.drawing_area, self.board_state.orientation, x1, y1, x2, y2);
+    }
+}
+
+pub(crate) struct EventContext<'a> {
+    widget: WidgetContext<'a>,
+    stream: &'a Stream,
     pub pos: (f64, f64),
     pub square: Option<Square>,
 }
@@ -240,20 +278,24 @@ impl<'a> EventContext<'a> {
            drawing_area: &'a DrawingArea,
            pos: (f64, f64)) -> EventContext<'a>
     {
-        let pos = util::invert_pos(drawing_area, board_state.orientation, pos);
+        let widget = WidgetContext::new(board_state, drawing_area);
+        let pos = widget.invert_pos(pos);
         let square = util::inverted_to_square(pos);
 
         EventContext {
-            board_state,
+            widget,
             stream,
-            drawing_area,
             pos,
             square,
         }
     }
 
-    pub fn queue_draw(&self) {
-        self.drawing_area.queue_draw()
+    pub fn widget(&self) -> &WidgetContext<'a> {
+        &self.widget
+    }
+
+    pub fn stream(&self) -> &'a Stream {
+        self.stream
     }
 }
 

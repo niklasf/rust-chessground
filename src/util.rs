@@ -8,6 +8,14 @@ use gtk::DrawingArea;
 use cairo::prelude::*;
 use cairo::Matrix;
 
+pub fn fmin(a: f64, b: f64) -> f64 {
+    if a < b { a } else { b }
+}
+
+pub fn fmax(a: f64, b: f64) -> f64 {
+    if a > b { a } else { b }
+}
+
 pub fn ease_in_out_cubic(start: f64, end: f64, elapsed: f64, duration: f64) -> f64 {
     let t = elapsed / duration;
     let ease = if t >= 1.0 {
@@ -36,12 +44,6 @@ pub fn compute_matrix(widget: &DrawingArea, orientation: Color) -> Matrix {
     matrix.translate(-4.0, -4.0);
 
     matrix
-}
-
-pub fn pos_to_square(widget: &DrawingArea, orientation: Color, (x, y): (f64, f64)) -> Option<Square> {
-    compute_matrix(widget, orientation).try_invert().ok().and_then(|matrix| {
-        inverted_to_square(matrix.transform_point(x, y))
-    })
 }
 
 pub fn invert_pos(widget: &DrawingArea, orientation: Color, (x, y): (f64, f64)) -> (f64, f64) {

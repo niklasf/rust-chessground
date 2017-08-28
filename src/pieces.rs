@@ -1,23 +1,19 @@
-use std::cmp::{min, max};
 use std::f64::consts::PI;
 
 use time::SteadyTime;
 
 use option_filter::OptionFilterExt;
 
-use gdk::{EventButton, EventMotion};
-use gtk::prelude::*;
-use gtk::DrawingArea;
-use cairo::prelude::*;
+use gdk::EventButton;
 use cairo::Context;
 use rsvg::HandleExt;
 
 use shakmaty::{Square, Piece, Bitboard, Board};
 
 use util;
-use util::{ease_in_out_cubic, queue_draw_rect, queue_draw_square};
+use util::{ease_in_out_cubic, fmin, fmax};
 use promotable::Promotable;
-use ground::{BoardState, GroundMsg, EventContext};
+use ground::{BoardState, GroundMsg, EventContext, WidgetContext};
 
 const ANIMATE_DURATION: f64 = 0.2;
 
@@ -173,20 +169,20 @@ impl Pieces {
             if let (Some(orig), Some(dest)) = (orig, dest) {
                 self.selected = None;
                 if orig != dest {
-                    ctx.stream.emit(GroundMsg::UserMove(orig, dest, None));
+                    ctx.stream().emit(GroundMsg::UserMove(orig, dest, None));
                 }
             }
         }
 
-        ctx.drawing_area.queue_draw();
+        ctx.widget().queue_draw();
     }
 
-    pub(crate) fn drag_mouse_down(&mut self, state: &BoardState, ctx: &EventContext, e: &EventButton) {
+    pub(crate) fn drag_mouse_down(&mut self, ctx: &EventContext, e: &EventButton) {
         if e.get_button() == 1 {
             if let Some(square) = ctx.square {
                 if self.occupied().contains(square) {
                     self.drag_start = Some(DragStart {
-                        pos: util::invert_pos(ctx.drawing_area, state.orientation, e.get_position()),
+                        pos: ctx.pos,
                         square,
                     });
                 }
@@ -194,11 +190,9 @@ impl Pieces {
         }
     }
 
-    pub(crate) fn drag_mouse_move(&mut self, state: &BoardState, ctx: &EventContext, e: &EventMotion) {
-        let pos = util::invert_pos(ctx.drawing_area, state.orientation, e.get_position());
-
+    pub(crate) fn drag_mouse_move(&mut self, ctx: &EventContext) {
         let dragging = if let Some(ref drag_start) = self.drag_start {
-            let drag_distance = (drag_start.pos.0 - pos.0).hypot(drag_start.pos.1 - pos.1);
+            let drag_distance = (drag_start.pos.0 - ctx.pos.0).hypot(drag_start.pos.1 - ctx.pos.1);
             Some(drag_start.square).filter(|_| drag_distance >= 0.1)
         } else {
             None
@@ -213,26 +207,26 @@ impl Pieces {
             // ensure orig square is selected
             if self.selected != dragging {
                 self.selected = dragging;
-                ctx.drawing_area.queue_draw();
+                ctx.widget().queue_draw();
             }
         }
 
         if let Some(dragging) = self.dragging_mut() {
             // invalidate previous
-            queue_draw_rect(ctx.drawing_area, state.orientation, dragging.pos.0 - 0.5, dragging.pos.1 - 0.5, 1.0, 1.0);
-            queue_draw_square(ctx.drawing_area, state.orientation, dragging.square);
+            ctx.widget().queue_draw_rect(dragging.pos.0 - 0.5, dragging.pos.1 - 0.5, 1.0, 1.0);
+            ctx.widget().queue_draw_square(dragging.square);
             if let Some(sq) = util::inverted_to_square(dragging.pos) {
-                queue_draw_square(ctx.drawing_area, state.orientation, sq);
+                ctx.widget().queue_draw_square(sq);
             }
 
             // update position
-            dragging.pos = pos;
+            dragging.pos = ctx.pos;
             dragging.time = SteadyTime::now();
 
             // invalidate new
-            queue_draw_rect(ctx.drawing_area, state.orientation, dragging.pos.0 - 0.5, dragging.pos.1 - 0.5, 1.0, 1.0);
+            ctx.widget().queue_draw_rect(dragging.pos.0 - 0.5, dragging.pos.1 - 0.5, 1.0, 1.0);
             if let Some(sq) = ctx.square {
-                queue_draw_square(ctx.drawing_area, state.orientation, sq);
+                ctx.widget().queue_draw_square(sq);
             }
         }
     }
@@ -241,7 +235,7 @@ impl Pieces {
         self.drag_start = None;
 
         let (orig, dest) = if let Some(dragging) = self.dragging_mut() {
-            ctx.drawing_area.queue_draw();
+            ctx.widget().queue_draw();
 
             let dest = ctx.square.unwrap_or(dragging.square);
             dragging.pos = util::square_to_inverted(dest);
@@ -260,14 +254,14 @@ impl Pieces {
         self.selected = None;
 
         if orig != dest {
-            ctx.stream.emit(GroundMsg::UserMove(orig, dest, None));
+            ctx.stream().emit(GroundMsg::UserMove(orig, dest, None));
         }
     }
 
-    pub(crate) fn queue_animation(&self, state: &BoardState, widget: &DrawingArea) {
+    pub(crate) fn queue_animation(&self, ctx: &WidgetContext) {
         let now = SteadyTime::now();
         for figurine in &self.figurines {
-            figurine.queue_animation(state, widget, now);
+            figurine.queue_animation(ctx, now);
         }
     }
 
@@ -411,30 +405,21 @@ impl Figurine {
         (self.fading || self.pos != util::square_to_inverted(self.square))
     }
 
-    fn queue_animation(&self, state: &BoardState, widget: &DrawingArea, now: SteadyTime) {
+    fn queue_animation(&self, ctx: &WidgetContext, now: SteadyTime) {
         if self.is_animating(now) {
-            let matrix = util::compute_matrix(widget, state.orientation);
             let pos = self.pos(now);
 
-            let (x1, y1) = matrix.transform_point(pos.0 - 0.5, pos.1 - 0.5);
-            let (x2, y2) = matrix.transform_point(pos.0 + 0.5, pos.1 + 0.5);
-            let (x3, y3) = matrix.transform_point(self.square.file() as f64, 7.0 - self.square.rank() as f64);
-            let (x4, y4) = matrix.transform_point(1.0 + self.square.file() as f64, 8.0 - self.square.rank() as f64);
+            let (x1, y1) = (pos.0 - 0.5, pos.1 - 0.5);
+            let (x2, y2) = (pos.0 + 0.5, pos.1 + 0.5);
+            let (x3, y3) = (self.square.file() as f64, 7.0 - self.square.rank() as f64);
+            let (x4, y4) = (1.0 + self.square.file() as f64, 8.0 - self.square.rank() as f64);
 
-            let xmin = min(
-                min(x1.floor() as i32, x2.floor() as i32),
-                min(x3.floor() as i32, x4.floor() as i32));
-            let xmax = max(
-                max(x1.ceil() as i32, x2.ceil() as i32),
-                max(x3.ceil() as i32, x4.ceil() as i32));
-            let ymin = min(
-                min(y1.floor() as i32, y2.floor() as i32),
-                min(y3.floor() as i32, y4.floor() as i32));
-            let ymax = max(
-                max(y1.ceil() as i32, y2.ceil() as i32),
-                max(y3.ceil() as i32, y4.ceil() as i32));
+            let xmin = fmin(fmin(x1, x2), fmin(x3, x4));
+            let xmax = fmax(fmax(x1, x2), fmax(x3, x4));
+            let ymin = fmin(fmin(y1, y2), fmin(y3, y4));
+            let ymax = fmax(fmax(y1, y2), fmax(y3, y4));
 
-            widget.queue_draw_area(xmin, ymin, xmax - xmin, ymax - ymin);
+            ctx.queue_draw_rect(xmin, ymin, xmax, ymax);
         }
     }
 

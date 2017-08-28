@@ -3,16 +3,15 @@ use std::f64::consts::PI;
 use time::SteadyTime;
 
 use gtk::prelude::*;
-use gtk::DrawingArea;
 use cairo::Context;
 use rsvg::HandleExt;
 
 use shakmaty::{Square, Color, Role};
 
 use util;
-use util::{ease_in_out_cubic, queue_draw_square};
+use util::ease_in_out_cubic;
 use pieces::Pieces;
-use ground::{EventContext, BoardState, GroundMsg};
+use ground::{WidgetContext, EventContext, GroundMsg, BoardState};
 
 pub struct Promotable {
     promoting: Option<Promoting>,
@@ -51,14 +50,14 @@ impl Promotable {
         })
     }
 
-    pub(crate) fn queue_animation(&self, state: &BoardState, drawing_area: &DrawingArea) {
+    pub(crate) fn queue_animation(&self, ctx: &WidgetContext) {
         if let Some(Promoting { hover: Some(square), .. }) = self.promoting {
-            queue_draw_square(drawing_area, state.orientation, square);
+            ctx.queue_draw_square(square);
         }
     }
 
-    pub(crate) fn mouse_move(&mut self, board_state: &BoardState, ctx: &EventContext) {
-        self.queue_animation(board_state, ctx.drawing_area);
+    pub(crate) fn mouse_move(&mut self, ctx: &EventContext) {
+        self.queue_animation(ctx.widget());
 
         if let Some(ref mut promoting) = self.promoting {
             if promoting.hover != ctx.square {
@@ -68,12 +67,12 @@ impl Promotable {
             }
         }
 
-        self.queue_animation(board_state, ctx.drawing_area);
+        self.queue_animation(ctx.widget());
     }
 
     pub(crate) fn mouse_down(&mut self, pieces: &mut Pieces, ctx: &EventContext) -> Inhibit {
         if let Some(promoting) = self.promoting.take() {
-            ctx.drawing_area.queue_draw();
+            ctx.widget().queue_draw();
 
             // animate the figurine when cancelling
             if let Some(figurine) = pieces.figurine_at_mut(promoting.orig) {
@@ -96,7 +95,7 @@ impl Promotable {
                     };
 
                     if role.is_some() {
-                        ctx.stream.emit(GroundMsg::UserMove(promoting.orig, promoting.dest, role));
+                        ctx.stream().emit(GroundMsg::UserMove(promoting.orig, promoting.dest, role));
                         return Inhibit(true);
                     }
                 }
