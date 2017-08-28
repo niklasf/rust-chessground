@@ -127,11 +127,7 @@ impl Promoting {
         cr.fill();
 
         for (offset, role) in [Role::Queen, Role::Rook, Role::Bishop, Role::Knight, Role::King, Role::Pawn].iter().enumerate() {
-            if !board_state.legals.iter().any(|m| {
-                m.from() == Some(self.orig) &&
-                m.to() == self.dest &&
-                m.promotion() == Some(*role)
-            }) {
+            if !board_state.legal_move(self.orig, self.dest, Some(*role)) {
                 continue;
             }
 

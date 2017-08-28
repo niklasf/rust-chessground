@@ -254,7 +254,7 @@ pub(crate) struct BoardState {
     last_move: Option<(Square, Square)>,
     pub(crate) piece_set: PieceSet,
     pub(crate) now: SteadyTime,
-    pub(crate) legals: MoveList,
+    legals: MoveList,
 }
 
 impl BoardState {
@@ -279,6 +279,12 @@ impl BoardState {
 
     pub fn valid_move(&self, orig: Square, dest: Square) -> bool {
         self.move_targets(orig).contains(dest)
+    }
+
+    pub fn legal_move(&self, orig: Square, dest: Square, promotion: Option<Role>) -> bool {
+        self.legals.iter().any(|m| {
+            m.from() == Some(orig) && m.to() == dest && m.promotion() == promotion
+        })
     }
 
     fn draw(&self, cr: &Context) {
