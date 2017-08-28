@@ -8,7 +8,7 @@ Inspired by [chessground.js](https://github.com/ornicar/chessground).
 [![crates.io](https://img.shields.io/crates/v/chessground.svg)](https://crates.io/crates/chessground)
 
 <p align="center">
-<img src="/screenshot.png" alt="Screenshot">
+<img src="/screenshot.png" alt="">
 </p>
 
 Features
