@@ -9,12 +9,13 @@ extern crate relm;
 #[macro_use]
 extern crate relm_derive;
 
-mod pieces;
-mod drawable;
-mod promotable;
-mod util;
-mod pieceset;
 mod ground;
+mod board_state;
+mod pieceset;
+mod pieces;
+mod promotable;
+mod drawable;
+mod util;
 
 pub use ground::{Ground, GroundMsg};
 pub use GroundMsg::*;

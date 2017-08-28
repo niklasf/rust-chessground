@@ -10,7 +10,8 @@ use shakmaty::{Square, Color, Role};
 
 use util::{ease, square_to_pos};
 use pieces::Pieces;
-use ground::{WidgetContext, EventContext, GroundMsg, BoardState};
+use board_state::BoardState;
+use ground::{WidgetContext, EventContext, GroundMsg};
 
 pub struct Promotable {
     promoting: Option<Promoting>,

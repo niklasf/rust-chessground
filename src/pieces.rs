@@ -12,7 +12,8 @@ use shakmaty::{Square, Piece, Bitboard, Board};
 
 use util::{fmin, fmax, ease, pos_to_square, square_to_pos};
 use promotable::Promotable;
-use ground::{BoardState, GroundMsg, EventContext, WidgetContext};
+use board_state::BoardState;
+use ground::{GroundMsg, EventContext, WidgetContext};
 
 const ANIMATE_DURATION: f64 = 0.2;
 
