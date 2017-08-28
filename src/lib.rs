@@ -9,6 +9,7 @@ extern crate relm;
 #[macro_use]
 extern crate relm_derive;
 
+mod pieces;
 mod drawable;
 mod promotable;
 mod util;
