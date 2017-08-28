@@ -105,7 +105,7 @@ impl Drawable {
                 if self.erase_on_click && !self.shapes.is_empty() {
                     self.shapes.clear();
                     ctx.stream.emit(GroundMsg::ShapesChanged);
-                    ctx.drawing_area.queue_draw();
+                    ctx.queue_draw();
                 }
             }
             3 => {
@@ -127,7 +127,7 @@ impl Drawable {
                     }
                 });
 
-                ctx.drawing_area.queue_draw();
+                ctx.queue_draw();
             }
             _ => {}
         }
@@ -137,7 +137,7 @@ impl Drawable {
         if let Some(ref mut drawing) = self.drawing {
             let dest = ctx.square.unwrap_or(drawing.orig);
             if drawing.dest != dest {
-                ctx.drawing_area.queue_draw();
+                ctx.queue_draw();
             }
             drawing.dest = dest;
         }
@@ -158,7 +158,7 @@ impl Drawable {
                 ctx.stream.emit(GroundMsg::ShapesChanged);
             }
 
-            ctx.drawing_area.queue_draw();
+            ctx.queue_draw();
         }
     }
 

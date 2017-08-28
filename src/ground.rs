@@ -38,6 +38,8 @@ pub enum GroundMsg {
     ShapesChanged,
 }
 
+type Stream = EventStream<GroundMsg>;
+
 pub struct Ground {
     drawing_area: DrawingArea,
     model: Model,
@@ -131,14 +133,7 @@ impl Widget for Ground {
             drawing_area.connect_button_press_event(move |widget, e| {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
-
-                    let ctx = EventContext {
-                        drawing_area: &widget,
-                        stream: &stream,
-                        square: util::pos_to_square(widget, state.board_state.orientation, e.get_position()),
-                    };
-
-                    state.button_press_event(&ctx, e);
+                    state.button_press_event(&stream, widget, e);
                 }
                 Inhibit(false)
             });
@@ -150,14 +145,7 @@ impl Widget for Ground {
             drawing_area.connect_button_release_event(move |widget, e| {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
-
-                    let ctx = EventContext {
-                        drawing_area: widget,
-                        stream: &stream,
-                        square: util::pos_to_square(widget, state.board_state.orientation, e.get_position()),
-                    };
-
-                    state.button_release_event(&ctx);
+                    state.button_release_event(&stream, widget, e);
                 }
                 Inhibit(false)
             });
@@ -169,14 +157,7 @@ impl Widget for Ground {
             drawing_area.connect_motion_notify_event(move |widget, e| {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
-
-                    let ctx = EventContext {
-                        drawing_area: widget,
-                        stream: &stream,
-                        square: util::pos_to_square(widget, state.board_state.orientation, e.get_position()),
-                    };
-
-                    state.motion_notify_event(&ctx, e);
+                    state.motion_notify_event(&stream, widget, e);
                 }
                 Inhibit(false)
             });
@@ -219,34 +200,61 @@ impl State {
         self.promotable.queue_animation(&self.board_state, drawing_area);
     }
 
-    fn button_release_event(&mut self, ctx: &EventContext) {
+    fn button_release_event(&mut self, stream: &Stream, drawing_area: &DrawingArea, e: &EventButton) {
+        let ctx = EventContext::new(&self.board_state, stream, drawing_area, e.get_position());
         self.pieces.drag_mouse_up(&ctx);
         self.drawable.mouse_up(&ctx);
     }
 
-    fn motion_notify_event(&mut self, ctx: &EventContext, e: &EventMotion) {
+    fn motion_notify_event(&mut self, stream: &Stream, drawing_area: &DrawingArea, e: &EventMotion) {
+        let ctx = EventContext::new(&self.board_state, stream, drawing_area, e.get_position());
         self.promotable.mouse_move(&self.board_state, &ctx);
         self.pieces.drag_mouse_move(&self.board_state, &ctx, e);
         self.drawable.mouse_move(&ctx);
     }
 
-    fn button_press_event(&mut self, ctx: &EventContext, e: &EventButton) {
+    fn button_press_event(&mut self, stream: &Stream, drawing_area: &DrawingArea, e: &EventButton) {
+        let ctx = EventContext::new(&self.board_state, stream, drawing_area, e.get_position());
         let promotable = &mut self.promotable;
-        let board_state = &mut self.board_state;
         let pieces = &mut self.pieces;
 
         if let Inhibit(false) = promotable.mouse_down(pieces, &ctx) {
             pieces.selection_mouse_down(&ctx, e);
-            pieces.drag_mouse_down(board_state, &ctx, e);
+            pieces.drag_mouse_down(&self.board_state, &ctx, e);
             self.drawable.mouse_down(&ctx, e);
         }
     }
 }
 
 pub(crate) struct EventContext<'a> {
-    pub drawing_area: &'a DrawingArea,
-    pub stream: &'a EventStream<GroundMsg>,
+    pub board_state: &'a BoardState,
+    pub stream: &'a Stream,
+    drawing_area: &'a DrawingArea,
+    pub pos: (f64, f64),
     pub square: Option<Square>,
+}
+
+impl<'a> EventContext<'a> {
+    fn new(board_state: &'a BoardState,
+           stream: &'a Stream,
+           drawing_area: &'a DrawingArea,
+           pos: (f64, f64)) -> EventContext<'a>
+    {
+        let pos = util::invert_pos(drawing_area, board_state.orientation, pos);
+        let square = util::inverted_to_square(pos);
+
+        EventContext {
+            board_state,
+            stream,
+            drawing_area,
+            pos,
+            square,
+        }
+    }
+
+    pub fn queue_draw(&self) {
+        self.drawing_area.queue_draw()
+    }
 }
 
 pub(crate) struct BoardState {
