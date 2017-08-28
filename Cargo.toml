@@ -14,4 +14,4 @@ rand = "0.3"
 relm = "0.10"
 relm-derive = "0.10"
 relm-attributes = "0.10"
-shakmaty = { version = "0.0.6", path = "../shakmaty" }
+shakmaty = "0.0.7"
