@@ -23,7 +23,7 @@ use util::pos_to_square;
 use pieces::Pieces;
 use drawable::{Drawable, DrawShape};
 use promotable::Promotable;
-use board_state::BoardState;
+use boardstate::BoardState;
 
 type Stream = EventStream<GroundMsg>;
 

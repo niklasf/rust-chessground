@@ -10,7 +10,7 @@ extern crate relm;
 extern crate relm_derive;
 
 mod ground;
-mod board_state;
+mod boardstate;
 mod pieceset;
 mod pieces;
 mod promotable;
