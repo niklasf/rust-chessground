@@ -1,25 +1,24 @@
 rust-chessground
 ================
 
-A chessboard widget for Relm/GTK. Inspired by
-[chessground.js](https://github.com/ornicar/chessground).
-
-<p align="center">
-<img src="/screenshot.png" alt="Screenshot">
-</p>
-
-Features
---------
+A chessboard widget for [Relm/GTK](https://github.com/antoyo/relm).
+Inspired by [chessground.js](https://github.com/ornicar/chessground).
 
 * Uses vocabulary from [Shakmaty](https://github.com/niklasf/shakmaty) but is
   chess rule agnostic.
-* Legal move hints
+* Can show legal move hints
 * Check hints
 * Move pieces by click
 * Move pieces by drag and drop
   - Minimum distance
   - Piece ghosts
-* Draw circles and arrows on the board.
+* Draw circles and arrows on the board
+* Smooth animations
+
+<p align="center">
+<img src="/screenshot.png" alt="Screenshot">
+</p>
+
 
 Documentation
 -------------
