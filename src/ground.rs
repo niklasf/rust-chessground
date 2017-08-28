@@ -38,7 +38,8 @@ pub enum GroundMsg {
         last_move: Option<(Square, Square)>,
         check: Option<Square>,
     },
-    UserMove(Square, Square, Option<Role>)
+    UserMove(Square, Square, Option<Role>),
+    ShapesChanged,
 }
 
 pub struct Ground {
@@ -115,7 +116,7 @@ impl Widget for Ground {
                     draw_board(cr, &state);
                     draw_check(cr, &state);
                     state.pieces.render(cr, &state);
-                    state.drawable.render(cr);
+                    state.drawable.draw(cr);
                     draw_move_hints(cr, &state);
                     draw_drag(cr, &state);
                     draw_promoting(cr, &state);
@@ -144,17 +145,17 @@ impl Widget for Ground {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
 
-                    let context = EventContext {
+                    let ctx = EventContext {
                         drawing_area: &widget,
                         stream: &stream,
                         pos: e.get_position(),
                         square: util::pos_to_square(widget, state.orientation, e.get_position()),
                     };
 
-                    if !state.promoting_mouse_down(&context) {
-                        state.selection_mouse_down(&context, e);
-                        drag_mouse_down(&mut state, widget, context.square, e);
-                        state.drawable.mouse_down(widget, context.square, e);
+                    if !state.promoting_mouse_down(&ctx) {
+                        state.selection_mouse_down(&ctx, e);
+                        drag_mouse_down(&mut state, widget, ctx.square, e);
+                        state.drawable.mouse_down(&ctx, e);
                     }
                 }
                 Inhibit(false)
@@ -168,15 +169,15 @@ impl Widget for Ground {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
 
-                    let context = EventContext {
+                    let ctx = EventContext {
                         drawing_area: widget,
                         stream: &stream,
                         pos: e.get_position(),
                         square: util::pos_to_square(widget, state.orientation, e.get_position()),
                     };
 
-                    state.drag_mouse_up(&context);
-                    state.drawable.mouse_up(&context);
+                    state.drag_mouse_up(&ctx);
+                    state.drawable.mouse_up(&ctx);
                 }
                 Inhibit(false)
             });
@@ -184,21 +185,27 @@ impl Widget for Ground {
 
         {
             let state = Rc::downgrade(&model.state);
+            let stream = relm.stream().clone();
             drawing_area.connect_motion_notify_event(move |widget, e| {
                 if let Some(state) = state.upgrade() {
                     let mut state = state.borrow_mut();
-                    let square = util::pos_to_square(widget, state.orientation, e.get_position());
 
-                    if !promoting_mouse_move(&mut state, widget, square) {
-                        drag_mouse_move(&mut state, widget, square, e);
-                        state.drawable.mouse_move(widget, square);
+                    let ctx = EventContext {
+                        drawing_area: widget,
+                        stream: &stream,
+                        pos: e.get_position(),
+                        square: util::pos_to_square(widget, state.orientation, e.get_position()),
+                    };
+
+                    if !promoting_mouse_move(&mut state, widget, ctx.square) {
+                        drag_mouse_move(&mut state, widget, ctx.square, e);
+                        state.drawable.mouse_move(&ctx);
                     }
                 }
                 Inhibit(false)
             });
         }
 
-        drawing_area.set_size_request(9 * 10, 9 * 10);
         drawing_area.set_hexpand(true);
         drawing_area.set_vexpand(true);
         drawing_area.show();

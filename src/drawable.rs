@@ -9,11 +9,10 @@ use std::f64::consts::PI;
 use shakmaty::Square;
 
 use gtk::prelude::*;
-use gtk::DrawingArea;
 use gdk::EventButton;
 use cairo::Context;
 
-use ground::EventContext;
+use ground::{EventContext, GroundMsg};
 
 enum DrawBrush {
     Green,
@@ -29,7 +28,7 @@ struct DrawShape {
 }
 
 impl DrawShape {
-    fn render(&self, cr: &Context) {
+    fn draw(&self, cr: &Context) {
         let opacity = 0.5;
 
         match self.brush {
@@ -101,23 +100,21 @@ impl Drawable {
         }
     }
 
-    pub(crate) fn mouse_down(&mut self,
-                             widget: &DrawingArea,
-                             square: Option<Square>,
-                             e: &EventButton) {
+    pub fn mouse_down(&mut self, ctx: &EventContext, e: &EventButton) {
         if !self.enabled {
             return;
         }
 
         match e.get_button() {
             1 => {
-                if self.erase_on_click {
+                if self.erase_on_click && !self.shapes.is_empty() {
                     self.shapes.clear();
-                    widget.queue_draw();
+                    ctx.stream.emit(GroundMsg::ShapesChanged);
+                    ctx.drawing_area.queue_draw();
                 }
             }
             3 => {
-                self.drawing = square.map(|square| {
+                self.drawing = ctx.square.map(|square| {
                     let brush = if e.get_state().contains(gdk::MOD1_MASK | gdk::SHIFT_MASK) {
                         DrawBrush::Yellow
                     } else if e.get_state().contains(gdk::MOD1_MASK) {
@@ -135,42 +132,46 @@ impl Drawable {
                     }
                 });
 
-                widget.queue_draw();
+                ctx.drawing_area.queue_draw();
             }
             _ => {}
         }
     }
 
-    pub(crate) fn mouse_move(&mut self, widget: &DrawingArea, square: Option<Square>) {
+    pub fn mouse_move(&mut self, ctx: &EventContext) {
         if let Some(ref mut drawing) = self.drawing {
-            let dest = square.unwrap_or(drawing.orig);
+            let dest = ctx.square.unwrap_or(drawing.orig);
             if drawing.dest != dest {
-                widget.queue_draw();
+                ctx.drawing_area.queue_draw();
             }
             drawing.dest = dest;
         }
     }
 
-    pub(crate) fn mouse_up(&mut self, context: &EventContext) {
+    pub fn mouse_up(&mut self, ctx: &EventContext) {
         if let Some(mut drawing) = self.drawing.take() {
-            drawing.dest = context.square.unwrap_or(drawing.orig);
+            if self.enabled {
+                drawing.dest = ctx.square.unwrap_or(drawing.orig);
 
-            // remove or add shape
-            let num_shapes = self.shapes.len();
-            self.shapes.retain(|s| s.orig != drawing.orig || s.dest != drawing.dest);
-            if num_shapes == self.shapes.len() {
-                self.shapes.push(drawing);
+                // remove or add shape
+                let num_shapes = self.shapes.len();
+                self.shapes.retain(|s| s.orig != drawing.orig || s.dest != drawing.dest);
+                if num_shapes == self.shapes.len() {
+                    self.shapes.push(drawing);
+                }
+
+                ctx.stream.emit(GroundMsg::ShapesChanged);
             }
 
-            context.drawing_area.queue_draw();
+            ctx.drawing_area.queue_draw();
         }
     }
 
-    pub(crate) fn render(&self, cr: &Context) {
+    pub fn draw(&self, cr: &Context) {
         for shape in &self.shapes {
-            shape.render(cr);
+            shape.draw(cr);
         }
 
-        self.drawing.as_ref().map(|shape| shape.render(cr));
+        self.drawing.as_ref().map(|shape| shape.draw(cr));
     }
 }

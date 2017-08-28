@@ -20,7 +20,7 @@ use relm::Widget;
 use relm_attributes::widget;
 
 use shakmaty::{Square, Role, Chess, Position, Setup};
-use chessground::{Ground, GroundMsg, UserMove};
+use chessground::{Ground, GroundMsg, UserMove, ShapesChanged};
 
 use self::Msg::*;
 
@@ -84,6 +84,7 @@ impl Widget for Win {
                 #[name="ground"]
                 Ground {
                     UserMove(orig, dest, promotion) => MovePlayed(orig, dest, promotion),
+                    ShapesChanged => println!("shapes changed"),
                 },
             },
             delete_event(_, _) => (Quit, Inhibit(false)),
