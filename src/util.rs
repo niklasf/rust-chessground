@@ -8,6 +8,21 @@ use gtk::DrawingArea;
 use cairo::prelude::*;
 use cairo::Matrix;
 
+pub fn ease_in_out_cubic(start: f64, end: f64, elapsed: f64, duration: f64) -> f64 {
+    let t = elapsed / duration;
+    let ease = if t >= 1.0 {
+        1.0
+    } else if t >= 0.5 {
+        (t - 1.0) * (2.0 * t - 2.0) * (2.0 * t - 2.0) + 1.0
+    } else if t >= 0.0 {
+        4.0 * t * t * t
+    } else {
+        0.0
+    };
+    start + (end - start) * ease
+}
+
+
 pub fn compute_matrix(widget: &DrawingArea, orientation: Color) -> Matrix {
     let mut matrix = Matrix::identity();
 

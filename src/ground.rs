@@ -22,6 +22,7 @@ use time::SteadyTime;
 use relm::{Relm, Widget, Update, EventStream};
 
 use util;
+use util::ease_in_out_cubic;
 use pieceset;
 use drawable::Drawable;
 use promotable::Promotable;
@@ -249,20 +250,6 @@ pub struct EventContext<'a> {
 }
 
 pub const ANIMATE_DURATION: f64 = 0.2;
-
-fn ease_in_out_cubic(start: f64, end: f64, elapsed: f64, duration: f64) -> f64 {
-    let t = elapsed / duration;
-    let ease = if t >= 1.0 {
-        1.0
-    } else if t >= 0.5 {
-        (t - 1.0) * (2.0 * t - 2.0) * (2.0 * t - 2.0) + 1.0
-    } else if t >= 0.0 {
-        4.0 * t * t * t
-    } else {
-        0.0
-    };
-    start + (end - start) * ease
-}
 
 pub(crate) struct Figurine {
     square: Square,
@@ -532,9 +519,9 @@ pub(crate) struct BoardState {
     selected: Option<Square>,
     last_move: Option<(Square, Square)>,
     drag_start: Option<DragStart>,
-    piece_set: PieceSet,
-    now: SteadyTime,
-    legals: MoveList,
+    pub(crate) piece_set: PieceSet,
+    pub(crate) now: SteadyTime,
+    pub(crate) legals: MoveList,
 }
 
 impl BoardState {
