@@ -1,5 +1,7 @@
 use std::f64::consts::PI;
 
+use option_filter::OptionFilterExt;
+
 use cairo::prelude::*;
 use cairo::{Context, RadialGradient};
 
@@ -17,11 +19,13 @@ pub struct BoardState {
 
 impl BoardState {
     pub fn new() -> Self {
-        let pos = Chess::default();
+        BoardState::from_position(&Chess::default())
+    }
 
+    pub fn from_position<P: Position>(pos: &P) -> Self {
         BoardState {
-            orientation: Color::White,
-            check: None,
+            orientation: pos.turn(),
+            check: pos.board().king_of(pos.turn()).filter(|_| pos.checkers().any()),
             last_move: None,
             piece_set: PieceSet::merida(),
             legals: pos.legals(),
