@@ -1,4 +1,4 @@
-use std::cmp::min;
+use std::cmp::{min, max};
 use std::f64::consts::PI;
 
 use shakmaty::{Color, Square};
@@ -62,4 +62,21 @@ pub fn inverted_to_square((x, y): (f64, f64)) -> Option<Square> {
 
 pub fn square_to_inverted(square: Square) -> (f64, f64) {
     (0.5 + square.file() as f64, 7.5 - square.rank() as f64)
+}
+
+pub fn queue_draw_square(widget: &DrawingArea, orientation: Color, square: Square) {
+    queue_draw_rect(widget, orientation, square.file() as f64, 7.0 - square.rank() as f64, 1.0, 1.0);
+}
+
+pub fn queue_draw_rect(widget: &DrawingArea, orientation: Color, x: f64, y: f64, width: f64, height: f64) {
+    let matrix = compute_matrix(widget, orientation);
+    let (x1, y1) = matrix.transform_point(x, y);
+    let (x2, y2) = matrix.transform_point(x + width, y + height);
+
+    let xmin = min(x1.floor() as i32, x2.floor() as i32);
+    let ymin = min(y1.floor() as i32, y2.floor() as i32);
+    let xmax = max(x1.ceil() as i32, x2.ceil() as i32);
+    let ymax = max(y1.ceil() as i32, y2.ceil() as i32);
+
+    widget.queue_draw_area(xmin, ymin, xmax - xmin, ymax - ymin);
 }

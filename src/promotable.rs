@@ -10,7 +10,7 @@ use rsvg::HandleExt;
 use shakmaty::{Square, Color, Role};
 
 use util;
-use util::ease_in_out_cubic;
+use util::{ease_in_out_cubic, queue_draw_square};
 use ground::{EventContext, BoardState, GroundMsg};
 
 pub struct Promotable {
@@ -22,72 +22,6 @@ struct Promoting {
     dest: Square,
     hover: Option<Square>,
     time: SteadyTime,
-}
-
-impl Promoting {
-    fn elapsed(&self, now: SteadyTime) -> f64 {
-        (now - self.time).num_milliseconds() as f64 / 1000.0
-    }
-
-    fn orientation(&self) -> Color {
-        Color::from_bool(self.dest.rank() > 4)
-    }
-
-    fn draw(&self, cr: &Context, board_state: &BoardState) {
-        cr.rectangle(0.0, 0.0, 8.0, 8.0);
-        cr.set_source_rgba(0.0, 0.0, 0.0, 0.5);
-        cr.fill();
-
-        for (offset, role) in [Role::Queen, Role::Rook, Role::Bishop, Role::Knight, Role::King, Role::Pawn].iter().enumerate() {
-            if !board_state.legals.iter().any(|m| {
-                m.from() == Some(self.orig) &&
-                m.to() == self.dest &&
-                m.promotion() == Some(*role)
-            }) {
-                continue;
-            }
-
-            let rank = self.orientation().fold(7 - offset as i8, offset as i8);
-            let light = self.dest.file() + rank & 1 == 1;
-
-            cr.save();
-            cr.rectangle(self.dest.file() as f64, 7.0 - rank as f64, 1.0, 1.0);
-            cr.clip_preserve();
-
-            if light {
-                cr.set_source_rgb(0.25, 0.25, 0.25);
-            } else {
-                cr.set_source_rgb(0.18, 0.18, 0.18);
-            }
-            cr.fill();
-
-            let radius = match self.hover {
-                Some(hover) if hover.file() == self.dest.file() && hover.rank() == rank => {
-                    cr.set_source_rgb(
-                        ease_in_out_cubic(0.69, 1.0, self.elapsed(board_state.now), 1.0),
-                        ease_in_out_cubic(0.69, 0.65, self.elapsed(board_state.now), 1.0),
-                        ease_in_out_cubic(0.69, 0.0, self.elapsed(board_state.now), 1.0));
-
-                    ease_in_out_cubic(0.5, 0.5f64.hypot(0.5), self.elapsed(board_state.now), 1.0)
-                },
-                _ => {
-                    cr.set_source_rgb(0.69, 0.69, 0.69);
-                    0.5
-                },
-            };
-
-            cr.arc(0.5 + self.dest.file() as f64, 7.5 - rank as f64, radius, 0.0, 2.0 * PI);
-            cr.fill();
-
-            cr.translate(0.5 + self.dest.file() as f64, 7.5 - rank as f64);
-            cr.scale(2f64.sqrt() * radius, 2f64.sqrt() * radius);
-            cr.translate(-0.5, -0.5);
-            cr.scale(board_state.piece_set.scale(), board_state.piece_set.scale());
-            board_state.piece_set.by_piece(&role.of(Color::White)).render_cairo(cr);
-
-            cr.restore();
-        }
-    }
 }
 
 impl Promotable {
@@ -111,17 +45,14 @@ impl Promotable {
     }
 
     pub fn is_animating(&self) -> bool {
-        if let Some(ref promoting) = self.promoting {
-            false
-            // TODO: promoting.hover.map_or(false, |h| h.since
-        } else {
-            false
-        }
+        self.promoting.as_ref().map_or(false, |p| {
+            p.hover.is_some() && p.elapsed() < 1.0
+        })
     }
 
     pub(crate) fn queue_animation(&self, board_state: &BoardState, drawing_area: &DrawingArea) {
         if let Some(Promoting { hover: Some(square), .. }) = self.promoting {
-            // TODO: queue draw square
+            queue_draw_square(drawing_area, board_state.orientation, square);
         }
     }
 
@@ -179,5 +110,73 @@ impl Promotable {
 
     pub(crate) fn draw(&self, cr: &Context, board_state: &BoardState) {
         self.promoting.as_ref().map(|p| p.draw(cr, board_state));
+    }
+}
+
+impl Promoting {
+    fn elapsed(&self) -> f64 {
+        (SteadyTime::now() - self.time).num_milliseconds() as f64 / 1000.0
+    }
+
+    fn orientation(&self) -> Color {
+        Color::from_bool(self.dest.rank() > 4)
+    }
+
+    fn draw(&self, cr: &Context, board_state: &BoardState) {
+        cr.rectangle(0.0, 0.0, 8.0, 8.0);
+        cr.set_source_rgba(0.0, 0.0, 0.0, 0.5);
+        cr.fill();
+
+        for (offset, role) in [Role::Queen, Role::Rook, Role::Bishop, Role::Knight, Role::King, Role::Pawn].iter().enumerate() {
+            if !board_state.legals.iter().any(|m| {
+                m.from() == Some(self.orig) &&
+                m.to() == self.dest &&
+                m.promotion() == Some(*role)
+            }) {
+                continue;
+            }
+
+            let rank = self.orientation().fold(7 - offset as i8, offset as i8);
+            let light = self.dest.file() + rank & 1 == 1;
+
+            cr.save();
+            cr.rectangle(self.dest.file() as f64, 7.0 - rank as f64, 1.0, 1.0);
+            cr.clip_preserve();
+
+            if light {
+                cr.set_source_rgb(0.25, 0.25, 0.25);
+            } else {
+                cr.set_source_rgb(0.18, 0.18, 0.18);
+            }
+            cr.fill();
+
+            let radius = match self.hover {
+                Some(hover) if hover.file() == self.dest.file() && hover.rank() == rank => {
+                    let elapsed = self.elapsed();
+
+                    cr.set_source_rgb(
+                        ease_in_out_cubic(0.69, 1.0, elapsed, 1.0),
+                        ease_in_out_cubic(0.69, 0.65, elapsed, 1.0),
+                        ease_in_out_cubic(0.69, 0.0, elapsed, 1.0));
+
+                    ease_in_out_cubic(0.5, 0.5f64.hypot(0.5), elapsed, 1.0)
+                },
+                _ => {
+                    cr.set_source_rgb(0.69, 0.69, 0.69);
+                    0.5
+                },
+            };
+
+            cr.arc(0.5 + self.dest.file() as f64, 7.5 - rank as f64, radius, 0.0, 2.0 * PI);
+            cr.fill();
+
+            cr.translate(0.5 + self.dest.file() as f64, 7.5 - rank as f64);
+            cr.scale(2f64.sqrt() * radius, 2f64.sqrt() * radius);
+            cr.translate(-0.5, -0.5);
+            cr.scale(board_state.piece_set.scale(), board_state.piece_set.scale());
+            board_state.piece_set.by_piece(&role.of(Color::White)).render_cairo(cr);
+
+            cr.restore();
+        }
     }
 }

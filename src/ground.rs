@@ -22,7 +22,7 @@ use time::SteadyTime;
 use relm::{Relm, Widget, Update, EventStream};
 
 use util;
-use util::ease_in_out_cubic;
+use util::{ease_in_out_cubic, queue_draw_square, queue_draw_rect};
 use pieceset;
 use drawable::Drawable;
 use promotable::Promotable;
@@ -514,7 +514,7 @@ struct DragStart {
 
 pub(crate) struct BoardState {
     pub(crate) pieces: Pieces,
-    orientation: Color,
+    pub(crate) orientation: Color,
     check: Option<Square>,
     selected: Option<Square>,
     last_move: Option<(Square, Square)>,
@@ -585,23 +585,6 @@ fn drag_mouse_down(state: &mut BoardState, widget: &DrawingArea, square: Option<
             }
         }
     }
-}
-
-fn queue_draw_square(widget: &DrawingArea, orientation: Color, square: Square) {
-    queue_draw_rect(widget, orientation, square.file() as f64, 7.0 - square.rank() as f64, 1.0, 1.0);
-}
-
-fn queue_draw_rect(widget: &DrawingArea, orientation: Color, x: f64, y: f64, width: f64, height: f64) {
-    let matrix = util::compute_matrix(widget, orientation);
-    let (x1, y1) = matrix.transform_point(x, y);
-    let (x2, y2) = matrix.transform_point(x + width, y + height);
-
-    let xmin = min(x1.floor() as i32, x2.floor() as i32);
-    let ymin = min(y1.floor() as i32, y2.floor() as i32);
-    let xmax = max(x1.ceil() as i32, x2.ceil() as i32);
-    let ymax = max(y1.ceil() as i32, y2.ceil() as i32);
-
-    widget.queue_draw_area(xmin, ymin, xmax - xmin, ymax - ymin);
 }
 
 fn drag_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>, e: &EventMotion) {
