@@ -18,7 +18,7 @@ use relm::Widget;
 use relm_attributes::widget;
 
 use shakmaty::{Square, Role, Chess, Position};
-use chessground::{Ground, UserMove, SetPos, Pos};
+use chessground::{Ground, GroundMsg, UserMove, SetPos, Pos, Flip};
 
 use self::Msg::*;
 
@@ -26,6 +26,7 @@ use self::Msg::*;
 pub enum Msg {
     Quit,
     MovePlayed(Square, Square, Option<Role>),
+    ToGround(GroundMsg),
 }
 
 #[widget]
@@ -65,6 +66,9 @@ impl Widget for Win {
                 };
 
                 self.ground.emit(SetPos(Pos::new(&self.model).with_last_move(last_move)));
+            },
+            ToGround(msg) => {
+                self.ground.emit(msg)
             }
         }
     }
@@ -77,6 +81,7 @@ impl Widget for Win {
                     UserMove(orig, dest, promotion) => MovePlayed(orig, dest, promotion),
                 },
             },
+            key_press_event(_, key) => (ToGround(Flip), Inhibit(false)),
             delete_event(_, _) => (Quit, Inhibit(false)),
         }
     }

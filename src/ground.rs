@@ -33,6 +33,7 @@ pub struct Model {
 
 #[derive(Msg)]
 pub enum GroundMsg {
+    Flip,
     SetPos(Pos),
     SetBoard(Board),
     UserMove(Square, Square, Option<Role>),
@@ -92,17 +93,24 @@ impl Update for Ground {
         let mut state = self.model.state.borrow_mut();
 
         match event {
+            GroundMsg::Flip => {
+                let orientation = state.board_state.orientation();
+                state.board_state.set_orientation(!orientation);
+                self.drawing_area.queue_draw();
+            },
             GroundMsg::SetPos(pos) => {
                 state.pieces.set_board(&pos.board);
                 state.board_state.set_check(pos.check);
                 state.board_state.set_last_move(pos.last_move);
                 *state.board_state.legals_mut() = pos.legals;
+                self.drawing_area.queue_draw();
             },
             GroundMsg::SetBoard(board) => {
                 state.pieces.set_board(&board);
                 state.board_state.set_check(None);
                 state.board_state.set_last_move(None);
                 state.board_state.legals_mut().clear();
+                self.drawing_area.queue_draw();
             },
             GroundMsg::UserMove(orig, dest, None) if state.board_state.valid_move(orig, dest) => {
                 if state.board_state.legals().iter().any(|m| m.from() == Some(orig) && m.to() == dest && m.promotion().is_some()) {
