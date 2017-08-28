@@ -1,7 +1,13 @@
 [package]
 name = "chessground"
 version = "0.1.0"
+description = "A chessboard widget for Relm/GTK"
+repository = "https://github.com/niklasf/rust-chessground"
+readme = "README.md"
+license = "GPL-3.0+"
 authors = ["Niklas Fiekas <niklas.fiekas@backscattering.de>"]
+categories = ["games", "gui"]
+keywords = ["chess"]
 
 [dependencies]
 option-filter = "1.0"
