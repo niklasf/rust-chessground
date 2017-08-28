@@ -21,7 +21,7 @@ use shakmaty::{Square, Color, Role, Board, Move, MoveList, Chess, Position};
 
 use util::pos_to_square;
 use pieces::Pieces;
-use drawable::Drawable;
+use drawable::{Drawable, DrawShape};
 use promotable::Promotable;
 use board_state::BoardState;
 
@@ -31,13 +31,14 @@ pub struct Model {
     state: Rc<RefCell<State>>,
 }
 
+/// Chessground events and messages.
 #[derive(Msg)]
 pub enum GroundMsg {
     /// Flip the board.
     Flip,
     /// Set the board orientation.
     SetOrientation(Color),
-    /// Set up a position for play.
+    /// Set up a position configuration.
     SetPos(Pos),
     /// Set up a board.
     SetBoard(Board),
@@ -45,10 +46,15 @@ pub enum GroundMsg {
     /// Sent when the completed a piece drag or move.
     UserMove(Square, Square, Option<Role>),
     /// Sent when shapes are added, removed or cleared.
-    ShapesChanged,
+    ShapesChanged(Vec<DrawShape>),
 }
 
 /// A position configuration.
+///
+/// * Piece positions
+/// * Legal move hints
+/// * Check hint
+/// * Last move hint
 pub struct Pos {
     board: Board,
     legals: MoveList,
@@ -57,7 +63,7 @@ pub struct Pos {
 }
 
 impl Pos {
-    /// Creates a new position configuration.
+    /// Create a new position configuration.
     pub fn new<P: Position>(p: &P) -> Pos {
         Pos {
             board: p.board().clone(),
@@ -67,13 +73,44 @@ impl Pos {
         }
     }
 
-    pub fn set_last_move(&mut self, m: &Move) {
-        self.last_move = Some((m.from().unwrap_or_else(|| m.to()), m.to()))
+    /// Create a position configuration from a board, without any other hints.
+    pub fn from_board(board: Board) -> Pos {
+        Pos {
+            board: board,
+            legals: MoveList::new(),
+            check: None,
+            last_move: None,
+        }
     }
 
-    /// Adds a hint for the last move, that can be displayed on the board.
+    /// Set the hint for the last move, so that it can be highlighted on
+    /// the board.
+    pub fn set_last_move(&mut self, m: Option<&Move>) {
+        self.last_move = m.map(|m| (m.from().unwrap_or_else(|| m.to()), m.to()))
+    }
+
     pub fn with_last_move(mut self, m: &Move) -> Self {
-        self.set_last_move(m);
+        self.set_last_move(Some(m));
+        self
+    }
+
+    /// Set the check hint.
+    pub fn set_check(&mut self, king: Option<Square>) {
+        self.check = king;
+    }
+
+    pub fn with_check(mut self, king: Square) {
+        self.check = Some(king);
+        self
+    }
+
+    /// Set the legal move hints.
+    pub fn set_legals(&mut self, legals: MoveList) {
+        self.legals = legals;
+    }
+
+    pub fn with_legals(mut self, legals: MoveList) {
+        self.legels = legals;
         self
     }
 }
@@ -225,14 +262,6 @@ impl Widget for Ground {
             drawing_area,
             model,
         }
-    }
-}
-
-impl Ground {
-    pub fn set_position<P: Position>(&mut self, pos: &P) {
-        let mut state = self.model.state.borrow_mut();
-        state.board_state.set_position(pos);
-        state.pieces.set_board(pos.board());
     }
 }
 

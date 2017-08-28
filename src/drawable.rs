@@ -8,14 +8,18 @@ use shakmaty::Square;
 
 use ground::{EventContext, GroundMsg};
 
-enum DrawBrush {
+/// Shape colors.
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub enum DrawBrush {
     Green,
     Red,
     Blue,
     Yellow,
 }
 
-struct DrawShape {
+/// An arrow or circle drawn on the board.
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct DrawShape {
     orig: Square,
     dest: Square,
     brush: DrawBrush,
@@ -47,7 +51,7 @@ impl Drawable {
             1 => {
                 if self.erase_on_click && !self.shapes.is_empty() {
                     self.shapes.clear();
-                    ctx.stream().emit(GroundMsg::ShapesChanged);
+                    ctx.stream().emit(GroundMsg::ShapesChanged(self.shapes.clone()));
                     ctx.widget().queue_draw();
                 }
             }
@@ -98,7 +102,7 @@ impl Drawable {
                     self.shapes.push(drawing);
                 }
 
-                ctx.stream().emit(GroundMsg::ShapesChanged);
+                ctx.stream().emit(GroundMsg::ShapesChanged(self.shapes.clone()));
             }
 
             ctx.widget().queue_draw();
@@ -115,6 +119,31 @@ impl Drawable {
 }
 
 impl DrawShape {
+    /// First square.
+    pub fn orig(&self) -> Square {
+        self.orig
+    }
+
+    /// Second square.
+    pub fn dest(&self) -> Square {
+        self.dest
+    }
+
+    /// Shape color.
+    pub fn brush(&self) -> DrawBrush {
+        self.brush
+    }
+
+    /// Check if the shape is a circle.
+    pub fn is_circle(&self) -> bool {
+        self.orig == self.dest
+    }
+
+    /// Check if the shape is an arrow.
+    pub fn is_arrow(&self) -> bool {
+        self.orig != self.dest
+    }
+
     fn draw(&self, cr: &Context) {
         let opacity = 0.5;
 
@@ -130,7 +159,7 @@ impl DrawShape {
         let dest_x = 0.5 + self.dest.file() as f64;
         let dest_y = 7.5 - self.dest.rank() as f64;
 
-        if self.orig == self.dest {
+        if self.is_circle() {
             // draw circle
             let stroke = 0.05;
             cr.set_line_width(stroke);

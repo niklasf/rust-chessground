@@ -19,3 +19,4 @@ mod util;
 
 pub use ground::{Ground, GroundMsg, Pos};
 pub use GroundMsg::*;
+pub use drawable::{DrawBrush, DrawShape};
