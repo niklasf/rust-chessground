@@ -44,6 +44,10 @@ impl BoardState {
         self.last_move = m.map(|m| (m.from().unwrap_or_else(|| m.to()), m.to()));
     }
 
+    pub fn set_check(&mut self, king: Option<Square>) {
+        self.check = king;
+    }
+
     pub fn move_targets(&self, orig: Square) -> Bitboard {
         self.legals.iter().filter(|m| m.from() == Some(orig)).map(|m| m.to()).collect()
     }
@@ -60,6 +64,10 @@ impl BoardState {
 
     pub fn legals(&self) -> &MoveList {
         &self.legals
+    }
+
+    pub fn legals_mut(&mut self) -> &mut MoveList {
+        &mut self.legals
     }
 
     pub fn set_orientation(&mut self, orientation: Color) {

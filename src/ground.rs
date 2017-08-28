@@ -31,6 +31,7 @@ pub struct Model {
 
 #[derive(Msg)]
 pub enum GroundMsg {
+    SetBoard(Board),
     UserMove(Square, Square, Option<Role>),
     ShapesChanged,
 }
@@ -55,6 +56,12 @@ impl Update for Ground {
         let mut state = self.model.state.borrow_mut();
 
         match event {
+            GroundMsg::SetBoard(board) => {
+                state.pieces.set_board(&board);
+                state.board_state.set_check(None);
+                state.board_state.set_last_move(None);
+                state.board_state.legals_mut().clear();
+            },
             GroundMsg::UserMove(orig, dest, None) if state.board_state.valid_move(orig, dest) => {
                 if state.board_state.legals().iter().any(|m| m.from() == Some(orig) && m.to() == dest && m.promotion().is_some()) {
                     state.promotable.start_promoting(orig, dest);
