@@ -44,9 +44,9 @@ impl Promotable {
         self.promoting.as_ref().map_or(false, |p| p.orig == orig)
     }
 
-    pub fn is_animating(&self) -> bool {
+    pub fn is_animating(&self, now: SteadyTime) -> bool {
         self.promoting.as_ref().map_or(false, |p| {
-            p.hover.is_some() && p.elapsed() < 1.0
+            p.hover.is_some() && p.elapsed(now) < 1.0
         })
     }
 
@@ -104,21 +104,21 @@ impl Promotable {
         Inhibit(false)
     }
 
-    pub(crate) fn draw(&self, cr: &Context, state: &BoardState) {
-        self.promoting.as_ref().map(|p| p.draw(cr, state));
+    pub(crate) fn draw(&self, cr: &Context, now: SteadyTime, state: &BoardState) {
+        self.promoting.as_ref().map(|p| p.draw(cr, now, state));
     }
 }
 
 impl Promoting {
-    fn elapsed(&self) -> f64 {
-        (SteadyTime::now() - self.time).num_milliseconds() as f64 / 1000.0
+    fn elapsed(&self, now: SteadyTime) -> f64 {
+        (now - self.time).num_milliseconds() as f64 / 1000.0
     }
 
     fn orientation(&self) -> Color {
         Color::from_bool(self.dest.rank() > 4)
     }
 
-    fn draw(&self, cr: &Context, state: &BoardState) {
+    fn draw(&self, cr: &Context, now: SteadyTime, state: &BoardState) {
         // make the board darker
         cr.rectangle(0.0, 0.0, 8.0, 8.0);
         cr.set_source_rgba(0.0, 0.0, 0.0, 0.5);
@@ -147,7 +147,7 @@ impl Promoting {
             // draw piece
             let radius = match self.hover {
                 Some(hover) if hover.file() == self.dest.file() && hover.rank() == rank => {
-                    let elapsed = self.elapsed();
+                    let elapsed = self.elapsed(now);
 
                     cr.set_source_rgb(ease(0.69, 1.0, elapsed),
                                       ease(0.69, 0.65, elapsed),

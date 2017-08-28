@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::f64::consts::PI;
 use std::cmp::{min, max};
 
-use shakmaty::{Square, Role, Board, MoveList};
+use time::SteadyTime;
 
 use gtk;
 use gtk::prelude::*;
@@ -14,6 +14,8 @@ use cairo::prelude::*;
 use cairo::{Context, Matrix};
 
 use relm::{Relm, Widget, Update, EventStream};
+
+use shakmaty::{Square, Role, Board, MoveList};
 
 use util::pos_to_square;
 use pieces::Pieces;
@@ -97,7 +99,7 @@ impl Widget for Ground {
             let weak_state = Rc::downgrade(&model.state);
             drawing_area.connect_draw(move |widget, cr| {
                 if let Some(state) = weak_state.upgrade() {
-                    let state = state.borrow();
+                    let mut state = state.borrow_mut();
                     let animating = state.is_animating();
                     state.draw(widget, cr);
 
@@ -172,6 +174,7 @@ struct State {
     drawable: Drawable,
     promotable: Promotable,
     pieces: Pieces,
+    last_render: SteadyTime,
 }
 
 impl State {
@@ -181,29 +184,34 @@ impl State {
             drawable: Drawable::new(),
             promotable: Promotable::new(),
             pieces: Pieces::new(),
+            last_render: SteadyTime::now(),
         }
     }
 
     fn is_animating(&self) -> bool {
-        self.promotable.is_animating() || self.pieces.is_animating()
+        self.promotable.is_animating(self.last_render) ||
+        self.pieces.is_animating(self.last_render)
     }
 
     fn queue_animation(&self, drawing_area: &DrawingArea) {
-        let ctx = WidgetContext::new(&self.board_state, drawing_area);
+        let ctx = WidgetContext::new(&self.board_state, drawing_area, self.last_render);
         self.pieces.queue_animation(&ctx);
         self.promotable.queue_animation(&ctx);
     }
 
-    fn draw(&self, drawing_area: &DrawingArea, cr: &Context) {
-        let ctx = WidgetContext::new(&self.board_state, drawing_area);
+    fn draw(&mut self, drawing_area: &DrawingArea, cr: &Context) {
+        let now = SteadyTime::now();
+        let ctx = WidgetContext::new(&self.board_state, drawing_area, now);
         cr.set_matrix(ctx.matrix());
 
         // draw
         self.board_state.draw(cr);
-        self.pieces.draw(cr, &self.board_state, &self.promotable);
+        self.pieces.draw(cr, now, &self.board_state, &self.promotable);
         self.drawable.draw(cr);
-        self.pieces.draw_drag(cr, &self.board_state);
-        self.promotable.draw(cr, &self.board_state);
+        self.pieces.draw_drag(cr, now, &self.board_state);
+        self.promotable.draw(cr, now, &self.board_state);
+
+        self.last_render = now;
     }
 
     fn button_release_event(&mut self, stream: &Stream, drawing_area: &DrawingArea, e: &EventButton) {
@@ -235,10 +243,11 @@ impl State {
 pub(crate) struct WidgetContext<'a> {
     matrix: Matrix,
     drawing_area: &'a DrawingArea,
+    now: SteadyTime,
 }
 
 impl<'a> WidgetContext<'a> {
-    fn new(board_state: &'a BoardState, drawing_area: &'a DrawingArea) -> WidgetContext<'a> {
+    fn new(board_state: &'a BoardState, drawing_area: &'a DrawingArea, now: SteadyTime) -> WidgetContext<'a> {
         let w = drawing_area.get_allocated_width();
         let h = drawing_area.get_allocated_height();
         let size = max(min(w, h), 9);
@@ -252,7 +261,8 @@ impl<'a> WidgetContext<'a> {
 
         WidgetContext {
             matrix,
-            drawing_area
+            drawing_area,
+            now
         }
     }
 
@@ -286,6 +296,10 @@ impl<'a> WidgetContext<'a> {
 
         self.drawing_area.queue_draw_area(xmin, ymin, xmax - xmin, ymax - ymin);
     }
+
+    pub fn now(&self) -> SteadyTime {
+        self.now
+    }
 }
 
 pub(crate) struct EventContext<'a> {
@@ -301,7 +315,7 @@ impl<'a> EventContext<'a> {
            drawing_area: &'a DrawingArea,
            pos: (f64, f64)) -> EventContext<'a>
     {
-        let widget = WidgetContext::new(board_state, drawing_area);
+        let widget = WidgetContext::new(board_state, drawing_area, SteadyTime::now());
         let pos = widget.invert_pos(pos);
         let square = pos_to_square(pos);
 
@@ -327,5 +341,9 @@ impl<'a> EventContext<'a> {
 
     pub fn square(&self) -> Option<Square> {
         self.square
+    }
+
+    pub fn now(&self) -> SteadyTime {
+        self.widget.now()
     }
 }

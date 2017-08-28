@@ -1,8 +1,8 @@
 use std::f64::consts::PI;
 
-use time::SteadyTime;
-
 use option_filter::OptionFilterExt;
+
+use time::SteadyTime;
 
 use gdk::EventButton;
 use cairo::Context;
@@ -154,8 +154,7 @@ impl Pieces {
         self.figurines.iter_mut().find(|f| f.dragging)
     }
 
-    pub fn is_animating(&self) -> bool {
-        let now = SteadyTime::now();
+    pub fn is_animating(&self, now: SteadyTime) -> bool {
         self.figurines.iter().any(|f| f.is_animating(now))
     }
 
@@ -222,7 +221,7 @@ impl Pieces {
 
             // update position
             dragging.pos = ctx.pos();
-            dragging.time = SteadyTime::now();
+            dragging.time = ctx.now();
 
             // invalidate new
             ctx.widget().queue_draw_rect(dragging.pos.0 - 0.5, dragging.pos.1 - 0.5, 1.0, 1.0);
@@ -240,7 +239,7 @@ impl Pieces {
 
             let dest = ctx.square().unwrap_or(dragging.square);
             dragging.pos = square_to_pos(dest);
-            dragging.time = SteadyTime::now();
+            dragging.time = ctx.now();
             dragging.dragging = false;
 
             if dragging.square != dest && !dragging.fading {
@@ -260,33 +259,30 @@ impl Pieces {
     }
 
     pub(crate) fn queue_animation(&self, ctx: &WidgetContext) {
-        let now = SteadyTime::now();
         for figurine in &self.figurines {
-            figurine.queue_animation(ctx, now);
+            figurine.queue_animation(ctx);
         }
     }
 
-    pub(crate) fn draw(&self, cr: &Context, state: &BoardState, promotable: &Promotable) {
+    pub(crate) fn draw(&self, cr: &Context, now: SteadyTime, state: &BoardState, promotable: &Promotable) {
         self.draw_selection(cr, state);
         self.draw_move_hints(cr, state);
 
-        let now = SteadyTime::now();
-
         for figurine in &self.figurines {
             if figurine.fading {
-                figurine.draw(cr, state, promotable);
+                figurine.draw(cr, now, state, promotable);
             }
         }
 
         for figurine in &self.figurines {
             if !figurine.fading && !figurine.is_animating(now) {
-                figurine.draw(cr, state, promotable);
+                figurine.draw(cr, now, state, promotable);
             }
         }
 
         for figurine in &self.figurines {
             if !figurine.fading && figurine.is_animating(now) {
-                figurine.draw(cr, state, promotable);
+                figurine.draw(cr, now, state, promotable);
             }
         }
     }
@@ -349,7 +345,7 @@ impl Pieces {
         }
     }
 
-    pub(crate) fn draw_drag(&self, cr: &Context, state: &BoardState) {
+    pub(crate) fn draw_drag(&self, cr: &Context, now: SteadyTime, state: &BoardState) {
         if let Some(dragging) = self.dragging() {
             cr.push_group();
             cr.translate(dragging.pos.0, dragging.pos.1);
@@ -358,7 +354,7 @@ impl Pieces {
             cr.scale(state.piece_set.scale(), state.piece_set.scale());
             state.piece_set.by_piece(&dragging.piece).render_cairo(cr);
             cr.pop_group_to_source();
-            cr.paint_with_alpha(dragging.drag_alpha(SteadyTime::now()));
+            cr.paint_with_alpha(dragging.drag_alpha(now));
         }
     }
 }
@@ -411,9 +407,9 @@ impl Figurine {
         (self.fading || self.pos != square_to_pos(self.square))
     }
 
-    fn queue_animation(&self, ctx: &WidgetContext, now: SteadyTime) {
-        if self.is_animating(now) {
-            let pos = self.pos(now);
+    fn queue_animation(&self, ctx: &WidgetContext) {
+        if self.is_animating(ctx.now()) {
+            let pos = self.pos(ctx.now());
 
             let (x1, y1) = (pos.0 - 0.5, pos.1 - 0.5);
             let (x2, y2) = (pos.0 + 0.5, pos.1 + 0.5);
@@ -429,13 +425,11 @@ impl Figurine {
         }
     }
 
-    fn draw(&self, cr: &Context, board_state: &BoardState, promotable: &Promotable) {
+    fn draw(&self, cr: &Context, now: SteadyTime, board_state: &BoardState, promotable: &Promotable) {
         // hide piece while promotion dialog is open
         if promotable.is_promoting(self.square) {
             return;
         }
-
-        let now = SteadyTime::now();
 
         cr.push_group();
 
