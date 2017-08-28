@@ -74,10 +74,9 @@ impl Promotable {
         if let Some(promoting) = self.promoting.take() {
             ctx.widget().queue_draw();
 
-            // animate the figurine when cancelling
             if let Some(figurine) = pieces.figurine_at_mut(promoting.orig) {
-                figurine.pos = square_to_pos(promoting.dest);
-                figurine.time = SteadyTime::now();
+                // animate the figurine when cancelling
+                figurine.set_pos(square_to_pos(promoting.dest));
             }
 
             if let Some(square) = ctx.square() {

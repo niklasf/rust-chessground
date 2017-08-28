@@ -32,8 +32,8 @@ struct DragStart {
 pub struct Figurine {
     pub(crate) square: Square,
     pub(crate) piece: Piece,
-    pub(crate) pos: (f64, f64),
-    pub(crate) time: SteadyTime,
+    pos: (f64, f64),
+    time: SteadyTime,
     pub(crate) fading: bool,
     replaced: bool,
     pub(crate) dragging: bool,
@@ -364,6 +364,11 @@ impl Pieces {
 }
 
 impl Figurine {
+    pub fn set_pos(&mut self, pos: (f64, f64)) {
+        self.pos = pos;
+        self.time = SteadyTime::now();
+    }
+
     fn pos(&self, now: SteadyTime) -> (f64, f64) {
         let end = square_to_pos(self.square);
         if self.dragging {
