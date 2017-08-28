@@ -145,7 +145,7 @@ impl Widget for Ground {
                         square: util::pos_to_square(widget, state.board_state.orientation, e.get_position()),
                     };
 
-                    button_press_event(&mut state, &ctx, e);
+                    state.button_press_event(&ctx, e);
                 }
                 Inhibit(false)
             });
@@ -165,7 +165,7 @@ impl Widget for Ground {
                         square: util::pos_to_square(widget, state.board_state.orientation, e.get_position()),
                     };
 
-                    button_release_event(&mut state, &ctx);
+                    state.button_release_event(&ctx);
                 }
                 Inhibit(false)
             });
@@ -185,7 +185,7 @@ impl Widget for Ground {
                         square: util::pos_to_square(widget, state.board_state.orientation, e.get_position()),
                     };
 
-                    motion_notify_event(&mut state, &ctx, e);
+                    state.motion_notify_event(&ctx, e);
                 }
                 Inhibit(false)
             });
@@ -199,29 +199,6 @@ impl Widget for Ground {
             drawing_area,
             model,
         }
-    }
-}
-
-fn button_release_event(state: &mut State, ctx: &EventContext) {
-    state.pieces.drag_mouse_up(&ctx);
-    state.drawable.mouse_up(&ctx);
-}
-
-fn motion_notify_event(state: &mut State, ctx: &EventContext, e: &EventMotion) {
-    state.promotable.mouse_move(&state.board_state, &ctx);
-    state.pieces.drag_mouse_move(&state.board_state, &ctx, e);
-    state.drawable.mouse_move(&ctx);
-}
-
-fn button_press_event(state: &mut State, ctx: &EventContext, e: &EventButton) {
-    let promotable = &mut state.promotable;
-    let board_state = &mut state.board_state;
-    let pieces = &mut state.pieces;
-
-    if let Inhibit(false) = promotable.mouse_down(pieces, &ctx) {
-        pieces.selection_mouse_down(&ctx, e);
-        pieces.drag_mouse_down(board_state, &ctx, e);
-        state.drawable.mouse_down(&ctx, e);
     }
 }
 
@@ -239,6 +216,29 @@ impl State {
             drawable: Drawable::new(),
             promotable: Promotable::new(),
             pieces: Pieces::new(),
+        }
+    }
+
+    fn button_release_event(&mut self, ctx: &EventContext) {
+        self.pieces.drag_mouse_up(&ctx);
+        self.drawable.mouse_up(&ctx);
+    }
+
+    fn motion_notify_event(&mut self, ctx: &EventContext, e: &EventMotion) {
+        self.promotable.mouse_move(&self.board_state, &ctx);
+        self.pieces.drag_mouse_move(&self.board_state, &ctx, e);
+        self.drawable.mouse_move(&ctx);
+    }
+
+    fn button_press_event(&mut self, ctx: &EventContext, e: &EventButton) {
+        let promotable = &mut self.promotable;
+        let board_state = &mut self.board_state;
+        let pieces = &mut self.pieces;
+
+        if let Inhibit(false) = promotable.mouse_down(pieces, &ctx) {
+            pieces.selection_mouse_down(&ctx, e);
+            pieces.drag_mouse_down(board_state, &ctx, e);
+            self.drawable.mouse_down(&ctx, e);
         }
     }
 }
