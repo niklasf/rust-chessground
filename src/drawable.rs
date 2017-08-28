@@ -1,16 +1,11 @@
-extern crate gtk;
-extern crate gdk;
-extern crate cairo;
-extern crate rsvg;
-extern crate shakmaty;
-
 use std::f64::consts::PI;
 
-use shakmaty::Square;
-
-use gtk::prelude::*;
+use gdk;
 use gdk::EventButton;
+use gtk::prelude::*;
 use cairo::Context;
+
+use shakmaty::Square;
 
 use ground::{EventContext, GroundMsg};
 
