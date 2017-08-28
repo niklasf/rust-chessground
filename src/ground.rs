@@ -19,7 +19,6 @@ use time::SteadyTime;
 use relm::{Relm, Widget, Update, EventStream};
 
 use util;
-use util::{queue_draw_square, queue_draw_rect};
 use pieceset;
 use pieces::Pieces;
 use drawable::Drawable;
@@ -205,13 +204,13 @@ impl Widget for Ground {
 }
 
 fn button_release_event(state: &mut State, ctx: &EventContext) {
-    state.board_state.drag_mouse_up(&mut state.pieces, &ctx);
+    state.pieces.drag_mouse_up(&ctx);
     state.drawable.mouse_up(&ctx);
 }
 
 fn motion_notify_event(state: &mut State, ctx: &EventContext, e: &EventMotion) {
     state.promotable.mouse_move(&state.board_state, &ctx);
-    drag_mouse_move(&mut state.board_state, &mut state.pieces, ctx.drawing_area, ctx.square, e);
+    state.pieces.drag_mouse_move(&state.board_state, &ctx, e);
     state.drawable.mouse_move(&ctx);
 }
 
@@ -222,7 +221,7 @@ fn button_press_event(state: &mut State, ctx: &EventContext, e: &EventButton) {
 
     if let Inhibit(false) = promotable.mouse_down(pieces, &ctx) {
         pieces.selection_mouse_down(&ctx, e);
-        drag_mouse_down(board_state, pieces, ctx.drawing_area, ctx.square, e);
+        pieces.drag_mouse_down(board_state, &ctx, e);
         state.drawable.mouse_down(&ctx, e);
     }
 }
@@ -252,16 +251,10 @@ pub struct EventContext<'a> {
     pub square: Option<Square>,
 }
 
-struct DragStart {
-    pos: (f64, f64),
-    square: Square,
-}
-
 pub(crate) struct BoardState {
     pub(crate) orientation: Color,
     check: Option<Square>,
     last_move: Option<(Square, Square)>,
-    drag_start: Option<DragStart>,
     pub(crate) piece_set: PieceSet,
     pub(crate) now: SteadyTime,
     pub(crate) legals: MoveList,
@@ -287,91 +280,9 @@ impl BoardState {
             orientation: Color::White,
             check: None,
             last_move: None,
-            drag_start: None,
             piece_set: pieceset::PieceSet::merida(),
             legals,
             now: SteadyTime::now(),
-        }
-    }
-}
-
-fn drag_mouse_down(state: &mut BoardState, pieces: &Pieces, widget: &DrawingArea, square: Option<Square>, e: &EventButton) {
-    if e.get_button() == 1 {
-        if let Some(square) = square {
-            if pieces.occupied().contains(square) {
-                state.drag_start = Some(DragStart {
-                    pos: util::invert_pos(widget, state.orientation, e.get_position()),
-                    square,
-                });
-            }
-        }
-    }
-}
-
-fn drag_mouse_move(state: &mut BoardState, pieces: &mut Pieces, widget: &DrawingArea, square: Option<Square>, e: &EventMotion) {
-    let pos = util::invert_pos(widget, state.orientation, e.get_position());
-
-    if let Some(ref drag_start) = state.drag_start {
-        let drag_distance = (drag_start.pos.0 - pos.0).hypot(drag_start.pos.1 - pos.1);
-        if drag_distance >= 0.1 {
-            if let Some(dragging) = pieces.figurine_at_mut(drag_start.square) {
-                dragging.dragging = true;
-            }
-        }
-    }
-
-    if let Some(dragging) = pieces.dragging_mut() {
-        // TODO: ensure orig square is selected
-        /* if state.selected != Some(dragging.square) {
-            state.selected = Some(dragging.square);
-            widget.queue_draw();
-        } */
-
-        // invalidate previous
-        queue_draw_rect(widget, state.orientation, dragging.pos.0 - 0.5, dragging.pos.1 - 0.5, 1.0, 1.0);
-        queue_draw_square(widget, state.orientation, dragging.square);
-        if let Some(sq) = util::inverted_to_square(dragging.pos) {
-            queue_draw_square(widget, state.orientation, sq);
-        }
-
-        // update position
-        dragging.pos = pos;
-        dragging.time = SteadyTime::now();
-
-        // invalidate new
-        queue_draw_rect(widget, state.orientation, dragging.pos.0 - 0.5, dragging.pos.1 - 0.5, 1.0, 1.0);
-        if let Some(sq) = square {
-            queue_draw_square(widget, state.orientation, sq);
-        }
-    }
-}
-
-impl BoardState {
-    fn drag_mouse_up(&mut self, pieces: &mut Pieces, context: &EventContext) {
-        self.drag_start = None;
-
-        let m = if let Some(dragging) = pieces.dragging_mut() {
-            context.drawing_area.queue_draw();
-
-            let dest = context.square.unwrap_or(dragging.square);
-            dragging.pos = util::square_to_inverted(dest);
-            dragging.time = SteadyTime::now();
-            dragging.dragging = false;
-
-            if dragging.square != dest && !dragging.fading {
-                // TODO: self.selected = None;
-                Some((dragging.square, dest))
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-
-        if let Some((orig, dest)) = m {
-            if orig != dest {
-                context.stream.emit(GroundMsg::UserMove(orig, dest, None));
-            }
         }
     }
 }

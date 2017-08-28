@@ -5,7 +5,7 @@ use time::SteadyTime;
 
 use option_filter::OptionFilterExt;
 
-use gdk::EventButton;
+use gdk::{EventButton, EventMotion};
 use gtk::prelude::*;
 use gtk::DrawingArea;
 use cairo::prelude::*;
@@ -15,7 +15,7 @@ use rsvg::HandleExt;
 use shakmaty::{Square, Piece, Bitboard, Board};
 
 use util;
-use util::ease_in_out_cubic;
+use util::{ease_in_out_cubic, queue_draw_rect, queue_draw_square};
 use promotable::Promotable;
 use ground::{BoardState, GroundMsg, EventContext};
 
@@ -25,6 +25,12 @@ pub struct Pieces {
     board: Board,
     figurines: Vec<Figurine>,
     selected: Option<Square>,
+    drag_start: Option<DragStart>,
+}
+
+struct DragStart {
+    pos: (f64, f64),
+    square: Square,
 }
 
 pub struct Figurine {
@@ -45,6 +51,7 @@ impl Pieces {
     pub fn new_from_board(board: &Board) -> Pieces {
         Pieces {
             selected: None,
+            drag_start: None,
             board: board.clone(),
             figurines: board.pieces().map(|(square, piece)| Figurine {
                 square,
@@ -171,6 +178,89 @@ impl Pieces {
         }
 
         ctx.drawing_area.queue_draw();
+    }
+
+    pub(crate) fn drag_mouse_down(&mut self, state: &BoardState, ctx: &EventContext, e: &EventButton) {
+        if e.get_button() == 1 {
+            if let Some(square) = ctx.square {
+                if self.occupied().contains(square) {
+                    self.drag_start = Some(DragStart {
+                        pos: util::invert_pos(ctx.drawing_area, state.orientation, e.get_position()),
+                        square,
+                    });
+                }
+            }
+        }
+    }
+
+    pub(crate) fn drag_mouse_move(&mut self, state: &BoardState, ctx: &EventContext, e: &EventMotion) {
+        let pos = util::invert_pos(ctx.drawing_area, state.orientation, e.get_position());
+
+        let dragging = if let Some(ref drag_start) = self.drag_start {
+            let drag_distance = (drag_start.pos.0 - pos.0).hypot(drag_start.pos.1 - pos.1);
+            Some(drag_start.square).filter(|_| drag_distance >= 0.1)
+        } else {
+            None
+        };
+
+        if let Some(square) = dragging {
+            // mark figurine as beeing dragged to show the shadow
+            if let Some(figurine) = self.figurine_at_mut(square) {
+                figurine.dragging = true;
+            }
+
+            // ensure orig square is selected
+            if self.selected != dragging {
+                self.selected = dragging;
+                ctx.drawing_area.queue_draw();
+            }
+        }
+
+        if let Some(dragging) = self.dragging_mut() {
+            // invalidate previous
+            queue_draw_rect(ctx.drawing_area, state.orientation, dragging.pos.0 - 0.5, dragging.pos.1 - 0.5, 1.0, 1.0);
+            queue_draw_square(ctx.drawing_area, state.orientation, dragging.square);
+            if let Some(sq) = util::inverted_to_square(dragging.pos) {
+                queue_draw_square(ctx.drawing_area, state.orientation, sq);
+            }
+
+            // update position
+            dragging.pos = pos;
+            dragging.time = SteadyTime::now();
+
+            // invalidate new
+            queue_draw_rect(ctx.drawing_area, state.orientation, dragging.pos.0 - 0.5, dragging.pos.1 - 0.5, 1.0, 1.0);
+            if let Some(sq) = ctx.square {
+                queue_draw_square(ctx.drawing_area, state.orientation, sq);
+            }
+        }
+    }
+
+    pub(crate) fn drag_mouse_up(&mut self, ctx: &EventContext) {
+        self.drag_start = None;
+
+        let (orig, dest) = if let Some(dragging) = self.dragging_mut() {
+            ctx.drawing_area.queue_draw();
+
+            let dest = ctx.square.unwrap_or(dragging.square);
+            dragging.pos = util::square_to_inverted(dest);
+            dragging.time = SteadyTime::now();
+            dragging.dragging = false;
+
+            if dragging.square != dest && !dragging.fading {
+                (dragging.square, dest)
+            } else {
+                return;
+            }
+        } else {
+            return;
+        };
+
+        self.selected = None;
+
+        if orig != dest {
+            ctx.stream.emit(GroundMsg::UserMove(orig, dest, None));
+        }
     }
 
     pub(crate) fn queue_animation(&self, state: &BoardState, widget: &DrawingArea) {
