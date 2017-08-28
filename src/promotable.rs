@@ -60,8 +60,8 @@ impl Promotable {
         self.queue_animation(ctx.widget());
 
         if let Some(ref mut promoting) = self.promoting {
-            if promoting.hover != ctx.square {
-                promoting.hover = ctx.square;
+            if promoting.hover != ctx.square() {
+                promoting.hover = ctx.square();
                 promoting.time = SteadyTime::now();
 
             }
@@ -80,7 +80,7 @@ impl Promotable {
                 figurine.time = SteadyTime::now();
             }
 
-            if let Some(square) = ctx.square {
+            if let Some(square) = ctx.square() {
                 let side = promoting.orientation();
 
                 if square.file() == promoting.dest.file() {
@@ -105,8 +105,8 @@ impl Promotable {
         Inhibit(false)
     }
 
-    pub(crate) fn draw(&self, cr: &Context, board_state: &BoardState) {
-        self.promoting.as_ref().map(|p| p.draw(cr, board_state));
+    pub(crate) fn draw(&self, cr: &Context, state: &BoardState) {
+        self.promoting.as_ref().map(|p| p.draw(cr, state));
     }
 }
 
@@ -119,14 +119,14 @@ impl Promoting {
         Color::from_bool(self.dest.rank() > 4)
     }
 
-    fn draw(&self, cr: &Context, board_state: &BoardState) {
+    fn draw(&self, cr: &Context, state: &BoardState) {
         // make the board darker
         cr.rectangle(0.0, 0.0, 8.0, 8.0);
         cr.set_source_rgba(0.0, 0.0, 0.0, 0.5);
         cr.fill();
 
         for (offset, role) in [Role::Queen, Role::Rook, Role::Bishop, Role::Knight, Role::King, Role::Pawn].iter().enumerate() {
-            if !board_state.legal_move(self.orig, self.dest, Some(*role)) {
+            if !state.legal_move(self.orig, self.dest, Some(*role)) {
                 continue;
             }
 
@@ -168,8 +168,8 @@ impl Promoting {
             cr.translate(0.5 + self.dest.file() as f64, 7.5 - rank as f64);
             cr.scale(2f64.sqrt() * radius, 2f64.sqrt() * radius);
             cr.translate(-0.5, -0.5);
-            cr.scale(board_state.piece_set.scale(), board_state.piece_set.scale());
-            board_state.piece_set.by_piece(&role.of(Color::White)).render_cairo(cr);
+            cr.scale(state.piece_set.scale(), state.piece_set.scale());
+            state.piece_set.by_piece(&role.of(Color::White)).render_cairo(cr);
 
             cr.restore();
         }

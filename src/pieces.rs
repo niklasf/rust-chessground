@@ -163,7 +163,7 @@ impl Pieces {
         let orig = self.selected.take();
 
         if e.get_button() == 1 {
-            let dest = ctx.square;
+            let dest = ctx.square();
             self.selected = dest.filter(|sq| self.occupied().contains(*sq));
 
             if let (Some(orig), Some(dest)) = (orig, dest) {
@@ -179,10 +179,10 @@ impl Pieces {
 
     pub(crate) fn drag_mouse_down(&mut self, ctx: &EventContext, e: &EventButton) {
         if e.get_button() == 1 {
-            if let Some(square) = ctx.square {
+            if let Some(square) = ctx.square() {
                 if self.occupied().contains(square) {
                     self.drag_start = Some(DragStart {
-                        pos: ctx.pos,
+                        pos: ctx.pos(),
                         square,
                     });
                 }
@@ -192,7 +192,8 @@ impl Pieces {
 
     pub(crate) fn drag_mouse_move(&mut self, ctx: &EventContext) {
         let dragging = if let Some(ref drag_start) = self.drag_start {
-            let drag_distance = (drag_start.pos.0 - ctx.pos.0).hypot(drag_start.pos.1 - ctx.pos.1);
+            let pos = ctx.pos();
+            let drag_distance = (drag_start.pos.0 - pos.0).hypot(drag_start.pos.1 - pos.1);
             Some(drag_start.square).filter(|_| drag_distance >= 0.1)
         } else {
             None
@@ -220,12 +221,12 @@ impl Pieces {
             }
 
             // update position
-            dragging.pos = ctx.pos;
+            dragging.pos = ctx.pos();
             dragging.time = SteadyTime::now();
 
             // invalidate new
             ctx.widget().queue_draw_rect(dragging.pos.0 - 0.5, dragging.pos.1 - 0.5, 1.0, 1.0);
-            if let Some(sq) = ctx.square {
+            if let Some(sq) = ctx.square() {
                 ctx.widget().queue_draw_square(sq);
             }
         }
@@ -237,7 +238,7 @@ impl Pieces {
         let (orig, dest) = if let Some(dragging) = self.dragging_mut() {
             ctx.widget().queue_draw();
 
-            let dest = ctx.square.unwrap_or(dragging.square);
+            let dest = ctx.square().unwrap_or(dragging.square);
             dragging.pos = square_to_pos(dest);
             dragging.time = SteadyTime::now();
             dragging.dragging = false;

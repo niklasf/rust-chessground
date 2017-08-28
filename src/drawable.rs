@@ -21,6 +21,99 @@ struct DrawShape {
     brush: DrawBrush,
 }
 
+pub struct Drawable {
+    drawing: Option<DrawShape>,
+    shapes: Vec<DrawShape>,
+    enabled: bool,
+    erase_on_click: bool,
+}
+
+impl Drawable {
+    pub fn new() -> Drawable {
+        Drawable {
+            drawing: None,
+            shapes: Vec::new(),
+            enabled: true,
+            erase_on_click: true,
+        }
+    }
+
+    pub(crate) fn mouse_down(&mut self, ctx: &EventContext, e: &EventButton) {
+        if !self.enabled {
+            return;
+        }
+
+        match e.get_button() {
+            1 => {
+                if self.erase_on_click && !self.shapes.is_empty() {
+                    self.shapes.clear();
+                    ctx.stream().emit(GroundMsg::ShapesChanged);
+                    ctx.widget().queue_draw();
+                }
+            }
+            3 => {
+                self.drawing = ctx.square().map(|square| {
+                    let brush = if e.get_state().contains(gdk::MOD1_MASK | gdk::SHIFT_MASK) {
+                        DrawBrush::Yellow
+                    } else if e.get_state().contains(gdk::MOD1_MASK) {
+                        DrawBrush::Blue
+                    } else if e.get_state().contains(gdk::SHIFT_MASK) {
+                        DrawBrush::Red
+                    } else {
+                        DrawBrush::Green
+                    };
+
+                    DrawShape {
+                        orig: square,
+                        dest: square,
+                        brush,
+                    }
+                });
+
+                ctx.widget().queue_draw();
+            }
+            _ => {}
+        }
+    }
+
+    pub(crate) fn mouse_move(&mut self, ctx: &EventContext) {
+        if let Some(ref mut drawing) = self.drawing {
+            let dest = ctx.square().unwrap_or(drawing.orig);
+            if drawing.dest != dest {
+                ctx.widget().queue_draw();
+            }
+            drawing.dest = dest;
+        }
+    }
+
+    pub(crate) fn mouse_up(&mut self, ctx: &EventContext) {
+        if let Some(mut drawing) = self.drawing.take() {
+            if self.enabled {
+                drawing.dest = ctx.square().unwrap_or(drawing.orig);
+
+                // remove or add shape
+                let num_shapes = self.shapes.len();
+                self.shapes.retain(|s| s.orig != drawing.orig || s.dest != drawing.dest);
+                if num_shapes == self.shapes.len() {
+                    self.shapes.push(drawing);
+                }
+
+                ctx.stream().emit(GroundMsg::ShapesChanged);
+            }
+
+            ctx.widget().queue_draw();
+        }
+    }
+
+    pub(crate) fn draw(&self, cr: &Context) {
+        for shape in &self.shapes {
+            shape.draw(cr);
+        }
+
+        self.drawing.as_ref().map(|shape| shape.draw(cr));
+    }
+}
+
 impl DrawShape {
     fn draw(&self, cr: &Context) {
         let opacity = 0.5;
@@ -74,98 +167,5 @@ impl DrawShape {
             cr.line_to(shaft_x, shaft_y);
             cr.fill();
         }
-    }
-}
-
-pub struct Drawable {
-    drawing: Option<DrawShape>,
-    shapes: Vec<DrawShape>,
-    enabled: bool,
-    erase_on_click: bool,
-}
-
-impl Drawable {
-    pub fn new() -> Drawable {
-        Drawable {
-            drawing: None,
-            shapes: Vec::new(),
-            enabled: true,
-            erase_on_click: true,
-        }
-    }
-
-    pub(crate) fn mouse_down(&mut self, ctx: &EventContext, e: &EventButton) {
-        if !self.enabled {
-            return;
-        }
-
-        match e.get_button() {
-            1 => {
-                if self.erase_on_click && !self.shapes.is_empty() {
-                    self.shapes.clear();
-                    ctx.stream().emit(GroundMsg::ShapesChanged);
-                    ctx.widget().queue_draw();
-                }
-            }
-            3 => {
-                self.drawing = ctx.square.map(|square| {
-                    let brush = if e.get_state().contains(gdk::MOD1_MASK | gdk::SHIFT_MASK) {
-                        DrawBrush::Yellow
-                    } else if e.get_state().contains(gdk::MOD1_MASK) {
-                        DrawBrush::Blue
-                    } else if e.get_state().contains(gdk::SHIFT_MASK) {
-                        DrawBrush::Red
-                    } else {
-                        DrawBrush::Green
-                    };
-
-                    DrawShape {
-                        orig: square,
-                        dest: square,
-                        brush,
-                    }
-                });
-
-                ctx.widget().queue_draw();
-            }
-            _ => {}
-        }
-    }
-
-    pub(crate) fn mouse_move(&mut self, ctx: &EventContext) {
-        if let Some(ref mut drawing) = self.drawing {
-            let dest = ctx.square.unwrap_or(drawing.orig);
-            if drawing.dest != dest {
-                ctx.widget().queue_draw();
-            }
-            drawing.dest = dest;
-        }
-    }
-
-    pub(crate) fn mouse_up(&mut self, ctx: &EventContext) {
-        if let Some(mut drawing) = self.drawing.take() {
-            if self.enabled {
-                drawing.dest = ctx.square.unwrap_or(drawing.orig);
-
-                // remove or add shape
-                let num_shapes = self.shapes.len();
-                self.shapes.retain(|s| s.orig != drawing.orig || s.dest != drawing.dest);
-                if num_shapes == self.shapes.len() {
-                    self.shapes.push(drawing);
-                }
-
-                ctx.stream().emit(GroundMsg::ShapesChanged);
-            }
-
-            ctx.widget().queue_draw();
-        }
-    }
-
-    pub(crate) fn draw(&self, cr: &Context) {
-        for shape in &self.shapes {
-            shape.draw(cr);
-        }
-
-        self.drawing.as_ref().map(|shape| shape.draw(cr));
     }
 }

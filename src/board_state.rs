@@ -42,7 +42,7 @@ impl BoardState {
         })
     }
 
-    pub fn draw(&self, cr: &Context) {
+    pub(crate) fn draw(&self, cr: &Context) {
         self.draw_border(cr);
         self.draw_board(cr);
         self.draw_last_move(cr);

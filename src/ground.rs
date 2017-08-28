@@ -21,6 +21,8 @@ use drawable::Drawable;
 use promotable::Promotable;
 use board_state::BoardState;
 
+type Stream = EventStream<GroundMsg>;
+
 pub struct Model {
     state: Rc<RefCell<State>>,
 }
@@ -36,8 +38,6 @@ pub enum GroundMsg {
     UserMove(Square, Square, Option<Role>),
     ShapesChanged,
 }
-
-type Stream = EventStream<GroundMsg>;
 
 pub struct Ground {
     drawing_area: DrawingArea,
@@ -93,6 +93,7 @@ impl Widget for Ground {
                                  gdk::POINTER_MOTION_MASK).bits() as i32);
 
         {
+            // draw
             let weak_state = Rc::downgrade(&model.state);
             drawing_area.connect_draw(move |widget, cr| {
                 if let Some(state) = weak_state.upgrade() {
@@ -127,6 +128,7 @@ impl Widget for Ground {
         }
 
         {
+            // mouse down
             let state = Rc::downgrade(&model.state);
             let stream = relm.stream().clone();
             drawing_area.connect_button_press_event(move |widget, e| {
@@ -139,6 +141,7 @@ impl Widget for Ground {
         }
 
         {
+            // mouse up
             let state = Rc::downgrade(&model.state);
             let stream = relm.stream().clone();
             drawing_area.connect_button_release_event(move |widget, e| {
@@ -151,6 +154,7 @@ impl Widget for Ground {
         }
 
         {
+            // mouse move
             let state = Rc::downgrade(&model.state);
             let stream = relm.stream().clone();
             drawing_area.connect_motion_notify_event(move |widget, e| {
@@ -285,8 +289,8 @@ impl<'a> WidgetContext<'a> {
 pub(crate) struct EventContext<'a> {
     widget: WidgetContext<'a>,
     stream: &'a Stream,
-    pub pos: (f64, f64),
-    pub square: Option<Square>,
+    pos: (f64, f64),
+    square: Option<Square>,
 }
 
 impl<'a> EventContext<'a> {
@@ -313,5 +317,13 @@ impl<'a> EventContext<'a> {
 
     pub fn stream(&self) -> &'a Stream {
         self.stream
+    }
+
+    pub fn pos(&self) -> (f64, f64) {
+        self.pos
+    }
+
+    pub fn square(&self) -> Option<Square> {
+        self.square
     }
 }

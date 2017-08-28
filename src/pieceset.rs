@@ -1,5 +1,6 @@
-use shakmaty::{Color, Role, Piece};
 use rsvg::Handle;
+
+use shakmaty::{Color, Role, Piece};
 
 struct PieceSetSide {
     pawn: Handle,
