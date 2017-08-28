@@ -1,7 +1,6 @@
 rust-chessground
 ================
 
-[![Build Status](https://travis-ci.org/niklasf/rust-chessground.svg?branch=master)](https://travis-ci.org/niklasf/rust-chessground)
 [![crates.io](https://img.shields.io/crates/v/chessground.svg)](https://crates.io/crates/chessground)
 
 A chessboard widget for [Relm/GTK](https://github.com/antoyo/relm).
