@@ -30,13 +30,13 @@ struct DragStart {
 }
 
 pub struct Figurine {
-    pub(crate) square: Square,
-    pub(crate) piece: Piece,
+    square: Square,
+    piece: Piece,
     pos: (f64, f64),
     time: SteadyTime,
-    pub(crate) fading: bool,
+    fading: bool,
     replaced: bool,
-    pub(crate) dragging: bool,
+    dragging: bool,
 }
 
 impl Pieces {
