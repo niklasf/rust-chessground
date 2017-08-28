@@ -20,6 +20,7 @@ Features
   - Minimum distance
   - Piece ghosts
 * Draw circles and arrows on the board
+* Integrated promotion dialog
 * Smooth animations
 
 Only a minimum of the features is exposed in the public API. Feel free to
