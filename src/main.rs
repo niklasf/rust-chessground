@@ -33,7 +33,8 @@ pub enum Msg {
 #[widget]
 impl Widget for Win {
     fn model() -> Chess {
-        Chess::default()
+        let fen: shakmaty::fen::Fen = "rnbqk2r/p1ppppPp/6p1/1p6/8/8/PPPPPP1P/RNBQKBNR w KQkq b6 0 5".parse().expect("valid fen");
+        fen.position().expect("legal position")
     }
 
     fn update(&mut self, event: Msg) {

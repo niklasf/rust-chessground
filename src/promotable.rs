@@ -1,3 +1,14 @@
+use time::SteadyTime;
+
+use gtk::prelude::*;
+use gtk::DrawingArea;
+use cairo::Context;
+
+use shakmaty::{Square, Color, Role};
+
+use util;
+use ground::{EventContext, BoardState, GroundMsg};
+
 pub struct Promotable {
     promoting: Option<Promoting>,
 }
@@ -9,7 +20,23 @@ struct Promoting {
     time: SteadyTime,
 }
 
+impl Promoting {
+    fn elapsed(&self, now: SteadyTime) -> f64 {
+        (now - self.time).num_milliseconds() as f64 / 1000.0
+    }
+
+    fn orientation(&self) -> Color {
+        Color::from_bool(self.dest.rank() > 4)
+    }
+}
+
 impl Promotable {
+    pub fn new() -> Promotable {
+        Promotable {
+            promoting: None,
+        }
+    }
+
     pub fn start_promoting(&mut self, orig: Square, dest: Square) {
         self.promoting = Some(Promoting {
             orig,
@@ -19,38 +46,132 @@ impl Promotable {
         });
     }
 
+    pub fn is_promoting(&self, orig: Square) -> bool {
+        self.promoting.as_ref().map_or(false, |p| p.orig == orig)
+    }
+
     pub fn is_animating(&self) -> bool {
         if let Some(ref promoting) = self.promoting {
             false
-            //promoting.hover.map_or(false, |h| h.since // todo: elapsed
+            // TODO: promoting.hover.map_or(false, |h| h.since
         } else {
             false
         }
     }
 
-    pub fn queue_animation(&self, drawing_area: &DrawingArea) {
-        if let Some(Promoting { hover: Hover { square, .. } }) = self.promoting {
-            // queue draw square
+    pub(crate) fn queue_animation(&self, board_state: &BoardState, drawing_area: &DrawingArea) {
+        if let Some(Promoting { hover: Some(square), .. }) = self.promoting {
+            // TODO: queue draw square
         }
     }
 
-    pub fn mouse_move(&mut self, ctx: &EventContext) -> bool {
-        self.queue_animation(ctx.drawing_area);
+    pub(crate) fn mouse_move(&mut self, board_state: &BoardState, ctx: &EventContext) -> bool {
+        self.queue_animation(board_state, ctx.drawing_area);
 
         let consume = if let Some(ref mut promoting) = self.promoting {
-            let current = promoting.hover.map(|h| h.square);
-            if current != ctx.square {
+            if promoting.hover != ctx.square {
+                promoting.hover = ctx.square;
+                promoting.time = SteadyTime::now();
             }
-            // todo: still hovering?
             true
         } else {
             false
         };
 
-        self.queue_animation(ctx.drawing_area);
+        self.queue_animation(board_state, ctx.drawing_area);
         consume
     }
 
-    pub fn draw(&self, cr: &Context) {
+    pub(crate) fn mouse_down(&mut self, board_state: &mut BoardState, ctx: &EventContext) -> bool {
+        if let Some(promoting) = self.promoting.take() {
+            ctx.drawing_area.queue_draw();
+
+            // animate the figurine when cancelling
+            if let Some(figurine) = board_state.pieces.figurine_at_mut(promoting.orig) {
+                figurine.pos = util::square_to_inverted(promoting.dest);
+                figurine.time = SteadyTime::now();
+            }
+
+            if let Some(square) = ctx.square {
+                let side = promoting.orientation();
+
+                if square.file() == promoting.dest.file() {
+                    let role = match square.rank() {
+                        r if r == side.fold(7, 0) => Some(Role::Queen),
+                        r if r == side.fold(6, 1) => Some(Role::Rook),
+                        r if r == side.fold(5, 2) => Some(Role::Bishop),
+                        r if r == side.fold(4, 3) => Some(Role::Knight),
+                        r if r == side.fold(3, 4) => Some(Role::King),
+                        r if r == side.fold(2, 5) => Some(Role::Pawn),
+                        _ => None,
+                    };
+
+                    if role.is_some() {
+                        ctx.stream.emit(GroundMsg::UserMove(promoting.orig, promoting.dest, role));
+                        return true;
+                    }
+                }
+            }
+        }
+
+        false
+    }
+
+    pub(crate) fn draw(&self, cr: &Context, board_state: &BoardState) {
+        /* if let Some(ref promoting) = state.promoting {
+            cr.rectangle(0.0, 0.0, 8.0, 8.0);
+            cr.set_source_rgba(0.0, 0.0, 0.0, 0.5);
+            cr.fill();
+
+            for (offset, role) in [Role::Queen, Role::Rook, Role::Bishop, Role::Knight, Role::King, Role::Pawn].iter().enumerate() {
+                if !state.legals.iter().any(|m| {
+                    m.from() == Some(promoting.orig) &&
+                    m.to() == promoting.dest &&
+                    m.promotion() == Some(*role)
+                }) {
+                    continue;
+                }
+
+                let rank = promoting.orientation().fold(7 - offset as i8, offset as i8);
+                let light = promoting.dest.file() + rank & 1 == 1;
+
+                cr.save();
+                cr.rectangle(promoting.dest.file() as f64, 7.0 - rank as f64, 1.0, 1.0);
+                cr.clip_preserve();
+
+                if light {
+                    cr.set_source_rgb(0.25, 0.25, 0.25);
+                } else {
+                    cr.set_source_rgb(0.18, 0.18, 0.18);
+                }
+                cr.fill();
+
+                let radius = match promoting.hover {
+                    Some(hover) if hover.file() == promoting.dest.file() && hover.rank() == rank => {
+                        cr.set_source_rgb(
+                            ease_in_out_cubic(0.69, 1.0, promoting.elapsed(state.now), 1.0),
+                            ease_in_out_cubic(0.69, 0.65, promoting.elapsed(state.now), 1.0),
+                            ease_in_out_cubic(0.69, 0.0, promoting.elapsed(state.now), 1.0));
+
+                        ease_in_out_cubic(0.5, 0.5f64.hypot(0.5), promoting.elapsed(state.now), 1.0)
+                    },
+                    _ => {
+                        cr.set_source_rgb(0.69, 0.69, 0.69);
+                        0.5
+                    },
+                };
+
+                cr.arc(0.5 + promoting.dest.file() as f64, 7.5 - rank as f64, radius, 0.0, 2.0 * PI);
+                cr.fill();
+
+                cr.translate(0.5 + promoting.dest.file() as f64, 7.5 - rank as f64);
+                cr.scale(2f64.sqrt() * radius, 2f64.sqrt() * radius);
+                cr.translate(-0.5, -0.5);
+                cr.scale(state.piece_set.scale(), state.piece_set.scale());
+                state.piece_set.by_piece(&role.of(Color::White)).render_cairo(cr);
+
+                cr.restore();
+            }
+        } */
     }
 }

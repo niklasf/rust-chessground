@@ -24,6 +24,7 @@ use relm::{Relm, Widget, Update, EventStream};
 use util;
 use pieceset;
 use drawable::Drawable;
+use promotable::Promotable;
 use pieceset::PieceSet;
 
 pub struct Model {
@@ -60,26 +61,19 @@ impl Update for Ground {
 
     fn update(&mut self, event: GroundMsg) {
         let mut state = self.model.state.borrow_mut();
-        let board_state = &mut state.board_state;
 
         match event {
-            GroundMsg::UserMove(orig, dest, None) if board_state.valid_move(orig, dest) => {
-                if board_state.legals.iter().any(|m| m.from() == Some(orig) && m.to() == dest && m.promotion().is_some()) {
-                    board_state.promoting = Some(Promoting {
-                        orig,
-                        dest,
-                        hover: Some(dest),
-                        hover_since: SteadyTime::now()
-                    });
-
+            GroundMsg::UserMove(orig, dest, None) if state.board_state.valid_move(orig, dest) => {
+                if state.board_state.legals.iter().any(|m| m.from() == Some(orig) && m.to() == dest && m.promotion().is_some()) {
+                    state.promotable.start_promoting(orig, dest);
                     self.drawing_area.queue_draw();
                 }
             },
             GroundMsg::SetPosition { board, legals, last_move, check } => {
-                board_state.pieces.set_board(board);
-                board_state.legals = legals;
-                board_state.last_move = last_move;
-                board_state.check = check;
+                state.board_state.pieces.set_board(board);
+                state.board_state.legals = legals;
+                state.board_state.last_move = last_move;
+                state.board_state.check = check;
 
                 self.drawing_area.queue_draw();
             },
@@ -110,7 +104,7 @@ impl Widget for Ground {
                     state.board_state.now = SteadyTime::now();
 
                     let animating = state.board_state.pieces.is_animating(state.board_state.now) ||
-                                    promoting_is_animating(&state.board_state);
+                                    state.promotable.is_animating();
 
                     let matrix = util::compute_matrix(widget, state.board_state.orientation);
                     cr.set_matrix(matrix);
@@ -118,11 +112,11 @@ impl Widget for Ground {
                     draw_border(cr, &state.board_state);
                     draw_board(cr, &state.board_state);
                     draw_check(cr, &state.board_state);
-                    state.board_state.pieces.render(cr, &state.board_state);
+                    state.board_state.pieces.render(cr, &state.board_state, &state.promotable);
                     state.drawable.draw(cr);
                     draw_move_hints(cr, &state.board_state);
                     draw_drag(cr, &state.board_state);
-                    draw_promoting(cr, &state.board_state);
+                    state.promotable.draw(cr, &state.board_state);
 
                     let weak_state = weak_state.clone();
                     let widget = widget.clone();
@@ -131,7 +125,7 @@ impl Widget for Ground {
                             if let Some(state) = weak_state.upgrade() {
                                 let state = state.borrow();
                                 state.board_state.pieces.queue_animation(&state.board_state, &widget);
-                                promoting_queue_animation(&state.board_state, &widget);
+                                state.promotable.queue_animation(&state.board_state, &widget);
                             }
                             Continue(false)
                         });
@@ -155,11 +149,7 @@ impl Widget for Ground {
                         square: util::pos_to_square(widget, state.board_state.orientation, e.get_position()),
                     };
 
-                    if !state.board_state.promoting_mouse_down(&ctx) {
-                        state.board_state.selection_mouse_down(&ctx, e);
-                        drag_mouse_down(&mut state.board_state, widget, ctx.square, e);
-                        state.drawable.mouse_down(&ctx, e);
-                    }
+                    button_press_event(&mut state, &ctx, e);
                 }
                 Inhibit(false)
             });
@@ -200,10 +190,7 @@ impl Widget for Ground {
                         square: util::pos_to_square(widget, state.board_state.orientation, e.get_position()),
                     };
 
-                    if !promoting_mouse_move(&mut state.board_state, widget, ctx.square) {
-                        drag_mouse_move(&mut state.board_state, widget, ctx.square, e);
-                        state.drawable.mouse_move(&ctx);
-                    }
+                    motion_notify_event(&mut state, &ctx, e);
                 }
                 Inhibit(false)
             });
@@ -220,9 +207,28 @@ impl Widget for Ground {
     }
 }
 
+fn motion_notify_event(state: &mut State, ctx: &EventContext, e: &EventMotion) {
+    if !state.promotable.mouse_move(&state.board_state, &ctx) {
+        drag_mouse_move(&mut state.board_state, ctx.drawing_area, ctx.square, e);
+        state.drawable.mouse_move(&ctx);
+    }
+}
+
+fn button_press_event(state: &mut State, ctx: &EventContext, e: &EventButton) {
+    let promotable = &mut state.promotable;
+    let board_state = &mut state.board_state;
+
+    if !promotable.mouse_down(board_state, &ctx) {
+        board_state.selection_mouse_down(&ctx, e);
+        drag_mouse_down(board_state, ctx.drawing_area, ctx.square, e);
+        state.drawable.mouse_down(&ctx, e);
+    }
+}
+
 struct State {
     board_state: BoardState,
     drawable: Drawable,
+    promotable: Promotable,
 }
 
 impl State {
@@ -230,6 +236,7 @@ impl State {
         State {
             board_state: BoardState::new(),
             drawable: Drawable::new(),
+            promotable: Promotable::new(),
         }
     }
 }
@@ -257,11 +264,11 @@ fn ease_in_out_cubic(start: f64, end: f64, elapsed: f64, duration: f64) -> f64 {
     start + (end - start) * ease
 }
 
-struct Figurine {
+pub(crate) struct Figurine {
     square: Square,
     piece: Piece,
-    pos: (f64, f64),
-    time: SteadyTime,
+    pub(crate) pos: (f64, f64),
+    pub(crate) time: SteadyTime,
     fading: bool,
     replaced: bool,
     dragging: bool,
@@ -337,30 +344,28 @@ impl Figurine {
         }
     }
 
-    fn render(&self, cr: &Context, state: &BoardState) {
-        if let Some(ref promoting) = state.promoting {
-            // hide piece while promotion dialog is open
-            if promoting.orig == self.square {
-                return;
-            }
+    fn render(&self, cr: &Context, board_state: &BoardState, promotable: &Promotable) {
+        // hide piece while promotion dialog is open
+        if promotable.is_promoting(self.square) {
+            return;
         }
 
         cr.push_group();
 
-        let (x, y) = self.pos(state.now);
+        let (x, y) = self.pos(board_state.now);
         cr.translate(x, y);
-        cr.rotate(state.orientation.fold(0.0, PI));
+        cr.rotate(board_state.orientation.fold(0.0, PI));
         cr.translate(-0.5, -0.5);
-        cr.scale(state.piece_set.scale(), state.piece_set.scale());
+        cr.scale(board_state.piece_set.scale(), board_state.piece_set.scale());
 
-        state.piece_set.by_piece(&self.piece).render_cairo(cr);
+        board_state.piece_set.by_piece(&self.piece).render_cairo(cr);
 
         cr.pop_group_to_source();
-        cr.paint_with_alpha(self.alpha(state.now));
+        cr.paint_with_alpha(self.alpha(board_state.now));
     }
 }
 
-struct Pieces {
+pub(crate) struct Pieces {
     board: Board,
     figurines: Vec<Figurine>,
 }
@@ -466,24 +471,24 @@ impl Pieces {
         self.board.occupied()
     }
 
-    pub fn render(&self, cr: &Context, state: &BoardState) {
+    pub fn render(&self, cr: &Context, state: &BoardState, promotable: &Promotable) {
         let now = SteadyTime::now();
 
         for figurine in &self.figurines {
             if figurine.fading {
-                figurine.render(cr, state);
+                figurine.render(cr, state, promotable);
             }
         }
 
         for figurine in &self.figurines {
             if !figurine.fading && !figurine.is_animating(now) {
-                figurine.render(cr, state);
+                figurine.render(cr, state, promotable);
             }
         }
 
         for figurine in &self.figurines {
             if !figurine.fading && figurine.is_animating(now) {
-                figurine.render(cr, state);
+                figurine.render(cr, state, promotable);
             }
         }
     }
@@ -520,8 +525,8 @@ struct DragStart {
     square: Square,
 }
 
-struct BoardState {
-    pieces: Pieces,
+pub(crate) struct BoardState {
+    pub(crate) pieces: Pieces,
     orientation: Color,
     check: Option<Square>,
     selected: Option<Square>,
@@ -529,7 +534,6 @@ struct BoardState {
     drag_start: Option<DragStart>,
     piece_set: PieceSet,
     now: SteadyTime,
-    promoting: Option<Promoting>,
     legals: MoveList,
 }
 
@@ -556,97 +560,11 @@ impl BoardState {
             last_move: None,
             selected: None,
             drag_start: None,
-            promoting: None,
             piece_set: pieceset::PieceSet::merida(),
             legals,
             now: SteadyTime::now(),
         }
     }
-}
-
-struct Promoting {
-    orig: Square,
-    dest: Square,
-    hover: Option<Square>,
-    hover_since: SteadyTime,
-}
-
-impl Promoting {
-    fn elapsed(&self, now: SteadyTime) -> f64 {
-        (now - self.hover_since).num_milliseconds() as f64 / 1000.0
-    }
-
-    fn orientation(&self) -> Color {
-        Color::from_bool(self.dest.rank() > 4)
-    }
-}
-
-impl BoardState {
-    fn promoting_mouse_down(&mut self, context: &EventContext) -> bool {
-        if let Some(promoting) = self.promoting.take() {
-            context.drawing_area.queue_draw();
-
-            // animate the figurine when cancelling
-            if let Some(figurine) = self.pieces.figurine_at_mut(promoting.orig) {
-                figurine.pos = util::square_to_inverted(promoting.dest);
-                figurine.time = SteadyTime::now();
-            }
-
-            if let Some(square) = context.square {
-                let side = promoting.orientation();
-
-                if square.file() == promoting.dest.file() {
-                    let role = match square.rank() {
-                        r if r == side.fold(7, 0) => Some(Role::Queen),
-                        r if r == side.fold(6, 1) => Some(Role::Rook),
-                        r if r == side.fold(5, 2) => Some(Role::Bishop),
-                        r if r == side.fold(4, 3) => Some(Role::Knight),
-                        r if r == side.fold(3, 4) => Some(Role::King),
-                        r if r == side.fold(2, 5) => Some(Role::Pawn),
-                        _ => None,
-                    };
-
-                    if role.is_some() {
-                        context.stream.emit(GroundMsg::UserMove(promoting.orig, promoting.dest, role));
-                        return true;
-                    }
-                }
-            }
-        }
-
-        false
-    }
-}
-
-fn promoting_is_animating(state: &BoardState) -> bool {
-    if let Some(ref promoting) = state.promoting {
-        promoting.hover.is_some() && promoting.elapsed(state.now) <= 1.0
-    } else {
-        false
-    }
-}
-
-fn promoting_queue_animation(state: &BoardState, widget: &DrawingArea) {
-    if let Some(Promoting { hover: Some(hover), .. }) = state.promoting {
-        queue_draw_square(widget, state.orientation, hover);
-    }
-}
-
-fn promoting_mouse_move(state: &mut BoardState, widget: &DrawingArea, square: Option<Square>) -> bool {
-    promoting_queue_animation(state, widget);
-
-    let consume = if let Some(ref mut promoting) = state.promoting {
-        if promoting.hover != square {
-            promoting.hover = square;
-            promoting.hover_since = SteadyTime::now();
-        }
-        true
-    } else {
-        false
-    };
-
-    promoting_queue_animation(state, widget);
-    consume
 }
 
 impl BoardState {
@@ -907,63 +825,5 @@ fn draw_drag(cr: &Context, state: &BoardState) {
         state.piece_set.by_piece(&dragging.piece).render_cairo(cr);
         cr.pop_group_to_source();
         cr.paint_with_alpha(dragging.drag_alpha(state.now));
-    }
-}
-
-fn draw_promoting(cr: &Context, state: &BoardState) {
-    if let Some(ref promoting) = state.promoting {
-        cr.rectangle(0.0, 0.0, 8.0, 8.0);
-        cr.set_source_rgba(0.0, 0.0, 0.0, 0.5);
-        cr.fill();
-
-        for (offset, role) in [Role::Queen, Role::Rook, Role::Bishop, Role::Knight, Role::King, Role::Pawn].iter().enumerate() {
-            if !state.legals.iter().any(|m| {
-                m.from() == Some(promoting.orig) &&
-                m.to() == promoting.dest &&
-                m.promotion() == Some(*role)
-            }) {
-                continue;
-            }
-
-            let rank = promoting.orientation().fold(7 - offset as i8, offset as i8);
-            let light = promoting.dest.file() + rank & 1 == 1;
-
-            cr.save();
-            cr.rectangle(promoting.dest.file() as f64, 7.0 - rank as f64, 1.0, 1.0);
-            cr.clip_preserve();
-
-            if light {
-                cr.set_source_rgb(0.25, 0.25, 0.25);
-            } else {
-                cr.set_source_rgb(0.18, 0.18, 0.18);
-            }
-            cr.fill();
-
-            let radius = match promoting.hover {
-                Some(hover) if hover.file() == promoting.dest.file() && hover.rank() == rank => {
-                    cr.set_source_rgb(
-                        ease_in_out_cubic(0.69, 1.0, promoting.elapsed(state.now), 1.0),
-                        ease_in_out_cubic(0.69, 0.65, promoting.elapsed(state.now), 1.0),
-                        ease_in_out_cubic(0.69, 0.0, promoting.elapsed(state.now), 1.0));
-
-                    ease_in_out_cubic(0.5, 0.5f64.hypot(0.5), promoting.elapsed(state.now), 1.0)
-                },
-                _ => {
-                    cr.set_source_rgb(0.69, 0.69, 0.69);
-                    0.5
-                },
-            };
-
-            cr.arc(0.5 + promoting.dest.file() as f64, 7.5 - rank as f64, radius, 0.0, 2.0 * PI);
-            cr.fill();
-
-            cr.translate(0.5 + promoting.dest.file() as f64, 7.5 - rank as f64);
-            cr.scale(2f64.sqrt() * radius, 2f64.sqrt() * radius);
-            cr.translate(-0.5, -0.5);
-            cr.scale(state.piece_set.scale(), state.piece_set.scale());
-            state.piece_set.by_piece(&role.of(Color::White)).render_cairo(cr);
-
-            cr.restore();
-        }
     }
 }
