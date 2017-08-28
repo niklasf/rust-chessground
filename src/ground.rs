@@ -14,8 +14,6 @@ use cairo::prelude::*;
 use cairo::{Context, RadialGradient};
 use rsvg::HandleExt;
 
-use option_filter::OptionFilterExt;
-
 use time::SteadyTime;
 
 use relm::{Relm, Widget, Update, EventStream};
@@ -113,9 +111,8 @@ impl Widget for Ground {
                     draw_border(cr, &state.board_state);
                     draw_board(cr, &state.board_state, &state.pieces);
                     draw_check(cr, &state.board_state);
-                    state.pieces.render(cr, &state.board_state, &state.promotable);
+                    state.pieces.draw(cr, &state.board_state, &state.promotable);
                     state.drawable.draw(cr);
-                    draw_move_hints(cr, &state.board_state, &state.pieces);
                     draw_drag(cr, &state.board_state, &state.pieces);
                     state.promotable.draw(cr, &state.board_state);
 
@@ -221,10 +218,11 @@ fn motion_notify_event(state: &mut State, ctx: &EventContext, e: &EventMotion) {
 fn button_press_event(state: &mut State, ctx: &EventContext, e: &EventButton) {
     let promotable = &mut state.promotable;
     let board_state = &mut state.board_state;
+    let pieces = &mut state.pieces;
 
-    if let Inhibit(false) = promotable.mouse_down(&mut state.pieces, &ctx) {
-        board_state.selection_mouse_down(&state.pieces, &ctx, e);
-        drag_mouse_down(board_state, &mut state.pieces, ctx.drawing_area, ctx.square, e);
+    if let Inhibit(false) = promotable.mouse_down(pieces, &ctx) {
+        pieces.selection_mouse_down(&ctx, e);
+        drag_mouse_down(board_state, pieces, ctx.drawing_area, ctx.square, e);
         state.drawable.mouse_down(&ctx, e);
     }
 }
@@ -262,7 +260,6 @@ struct DragStart {
 pub(crate) struct BoardState {
     pub(crate) orientation: Color,
     check: Option<Square>,
-    selected: Option<Square>,
     last_move: Option<(Square, Square)>,
     drag_start: Option<DragStart>,
     pub(crate) piece_set: PieceSet,
@@ -271,7 +268,7 @@ pub(crate) struct BoardState {
 }
 
 impl BoardState {
-    fn move_targets(&self, orig: Square) -> Bitboard {
+    pub fn move_targets(&self, orig: Square) -> Bitboard {
         self.legals.iter().filter(|m| m.from() == Some(orig)).map(|m| m.to()).collect()
     }
 
@@ -290,32 +287,11 @@ impl BoardState {
             orientation: Color::White,
             check: None,
             last_move: None,
-            selected: None,
             drag_start: None,
             piece_set: pieceset::PieceSet::merida(),
             legals,
             now: SteadyTime::now(),
         }
-    }
-}
-
-impl BoardState {
-    fn selection_mouse_down(&mut self, pieces: &Pieces, context: &EventContext, e: &EventButton) {
-        let orig = self.selected.take();
-
-        if e.get_button() == 1 {
-            let dest = context.square;
-            self.selected = dest.filter(|sq| pieces.occupied().contains(*sq));
-
-            if let (Some(orig), Some(dest)) = (orig, dest) {
-                self.selected = None;
-                if orig != dest {
-                    context.stream.emit(GroundMsg::UserMove(orig, dest, None));
-                }
-            }
-        }
-
-        context.drawing_area.queue_draw();
     }
 }
 
@@ -345,11 +321,11 @@ fn drag_mouse_move(state: &mut BoardState, pieces: &mut Pieces, widget: &Drawing
     }
 
     if let Some(dragging) = pieces.dragging_mut() {
-        // ensure orig square is selected
-        if state.selected != Some(dragging.square) {
+        // TODO: ensure orig square is selected
+        /* if state.selected != Some(dragging.square) {
             state.selected = Some(dragging.square);
             widget.queue_draw();
-        }
+        } */
 
         // invalidate previous
         queue_draw_rect(widget, state.orientation, dragging.pos.0 - 0.5, dragging.pos.1 - 0.5, 1.0, 1.0);
@@ -383,7 +359,7 @@ impl BoardState {
             dragging.dragging = false;
 
             if dragging.square != dest && !dragging.fading {
-                self.selected = None;
+                // TODO: self.selected = None;
                 Some((dragging.square, dest))
             } else {
                 None
@@ -432,7 +408,7 @@ fn draw_border(cr: &Context, state: &BoardState) {
     }
 }
 
-fn draw_board(cr: &Context, state: &BoardState, pieces: &Pieces) {
+fn draw_board(cr: &Context, state: &BoardState, _pieces: &Pieces) {
     let light = cairo::SolidPattern::from_rgb(0.87, 0.89, 0.90);
     let dark = cairo::SolidPattern::from_rgb(0.55, 0.64, 0.68);
 
@@ -449,6 +425,7 @@ fn draw_board(cr: &Context, state: &BoardState, pieces: &Pieces) {
         }
     }
 
+    /* TODO XXX
     if let Some(selected) = state.selected {
         cr.rectangle(selected.file() as f64, 7.0 - selected.rank() as f64, 1.0, 1.0);
         cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
@@ -461,7 +438,7 @@ fn draw_board(cr: &Context, state: &BoardState, pieces: &Pieces) {
                 cr.fill();
             }
         }
-    }
+    } */
 
     if let Some((orig, dest)) = state.last_move {
         cr.set_source_rgba(0.61, 0.78, 0.0, 0.41);
@@ -471,48 +448,6 @@ fn draw_board(cr: &Context, state: &BoardState, pieces: &Pieces) {
         if dest != orig {
             cr.rectangle(dest.file() as f64, 7.0 - dest.rank() as f64, 1.0, 1.0);
             cr.fill();
-        }
-    }
-}
-
-fn draw_move_hints(cr: &Context, state: &BoardState, pieces: &Pieces) {
-    if let Some(selected) = state.selected {
-        cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
-
-        let radius = 0.12;
-        let corner = 1.8 * radius;
-
-        for square in state.move_targets(selected) {
-            if pieces.occupied().contains(square) {
-                cr.move_to(square.file() as f64, 7.0 - square.rank() as f64);
-                cr.rel_line_to(corner, 0.0);
-                cr.rel_line_to(-corner, corner);
-                cr.rel_line_to(0.0, -corner);
-                cr.fill();
-
-                cr.move_to(1.0 + square.file() as f64, 7.0 - square.rank() as f64);
-                cr.rel_line_to(0.0, corner);
-                cr.rel_line_to(-corner, -corner);
-                cr.rel_line_to(corner, 0.0);
-                cr.fill();
-
-                cr.move_to(square.file() as f64, 8.0 - square.rank() as f64);
-                cr.rel_line_to(corner, 0.0);
-                cr.rel_line_to(-corner, -corner);
-                cr.rel_line_to(0.0, corner);
-                cr.fill();
-
-                cr.move_to(1.0 + square.file() as f64, 8.0 - square.rank() as f64);
-                cr.rel_line_to(-corner, 0.0);
-                cr.rel_line_to(corner, -corner);
-                cr.rel_line_to(0.0, corner);
-                cr.fill();
-            } else {
-                cr.arc(0.5 + square.file() as f64,
-                       7.5 - square.rank() as f64,
-                       radius, 0.0, 2.0 * PI);
-                cr.fill();
-            }
         }
     }
 }
