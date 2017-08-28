@@ -11,7 +11,7 @@ use gtk::DrawingArea;
 use gdk;
 use gdk::{EventButton, EventMotion};
 use cairo::prelude::*;
-use cairo::Matrix;
+use cairo::{Context, Matrix};
 
 use relm::{Relm, Widget, Update, EventStream};
 
@@ -99,17 +99,7 @@ impl Widget for Ground {
                 if let Some(state) = weak_state.upgrade() {
                     let state = state.borrow();
                     let animating = state.is_animating();
-
-                    // set transform
-                    let ctx = WidgetContext::new(&state.board_state, widget);
-                    cr.set_matrix(ctx.matrix());
-
-                    // draw
-                    state.board_state.draw(cr);
-                    state.pieces.draw(cr, &state.board_state, &state.promotable);
-                    state.drawable.draw(cr);
-                    state.pieces.draw_drag(cr, &state.board_state);
-                    state.promotable.draw(cr, &state.board_state);
+                    state.draw(widget, cr);
 
                     // queue next draw for animation
                     let weak_state = weak_state.clone();
@@ -202,6 +192,18 @@ impl State {
         let ctx = WidgetContext::new(&self.board_state, drawing_area);
         self.pieces.queue_animation(&ctx);
         self.promotable.queue_animation(&ctx);
+    }
+
+    fn draw(&self, drawing_area: &DrawingArea, cr: &Context) {
+        let ctx = WidgetContext::new(&self.board_state, drawing_area);
+        cr.set_matrix(ctx.matrix());
+
+        // draw
+        self.board_state.draw(cr);
+        self.pieces.draw(cr, &self.board_state, &self.promotable);
+        self.drawable.draw(cr);
+        self.pieces.draw_drag(cr, &self.board_state);
+        self.promotable.draw(cr, &self.board_state);
     }
 
     fn button_release_event(&mut self, stream: &Stream, drawing_area: &DrawingArea, e: &EventButton) {
