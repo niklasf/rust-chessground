@@ -265,7 +265,7 @@ impl BoardState {
         self.legals.iter().filter(|m| m.from() == Some(orig)).map(|m| m.to()).collect()
     }
 
-    fn valid_move(&self, orig: Square, dest: Square) -> bool {
+    pub fn valid_move(&self, orig: Square, dest: Square) -> bool {
         self.move_targets(orig).contains(dest)
     }
 }
@@ -335,21 +335,6 @@ fn draw_board(cr: &Context, state: &BoardState, _pieces: &Pieces) {
             cr.fill();
         }
     }
-
-    /* TODO XXX
-    if let Some(selected) = state.selected {
-        cr.rectangle(selected.file() as f64, 7.0 - selected.rank() as f64, 1.0, 1.0);
-        cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
-        cr.fill();
-
-        if let Some(hovered) = pieces.dragging().and_then(|d| util::inverted_to_square(d.pos)) {
-            if state.valid_move(selected, hovered) {
-                cr.rectangle(hovered.file() as f64, 7.0 - hovered.rank() as f64, 1.0, 1.0);
-                cr.set_source_rgba(0.08, 0.47, 0.11, 0.25);
-                cr.fill();
-            }
-        }
-    } */
 
     if let Some((orig, dest)) = state.last_move {
         cr.set_source_rgba(0.61, 0.78, 0.0, 0.41);

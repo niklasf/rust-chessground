@@ -270,6 +270,7 @@ impl Pieces {
     }
 
     pub(crate) fn draw(&self, cr: &Context, state: &BoardState, promotable: &Promotable) {
+        self.draw_selection(cr, state);
         self.draw_move_hints(cr, state);
 
         let now = SteadyTime::now();
@@ -289,6 +290,22 @@ impl Pieces {
         for figurine in &self.figurines {
             if !figurine.fading && figurine.is_animating(now) {
                 figurine.draw(cr, state, promotable);
+            }
+        }
+    }
+
+    fn draw_selection(&self, cr: &Context, state: &BoardState) {
+        if let Some(selected) = self.selected {
+            cr.rectangle(selected.file() as f64, 7.0 - selected.rank() as f64, 1.0, 1.0);
+            cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
+            cr.fill();
+
+            if let Some(hovered) = self.dragging().and_then(|d| util::inverted_to_square(d.pos)) {
+                if state.valid_move(selected, hovered) {
+                    cr.rectangle(hovered.file() as f64, 7.0 - hovered.rank() as f64, 1.0, 1.0);
+                    cr.set_source_rgba(0.08, 0.47, 0.11, 0.25);
+                    cr.fill();
+                }
             }
         }
     }
