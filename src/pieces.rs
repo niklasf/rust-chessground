@@ -92,18 +92,6 @@ impl Pieces {
             self.figurine_at(sq).map_or(true, |f| f.piece != piece)
         }).collect();
 
-        // snap dragged figurines to square
-        for figurine in &mut self.figurines {
-            println!("delta: {:?}", (now - figurine.last_drag).num_milliseconds());
-            if (now - figurine.last_drag).num_milliseconds() < 200 {
-                println!("snap");
-                if let Some(square) = pos_to_square(figurine.pos) {
-                    figurine.pos = square_to_pos(square);
-                    figurine.time = now;
-                }
-            }
-        }
-
         for figurine in &mut self.figurines {
             if figurine.fading {
                 continue;
@@ -126,6 +114,11 @@ impl Pieces {
                     figurine.square = best;
                     figurine.time = now;
                     added.retain(|&(sq, _)| sq != best);
+
+                    // snap dragged figurine to square
+                    if (now - figurine.last_drag).num_milliseconds() < 200 {
+                        figurine.pos = square_to_pos(figurine.square);
+                    }
                 } else {
                     // fade it out
                     figurine.fading = true;
@@ -261,7 +254,7 @@ impl Pieces {
             let now = SteadyTime::now();
             dragging.time = now;
             dragging.last_drag = now;
-            dragging.pos = ctx.pos();
+            dragging.pos = square_to_pos(dragging.square);
             dragging.dragging = false;
 
             if dragging.square != dest && !dragging.fading {
