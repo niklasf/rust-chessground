@@ -35,7 +35,6 @@ use ground::{GroundMsg, EventContext, WidgetContext};
 const ANIMATE_DURATION: f64 = 0.2;
 
 pub struct Pieces {
-    board: Board,
     figurines: Vec<Figurine>,
     selected: Option<Square>,
     drag_start: Option<DragStart>,
@@ -65,7 +64,6 @@ impl Pieces {
         Pieces {
             selected: None,
             drag_start: None,
-            board: board.clone(),
             figurines: board.pieces().map(|(square, piece)| Figurine {
                 square,
                 piece,
@@ -85,7 +83,7 @@ impl Pieces {
 
         // diff
         let mut added: Vec<_> = board.pieces().filter(|&(sq, piece)| {
-            Some(piece) != self.board.piece_at(sq)
+            self.figurine_at(sq).map_or(true, |f| f.piece != piece)
         }).collect();
 
         for figurine in &mut self.figurines {
@@ -131,12 +129,10 @@ impl Pieces {
                 dragging: false,
             });
         }
-
-        self.board = board.clone();
     }
 
     pub fn occupied(&self) -> Bitboard {
-        self.board.occupied()
+        self.figurines.iter().filter(|f| !f.fading).map(|f| f.square).collect()
     }
 
     pub fn figurine_at(&self, square: Square) -> Option<&Figurine> {
