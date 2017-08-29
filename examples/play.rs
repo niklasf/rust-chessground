@@ -33,29 +33,41 @@ pub enum Msg {
 
 #[derive(Default)]
 pub struct Model {
-    moves: Vec<Move>,
+    stack: Vec<Move>,
+    switchyard: Vec<Move>,
     position: Chess,
 }
 
 impl Model {
     fn push(&mut self, m: &Move) {
         self.position.play_unchecked(m);
-        self.moves.push(m.clone());
+        self.stack.push(m.clone());
+        self.switchyard.clear();
     }
 
-    fn pop(&mut self) {
-        self.moves.pop();
+    fn undo(&mut self) {
+        self.stack.pop().map(|m| self.switchyard.push(m));
+        self.replay();
+    }
 
+    fn redo(&mut self) {
+        self.switchyard.pop().map(|m| {
+            self.position.play_unchecked(&m);
+            self.stack.push(m);
+        });
+    }
+
+    fn replay(&mut self) {
         // replay
         self.position = Chess::default();
-        for m in &self.moves {
+        for m in &self.stack {
             self.position.play_unchecked(m);
         }
     }
 
     fn pos(&self) -> Pos {
         let mut pos = Pos::new(&self.position);
-        pos.set_last_move(self.moves.iter().last());
+        pos.set_last_move(self.stack.iter().last());
         pos
     }
 }
@@ -84,12 +96,12 @@ impl Widget for Win {
                     return;
                 };
 
-                if !self.model.position.is_game_over() {
+                /* if !self.model.position.is_game_over() {
                     // respond with a random move
                     let legals = self.model.position.legals();
                     let random_index = Range::new(0, legals.len()).ind_sample(&mut rand::thread_rng());
                     self.model.push(&legals[random_index]);
-                }
+                } */
 
                 self.ground.emit(SetPos(self.model.pos()));
             },
@@ -97,7 +109,11 @@ impl Widget for Win {
                 self.ground.emit(Flip)
             },
             KeyPressed(key) if key == 'j' as Key => {
-                self.model.pop();
+                self.model.undo();
+                self.ground.emit(SetPos(self.model.pos()));
+            },
+            KeyPressed(key) if key == 'k' as Key => {
+                self.model.redo();
                 self.ground.emit(SetPos(self.model.pos()));
             },
             KeyPressed(_) => {},
