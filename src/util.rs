@@ -25,9 +25,13 @@ pub fn fmax(a: f64, b: f64) -> f64 {
 }
 
 pub fn ease(start: f64, end: f64, t: f64) -> f64 {
-    // ease out cubic from https://gist.github.com/gre/1650294
+    // ease in out cubic from https://gist.github.com/gre/1650294
     let t = fmax(0.0, fmin(1.0, t));
-    let ease = (t - 1.0) * (t - 1.0) * (t - 1.0) + 1.0;
+    let ease = if t < 0.5 {
+        4.0 * t * t * t
+    } else {
+        (t - 1.0) * (2.0 * t - 2.0) * (2.0 * t - 2.0) + 1.0
+    };
     start + (end - start) * ease
 }
 
