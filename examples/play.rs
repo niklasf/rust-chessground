@@ -104,18 +104,18 @@ impl Widget for Win {
 
                 if let Some(m) = m {
                     self.model.push(m);
-                } else {
-                    return;
-                };
-
-                /* if !self.model.position.is_game_over() {
-                    // respond with a random move
+                    self.ground.emit(SetPos(self.model.pos()));
+                }
+            },
+            KeyPressed(key) if key == ' ' as Key => {
+                // play a random move
+                if !self.model.position.is_game_over() {
                     let legals = self.model.position.legals();
-                    let random_index = Range::new(0, legals.len()).ind_sample(&mut rand::thread_rng());
+                    let rng = &mut rand::thread_rng();
+                    let random_index = Range::new(0, legals.len()).ind_sample(rng);
                     self.model.push(&legals[random_index]);
-                } */
-
-                self.ground.emit(SetPos(self.model.pos()));
+                    self.ground.emit(SetPos(self.model.pos()));
+                }
             },
             KeyPressed(key) if key == 'f' as Key => {
                 self.ground.emit(Flip)
