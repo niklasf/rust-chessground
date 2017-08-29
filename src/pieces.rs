@@ -27,7 +27,7 @@ use rsvg::HandleExt;
 
 use shakmaty::{Square, Piece, Bitboard, Board};
 
-use util::{fmin, fmax, ease, pos_to_square, square_to_pos};
+use util::{ease, pos_to_square, square_to_pos};
 use promotable::Promotable;
 use boardstate::BoardState;
 use ground::{GroundMsg, EventContext, WidgetContext};
@@ -410,20 +410,12 @@ impl Figurine {
     }
 
     fn queue_animation(&self, ctx: &WidgetContext) {
-        if self.is_animating(ctx.now()) {
+        if self.is_animating(ctx.last_render()) {
+            let pos = self.pos(ctx.last_render());
+            ctx.queue_draw_rect(pos.0 - 0.5, pos.1 - 0.5, 1.0, 1.0);
+
             let pos = self.pos(ctx.now());
-
-            let (x1, y1) = (pos.0 - 0.5, pos.1 - 0.5);
-            let (x2, y2) = (pos.0 + 0.5, pos.1 + 0.5);
-            let (x3, y3) = (self.square.file() as f64, 7.0 - self.square.rank() as f64);
-            let (x4, y4) = (1.0 + self.square.file() as f64, 8.0 - self.square.rank() as f64);
-
-            let xmin = fmin(fmin(x1, x2), fmin(x3, x4));
-            let xmax = fmax(fmax(x1, x2), fmax(x3, x4));
-            let ymin = fmin(fmin(y1, y2), fmin(y3, y4));
-            let ymax = fmax(fmax(y1, y2), fmax(y3, y4));
-
-            ctx.queue_draw_rect(xmin, ymin, xmax - xmin, ymax - ymin);
+            ctx.queue_draw_rect(pos.0 - 0.5, pos.1 - 0.5, 1.0, 1.0);
         }
     }
 
