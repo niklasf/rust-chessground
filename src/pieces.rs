@@ -37,24 +37,26 @@ const ANIMATE_DURATION: f64 = 0.2;
 pub struct Pieces {
     figurines: Vec<Figurine>,
     selected: Option<Square>,
-    drag_start: Option<DragStart>,
+    drag: Option<Drag>,
     past: SteadyTime,
 }
 
-struct DragStart {
-    pos: (f64, f64),
+struct Drag {
     square: Square,
+    piece: Piece,
+    start: (f64, f64),
+    pos: (f64, f64),
 }
 
 pub struct Figurine {
     square: Square,
     piece: Piece,
-    pos: (f64, f64),
+    start: (f64, f64),
+    elapsed: f64,
     time: SteadyTime,
     last_drag: SteadyTime,
     fading: bool,
     replaced: bool,
-    dragging: bool,
 }
 
 impl Pieces {
