@@ -14,7 +14,7 @@ extern crate rand;
 
 use rand::distributions::{Range, IndependentSample};
 
-use gdk::enums::key::Key;
+use gdk::ScrollDirection;
 use gtk::prelude::*;
 use relm::Widget;
 use relm_attributes::widget;
@@ -28,7 +28,8 @@ use self::Msg::*;
 pub enum Msg {
     Quit,
     MovePlayed(Square, Square, Option<Role>),
-    KeyPressed(Key),
+    KeyPressed(u8),
+    Scroll(ScrollDirection),
 }
 
 #[derive(Default)]
@@ -107,7 +108,7 @@ impl Widget for Win {
                     self.ground.emit(SetPos(self.model.pos()));
                 }
             },
-            KeyPressed(key) if key == ' ' as Key => {
+            KeyPressed(b' ') => {
                 // play a random move
                 if !self.model.position.is_game_over() {
                     let legals = self.model.position.legals();
@@ -117,26 +118,26 @@ impl Widget for Win {
                     self.ground.emit(SetPos(self.model.pos()));
                 }
             },
-            KeyPressed(key) if key == 'f' as Key => {
+            KeyPressed(b'f') => {
                 self.ground.emit(Flip)
             },
-            KeyPressed(key) if key == 'j' as Key => {
+            KeyPressed(b'j') | Scroll(ScrollDirection::Down) => {
                 self.model.undo();
                 self.ground.emit(SetPos(self.model.pos()));
             },
-            KeyPressed(key) if key == 'k' as Key => {
+            KeyPressed(b'k') | Scroll(ScrollDirection::Up) => {
                 self.model.redo();
                 self.ground.emit(SetPos(self.model.pos()));
             },
-            KeyPressed(key) if key == 'h' as Key => {
+            KeyPressed(b'h') => {
                 self.model.undo_all();
                 self.ground.emit(SetPos(self.model.pos()));
             },
-            KeyPressed(key) if key == 'l' as Key => {
+            KeyPressed(b'l') => {
                 self.model.redo_all();
                 self.ground.emit(SetPos(self.model.pos()));
             },
-            KeyPressed(_) => {},
+            _ => {},
         }
     }
 
@@ -146,9 +147,10 @@ impl Widget for Win {
                 #[name="ground"]
                 Ground {
                     UserMove(orig, dest, promotion) => MovePlayed(orig, dest, promotion),
+                    scroll_event(_, e) => (Scroll(e.get_direction()), Inhibit(false)),
                 },
             },
-            key_press_event(_, e) => (KeyPressed(e.get_keyval()), Inhibit(false)),
+            key_press_event(_, e) => (KeyPressed(e.get_keyval() as u8), Inhibit(false)),
             delete_event(_, _) => (Quit, Inhibit(false)),
         }
     }

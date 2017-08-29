@@ -204,7 +204,8 @@ impl Widget for Ground {
 
         drawing_area.add_events((gdk::BUTTON_PRESS_MASK |
                                  gdk::BUTTON_RELEASE_MASK |
-                                 gdk::POINTER_MOTION_MASK).bits() as i32);
+                                 gdk::POINTER_MOTION_MASK |
+                                 gdk::SCROLL_MASK).bits() as i32);
 
         {
             // draw
