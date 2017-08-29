@@ -109,7 +109,7 @@ impl Pieces {
 
         // try to match additions and removals
         let mut matched = Vec::new();
-        added.retain(|&(square, piece)| {
+        /* added.retain(|&(square, piece)| {
             let best = removed
                 .filter(|sq| self.board.by_piece(piece).contains(*sq))
                 .min_by_key(|sq| sq.distance(square));
@@ -121,7 +121,7 @@ impl Pieces {
             } else {
                 true
             }
-        });
+        }); */
 
         for square in removed {
             for figurine in &mut self.figurines {
@@ -153,6 +153,14 @@ impl Pieces {
         }
 
         self.board = board.clone();
+
+        // check for consistency
+        for figurine in &self.figurines {
+            assert!(figurine.fading || self.board.piece_at(figurine.square) == Some(figurine.piece));
+        }
+        for (square, piece) in self.board.pieces() {
+            assert!(self.figurine_at_mut(square).expect("found").piece == piece);
+        }
     }
 
     pub fn occupied(&self) -> Bitboard {
