@@ -16,8 +16,10 @@ gdk = "0.6.0"
 cairo-rs = "0.2.0"
 rsvg = "0.2.0"
 time = "0.1"
-rand = "0.3"
 relm = "0.10"
 relm-derive = "0.10"
-relm-attributes = "0.10"
 shakmaty = "0.0.7"
+
+[dev-dependencies]
+rand = "0.3"
+relm-attributes = "0.10"
