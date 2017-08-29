@@ -21,6 +21,7 @@ use option_filter::OptionFilterExt;
 use time::SteadyTime;
 
 use gdk::EventButton;
+use cairo::prelude::*;
 use cairo::Context;
 use rsvg::HandleExt;
 
@@ -206,10 +207,13 @@ impl Pieces {
     }
 
     pub(crate) fn drag_mouse_move(&mut self, ctx: &EventContext) {
-        let dragging = if let Some(ref drag_start) = self.drag_start {
+        let dragging = if let Some(ref start) = self.drag_start {
             let pos = ctx.pos();
-            let drag_distance = (drag_start.pos.0 - pos.0).hypot(drag_start.pos.1 - pos.1);
-            Some(drag_start.square).filter(|_| drag_distance >= 0.1)
+            let (dx, dy) = (start.pos.0 - pos.0, start.pos.1 - pos.1);
+            let (pdx, pdy) = ctx.widget().matrix().transform_distance(dx, dy);
+            Some(start.square).filter(|_| {
+                dx.hypot(dy) >= 0.1 || pdx.hypot(pdy) >= 4.0
+            })
         } else {
             None
         };
