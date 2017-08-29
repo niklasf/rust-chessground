@@ -27,12 +27,10 @@ use rsvg::HandleExt;
 
 use shakmaty::{Square, Piece, Bitboard, Board};
 
-use util::{ease, pos_to_square, square_to_pos};
+use util::{fmin, ease, pos_to_square, square_to_pos};
 use promotable::Promotable;
 use boardstate::BoardState;
 use ground::{GroundMsg, EventContext, WidgetContext};
-
-const ANIMATE_DURATION: f64 = 0.2;
 
 pub struct Pieces {
     figurines: Vec<Figurine>,
@@ -46,6 +44,7 @@ struct Drag {
     piece: Piece,
     start: (f64, f64),
     pos: (f64, f64),
+    threshold: bool,
 }
 
 pub struct Figurine {
@@ -57,6 +56,7 @@ pub struct Figurine {
     last_drag: SteadyTime,
     fading: bool,
     replaced: bool,
+    dragging: bool,
 }
 
 impl Pieces {
@@ -69,12 +69,13 @@ impl Pieces {
 
         Pieces {
             selected: None,
-            drag_start: None,
+            drag: None,
             past: now,
             figurines: board.pieces().map(|(square, piece)| Figurine {
                 square,
                 piece,
-                pos: (0.5 + square.file() as f64, 7.5 - square.rank() as f64),
+                start: (0.5 + square.file() as f64, 7.5 - square.rank() as f64),
+                elapsed: 0.0,
                 time: now,
                 last_drag: now,
                 fading: false,
@@ -87,7 +88,7 @@ impl Pieces {
     pub fn set_board(&mut self, board: &Board) {
         // clean faded figurines
         let now = SteadyTime::now();
-        self.figurines.retain(|f| !f.fading || f.alpha(now) > 0.0001);
+        self.figurines.retain(|f| !f.fading || f.alpha() > 0.0001);
 
         // diff
         let mut added: Vec<_> = board.pieces().filter(|&(sq, piece)| {
@@ -99,12 +100,19 @@ impl Pieces {
                 continue;
             }
 
-            // checkpoint animation
-            figurine.pos = figurine.pos(now);
-            figurine.time = now;
-
             // figurine was removed from the square
             if !board.by_piece(figurine.piece).contains(figurine.square) {
+                // checkpoint animation
+                figurine.start = figurine.pos();
+                figurine.elapsed = 0.0;
+                figurine.time = now;
+
+                // cancel drag
+                if figurine.dragging {
+                    figurine.dragging = false;
+                    self.drag = None;
+                }
+
                 let best = added
                     .iter()
                     .filter(|&&(_, p)| p == figurine.piece)
@@ -114,18 +122,16 @@ impl Pieces {
                 if let Some(best) = best {
                     // found a close square it could have moved to
                     figurine.square = best;
-                    figurine.time = now;
                     added.retain(|&(sq, _)| sq != best);
 
                     // snap dragged figurine to square
                     if (now - figurine.last_drag).num_milliseconds() < 200 {
-                        figurine.pos = square_to_pos(figurine.square);
+                        figurine.start = square_to_pos(figurine.square);
                     }
                 } else {
                     // fade it out
                     figurine.fading = true;
                     figurine.replaced = board.occupied().contains(figurine.square);
-                    figurine.time = now;
                 }
             }
         }
@@ -135,7 +141,8 @@ impl Pieces {
             self.figurines.push(Figurine {
                 square: square,
                 piece: piece,
-                pos: (0.5 + square.file() as f64, 7.5 - square.rank() as f64),
+                start: (0.5 + square.file() as f64, 7.5 - square.rank() as f64),
+                elapsed: 0.0,
                 time: now,
                 last_drag: self.past,
                 fading: false,
@@ -157,16 +164,8 @@ impl Pieces {
         self.figurines.iter_mut().find(|f| !f.fading && f.square == square)
     }
 
-    pub fn dragging(&self) -> Option<&Figurine> {
-        self.figurines.iter().find(|f| f.dragging)
-    }
-
     pub fn dragging_mut(&mut self) -> Option<&mut Figurine> {
         self.figurines.iter_mut().find(|f| f.dragging)
-    }
-
-    pub fn is_animating(&self, now: SteadyTime) -> bool {
-        self.figurines.iter().any(|f| f.is_animating(now))
     }
 
     pub(crate) fn selection_mouse_down(&mut self, ctx: &EventContext, e: &EventButton) {
@@ -190,77 +189,56 @@ impl Pieces {
     pub(crate) fn drag_mouse_down(&mut self, ctx: &EventContext, e: &EventButton) {
         if e.get_button() == 1 {
             if let Some(square) = ctx.square() {
-                if self.occupied().contains(square) {
-                    self.drag_start = Some(DragStart {
-                        pos: ctx.pos(),
-                        square,
-                    });
-                }
+                let piece = if let Some(figurine) = self.figurine_at_mut(square) {
+                    figurine.dragging = true;
+                    figurine.piece
+                } else {
+                    return;
+                };
+
+                self.drag = Some(Drag {
+                    square,
+                    piece,
+                    start: ctx.pos(),
+                    pos: ctx.pos(),
+                    threshold: false,
+                });
             }
         }
     }
 
     pub(crate) fn drag_mouse_move(&mut self, ctx: &EventContext) {
-        let dragging = if let Some(ref start) = self.drag_start {
-            let pos = ctx.pos();
-            let (dx, dy) = (start.pos.0 - pos.0, start.pos.1 - pos.1);
-            let (pdx, pdy) = ctx.widget().matrix().transform_distance(dx, dy);
-            Some(start.square).filter(|_| {
-                dx.hypot(dy) >= 0.1 || pdx.hypot(pdy) >= 4.0
-            })
-        } else {
-            None
-        };
+        if let Some(ref mut drag) = self.drag {
+            ctx.widget().queue_draw_rect(drag.start.0 - 0.5, drag.start.1 - 0.5, 1.0, 1.0);
+            ctx.widget().queue_draw_rect(drag.pos.0 - 0.5, drag.pos.1 - 0.5, 1.0, 1.0);
+            drag.pos = ctx.pos();
+            ctx.widget().queue_draw_rect(drag.pos.0 - 0.5, drag.pos.1 - 0.5, 1.0, 1.0);
 
-        if let Some(square) = dragging {
-            // mark figurine as beeing dragged to show the shadow
-            if let Some(figurine) = self.figurine_at_mut(square) {
-                figurine.dragging = true;
-            }
+            let (dx, dy) = (drag.start.0 - drag.pos.0, drag.start.1 - drag.pos.1);
+            let (pdx, pdy) = ctx.widget().matrix().transform_distance(dx, dy);
+            drag.threshold |= dx.hypot(dy) >= 0.1 || pdx.hypot(pdy) >= 4.0;
 
             // ensure orig square is selected
-            if self.selected != dragging {
-                self.selected = dragging;
+            if drag.threshold && self.selected != Some(drag.square) {
+                self.selected = Some(drag.square);
                 ctx.widget().queue_draw();
-            }
-        }
-
-        if let Some(dragging) = self.dragging_mut() {
-            // invalidate previous
-            ctx.widget().queue_draw_rect(dragging.pos.0 - 0.5, dragging.pos.1 - 0.5, 1.0, 1.0);
-            ctx.widget().queue_draw_square(dragging.square);
-            if let Some(sq) = pos_to_square(dragging.pos) {
-                ctx.widget().queue_draw_square(sq);
-            }
-
-            // update position
-            dragging.pos = ctx.pos();
-            dragging.time = SteadyTime::now();
-
-            // invalidate new
-            ctx.widget().queue_draw_rect(dragging.pos.0 - 0.5, dragging.pos.1 - 0.5, 1.0, 1.0);
-            if let Some(sq) = ctx.square() {
-                ctx.widget().queue_draw_square(sq);
             }
         }
     }
 
     pub(crate) fn drag_mouse_up(&mut self, ctx: &EventContext) {
-        self.drag_start = None;
-
-        let (orig, dest) = if let Some(dragging) = self.dragging_mut() {
+        let (orig, dest) = if let Some(drag) = self.drag.take() {
             ctx.widget().queue_draw();
 
-            let dest = ctx.square().unwrap_or(dragging.square);
+            if let Some(ref mut figurine) = self.dragging_mut() {
+                figurine.last_drag = SteadyTime::now();
+                figurine.dragging = false;
+            }
 
-            let now = SteadyTime::now();
-            dragging.time = now;
-            dragging.last_drag = now;
-            dragging.pos = square_to_pos(dragging.square);
-            dragging.dragging = false;
+            let dest = ctx.square().unwrap_or(drag.square);
 
-            if dragging.square != dest && !dragging.fading {
-                (dragging.square, dest)
+            if drag.square != dest {
+                (drag.square, dest)
             } else {
                 return;
             }
@@ -275,31 +253,31 @@ impl Pieces {
         }
     }
 
-    pub(crate) fn queue_animation(&self, ctx: &WidgetContext) {
-        for figurine in &self.figurines {
+    pub(crate) fn queue_animation(&mut self, ctx: &WidgetContext) {
+        for figurine in &mut self.figurines {
             figurine.queue_animation(ctx);
         }
     }
 
-    pub(crate) fn draw(&self, cr: &Context, now: SteadyTime, state: &BoardState, promotable: &Promotable) {
+    pub(crate) fn draw(&self, cr: &Context, state: &BoardState, promotable: &Promotable) {
         self.draw_selection(cr, state);
         self.draw_move_hints(cr, state);
 
         for figurine in &self.figurines {
             if figurine.fading {
-                figurine.draw(cr, now, state, promotable);
+                figurine.draw(cr, state, promotable);
             }
         }
 
         for figurine in &self.figurines {
-            if !figurine.fading && !figurine.is_animating(now) {
-                figurine.draw(cr, now, state, promotable);
+            if !figurine.fading && figurine.elapsed >= 1.0 {
+                figurine.draw(cr, state, promotable);
             }
         }
 
         for figurine in &self.figurines {
-            if !figurine.fading && figurine.is_animating(now) {
-                figurine.draw(cr, now, state, promotable);
+            if !figurine.fading && figurine.elapsed < 1.0 {
+                figurine.draw(cr, state, promotable);
             }
         }
     }
@@ -310,7 +288,7 @@ impl Pieces {
             cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
             cr.fill();
 
-            if let Some(hovered) = self.dragging().and_then(|d| pos_to_square(d.pos)) {
+            if let Some(hovered) = self.drag.as_ref().and_then(|d| pos_to_square(d.pos)) {
                 if state.valid_move(selected, hovered) {
                     cr.rectangle(hovered.file() as f64, 7.0 - hovered.rank() as f64, 1.0, 1.0);
                     cr.set_source_rgba(0.08, 0.47, 0.11, 0.25);
@@ -362,79 +340,61 @@ impl Pieces {
         }
     }
 
-    pub(crate) fn draw_drag(&self, cr: &Context, now: SteadyTime, state: &BoardState) {
-        if let Some(dragging) = self.dragging() {
-            cr.push_group();
-            cr.translate(dragging.pos.0, dragging.pos.1);
-            cr.rotate(state.orientation().fold(0.0, PI));
-            cr.translate(-0.5, -0.5);
-            cr.scale(state.piece_set().scale(), state.piece_set().scale());
-            state.piece_set().by_piece(&dragging.piece).render_cairo(cr);
-            cr.pop_group_to_source();
-            cr.paint_with_alpha(dragging.drag_alpha(now));
+    pub(crate) fn draw_drag(&self, cr: &Context, state: &BoardState) {
+        match self.drag {
+            Some(ref drag) if drag.threshold => {
+                cr.push_group();
+                cr.translate(drag.pos.0, drag.pos.1);
+                cr.rotate(state.orientation().fold(0.0, PI));
+                cr.translate(-0.5, -0.5);
+                cr.scale(state.piece_set().scale(), state.piece_set().scale());
+                state.piece_set().by_piece(&drag.piece).render_cairo(cr);
+                cr.pop_group_to_source();
+                cr.paint();
+            }
+            _ => {}
         }
     }
 }
 
 impl Figurine {
     pub fn set_pos(&mut self, pos: (f64, f64)) {
-        self.pos = pos;
+        self.start = pos;
         self.time = SteadyTime::now();
+        self.elapsed = 0.0;
     }
 
-    fn pos(&self, now: SteadyTime) -> (f64, f64) {
+    fn pos(&self) -> (f64, f64) {
         let end = square_to_pos(self.square);
+        (ease(self.start.0, end.0, self.elapsed), ease(self.start.1, end.1, self.elapsed))
+    }
+
+    fn alpha(&self) -> f64 {
         if self.dragging {
-            end
+            0.2
+        } else if self.replaced {
+            ease(0.5, 0.0, self.elapsed)
         } else if self.fading {
-            self.pos
+            ease(1.0, 0.0, self.elapsed)
         } else {
-            (ease(self.pos.0, end.0, self.elapsed(now) / ANIMATE_DURATION),
-             ease(self.pos.1, end.1, self.elapsed(now) / ANIMATE_DURATION))
+            1.0
         }
     }
 
-    fn alpha(&self, now: SteadyTime) -> f64 {
-        if self.dragging {
-            0.2 * self.alpha_easing(1.0, now)
-        } else {
-            self.drag_alpha(now)
-        }
-    }
-
-    pub fn drag_alpha(&self, now: SteadyTime) -> f64 {
-        let base = if self.fading && self.replaced { 0.5 } else { 1.0 };
-        self.alpha_easing(base, now)
-    }
-
-    fn alpha_easing(&self, base: f64, now: SteadyTime) -> f64 {
-        if self.fading {
-            base * ease(1.0, 0.0, self.elapsed(now) / ANIMATE_DURATION)
-        } else {
-            base
-        }
-    }
-
-    fn elapsed(&self, now: SteadyTime) -> f64 {
-        (now - self.time).num_milliseconds() as f64 / 1000.0
-    }
-
-    fn is_animating(&self, now: SteadyTime) -> bool {
-        !self.dragging && self.elapsed(now) <= ANIMATE_DURATION &&
-        (self.fading || self.pos != square_to_pos(self.square))
-    }
-
-    fn queue_animation(&self, ctx: &WidgetContext) {
-        if self.is_animating(ctx.last_render()) {
-            let pos = self.pos(ctx.last_render());
+    fn queue_animation(&mut self, ctx: &WidgetContext) {
+        if self.elapsed < 1.0 {
+            let pos = self.pos();
             ctx.queue_draw_rect(pos.0 - 0.5, pos.1 - 0.5, 1.0, 1.0);
 
-            let pos = self.pos(ctx.now());
+            let now = SteadyTime::now();
+            self.elapsed = fmin(1.0, (now - self.time).num_milliseconds() as f64 / 200.0);
+
+            let pos = self.pos();
             ctx.queue_draw_rect(pos.0 - 0.5, pos.1 - 0.5, 1.0, 1.0);
         }
     }
 
-    fn draw(&self, cr: &Context, now: SteadyTime, board_state: &BoardState, promotable: &Promotable) {
+    fn draw(&self, cr: &Context, board_state: &BoardState, promotable: &Promotable) {
         // hide piece while promotion dialog is open
         if promotable.is_promoting(self.square) {
             return;
@@ -442,7 +402,7 @@ impl Figurine {
 
         cr.push_group();
 
-        let (x, y) = self.pos(now);
+        let (x, y) = self.pos();
         cr.translate(x, y);
         cr.rotate(board_state.orientation().fold(0.0, PI));
         cr.translate(-0.5, -0.5);
@@ -451,6 +411,7 @@ impl Figurine {
         board_state.piece_set().by_piece(&self.piece).render_cairo(cr);
 
         cr.pop_group_to_source();
-        cr.paint_with_alpha(self.alpha(now));
+
+        cr.paint_with_alpha(self.alpha());
     }
 }

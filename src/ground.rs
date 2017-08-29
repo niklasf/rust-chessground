@@ -21,8 +21,6 @@ use std::cmp::{min, max};
 
 use option_filter::OptionFilterExt;
 
-use time::SteadyTime;
-
 use gtk;
 use gtk::prelude::*;
 use gtk::DrawingArea;
@@ -212,7 +210,7 @@ impl Widget for Ground {
             let weak_state = Rc::downgrade(&model.state);
             drawing_area.connect_draw(move |widget, cr| {
                 if let Some(state) = weak_state.upgrade() {
-                    let mut state = state.borrow_mut();
+                    let state = state.borrow();
                     state.draw(widget, cr);
 
                     // queue next draw for animation
@@ -284,8 +282,6 @@ struct State {
     drawable: Drawable,
     promotable: Promotable,
     pieces: Pieces,
-    last_render: SteadyTime,
-    now: SteadyTime,
 }
 
 impl State {
@@ -295,51 +291,42 @@ impl State {
             drawable: Drawable::new(),
             promotable: Promotable::new(),
             pieces: Pieces::new(),
-            last_render: SteadyTime::now(),
-            now: SteadyTime::now(),
         }
     }
 
     fn queue_animation(&mut self, drawing_area: &DrawingArea) {
-        self.now = SteadyTime::now();
-        let ctx = WidgetContext::new(&self.board_state, drawing_area, self.last_render, self.now);
+        let ctx = WidgetContext::new(&self.board_state, drawing_area);
         self.pieces.queue_animation(&ctx);
         self.promotable.queue_animation(&ctx);
     }
 
-    fn draw(&mut self, drawing_area: &DrawingArea, cr: &Context) {
-        let ctx = WidgetContext::new(&self.board_state, drawing_area, self.last_render, self.now);
+    fn draw(&self, drawing_area: &DrawingArea, cr: &Context) {
+        let ctx = WidgetContext::new(&self.board_state, drawing_area);
         cr.set_matrix(ctx.matrix());
 
         // draw
         self.board_state.draw(cr);
-        self.pieces.draw(cr, self.now, &self.board_state, &self.promotable);
+        self.pieces.draw(cr, &self.board_state, &self.promotable);
         self.drawable.draw(cr);
-        self.pieces.draw_drag(cr, self.now, &self.board_state);
+        self.pieces.draw_drag(cr, &self.board_state);
         self.promotable.draw(cr, &self.board_state);
-
-        self.last_render = self.now;
     }
 
     fn button_release_event(&mut self, stream: &Stream, drawing_area: &DrawingArea, e: &EventButton) {
-        let ctx = EventContext::new(&self.board_state, stream, drawing_area, e.get_position(),
-                                    self.last_render, self.now);
-
+        let ctx = EventContext::new(&self.board_state, stream, drawing_area, e.get_position());
         self.pieces.drag_mouse_up(&ctx);
         self.drawable.mouse_up(&ctx);
     }
 
     fn motion_notify_event(&mut self, stream: &Stream, drawing_area: &DrawingArea, e: &EventMotion) {
-        let ctx = EventContext::new(&self.board_state, stream, drawing_area, e.get_position(),
-                                    self.last_render, self.now);
+        let ctx = EventContext::new(&self.board_state, stream, drawing_area, e.get_position());
         self.promotable.mouse_move(&ctx);
         self.pieces.drag_mouse_move(&ctx);
         self.drawable.mouse_move(&ctx);
     }
 
     fn button_press_event(&mut self, stream: &Stream, drawing_area: &DrawingArea, e: &EventButton) {
-        let ctx = EventContext::new(&self.board_state, stream, drawing_area, e.get_position(),
-                                    self.last_render, self.now);
+        let ctx = EventContext::new(&self.board_state, stream, drawing_area, e.get_position());
         let promotable = &mut self.promotable;
         let pieces = &mut self.pieces;
 
@@ -354,15 +341,10 @@ impl State {
 pub(crate) struct WidgetContext<'a> {
     matrix: Matrix,
     drawing_area: &'a DrawingArea,
-    last_render: SteadyTime,
-    now: SteadyTime,
 }
 
 impl<'a> WidgetContext<'a> {
-    fn new(board_state: &'a BoardState,
-           drawing_area: &'a DrawingArea,
-           last_render: SteadyTime,
-           now: SteadyTime) -> WidgetContext<'a>
+    fn new(board_state: &'a BoardState, drawing_area: &'a DrawingArea) -> WidgetContext<'a>
     {
         let w = drawing_area.get_allocated_width();
         let h = drawing_area.get_allocated_height();
@@ -375,12 +357,7 @@ impl<'a> WidgetContext<'a> {
         matrix.rotate(board_state.orientation().fold(0.0, PI));
         matrix.translate(-4.0, -4.0);
 
-        WidgetContext {
-            matrix,
-            drawing_area,
-            last_render,
-            now
-        }
+        WidgetContext { matrix, drawing_area }
     }
 
     fn invert_pos(&self, (x, y): (f64, f64)) -> (f64, f64) {
@@ -413,14 +390,6 @@ impl<'a> WidgetContext<'a> {
 
         self.drawing_area.queue_draw_area(xmin, ymin, xmax - xmin, ymax - ymin);
     }
-
-    pub fn now(&self) -> SteadyTime {
-        self.now
-    }
-
-    pub fn last_render(&self) -> SteadyTime {
-        self.last_render
-    }
 }
 
 pub(crate) struct EventContext<'a> {
@@ -434,11 +403,9 @@ impl<'a> EventContext<'a> {
     fn new(board_state: &'a BoardState,
            stream: &'a Stream,
            drawing_area: &'a DrawingArea,
-           pos: (f64, f64),
-           last_render: SteadyTime,
-           now: SteadyTime) -> EventContext<'a>
+           pos: (f64, f64)) -> EventContext<'a>
     {
-        let widget = WidgetContext::new(board_state, drawing_area, last_render, now);
+        let widget = WidgetContext::new(board_state, drawing_area);
         let pos = widget.invert_pos(pos);
         let square = pos_to_square(pos);
 
