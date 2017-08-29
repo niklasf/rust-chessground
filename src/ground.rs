@@ -473,8 +473,4 @@ impl<'a> EventContext<'a> {
     pub fn square(&self) -> Option<Square> {
         self.square
     }
-
-    pub fn now(&self) -> SteadyTime {
-        self.widget.now()
-    }
 }

@@ -38,6 +38,7 @@ pub struct Pieces {
     figurines: Vec<Figurine>,
     selected: Option<Square>,
     drag_start: Option<DragStart>,
+    past: SteadyTime,
 }
 
 struct DragStart {
@@ -50,6 +51,7 @@ pub struct Figurine {
     piece: Piece,
     pos: (f64, f64),
     time: SteadyTime,
+    last_drag: SteadyTime,
     fading: bool,
     replaced: bool,
     dragging: bool,
@@ -61,14 +63,18 @@ impl Pieces {
     }
 
     pub fn new_from_board(board: &Board) -> Pieces {
+        let now = SteadyTime::now();
+
         Pieces {
             selected: None,
             drag_start: None,
+            past: now,
             figurines: board.pieces().map(|(square, piece)| Figurine {
                 square,
                 piece,
                 pos: (0.5 + square.file() as f64, 7.5 - square.rank() as f64),
-                time: SteadyTime::now(),
+                time: now,
+                last_drag: now,
                 fading: false,
                 replaced: false,
                 dragging: false,
@@ -85,6 +91,18 @@ impl Pieces {
         let mut added: Vec<_> = board.pieces().filter(|&(sq, piece)| {
             self.figurine_at(sq).map_or(true, |f| f.piece != piece)
         }).collect();
+
+        // snap dragged figurines to square
+        for figurine in &mut self.figurines {
+            println!("delta: {:?}", (now - figurine.last_drag).num_milliseconds());
+            if (now - figurine.last_drag).num_milliseconds() < 200 {
+                println!("snap");
+                if let Some(square) = pos_to_square(figurine.pos) {
+                    figurine.pos = square_to_pos(square);
+                    figurine.time = now;
+                }
+            }
+        }
 
         for figurine in &mut self.figurines {
             if figurine.fading {
@@ -124,6 +142,7 @@ impl Pieces {
                 piece: piece,
                 pos: (0.5 + square.file() as f64, 7.5 - square.rank() as f64),
                 time: now,
+                last_drag: self.past,
                 fading: false,
                 replaced: false,
                 dragging: false,
@@ -221,7 +240,7 @@ impl Pieces {
 
             // update position
             dragging.pos = ctx.pos();
-            dragging.time = ctx.now();
+            dragging.time = SteadyTime::now();
 
             // invalidate new
             ctx.widget().queue_draw_rect(dragging.pos.0 - 0.5, dragging.pos.1 - 0.5, 1.0, 1.0);
@@ -239,9 +258,10 @@ impl Pieces {
 
             let dest = ctx.square().unwrap_or(dragging.square);
 
-            // snap to square
-            dragging.pos = square_to_pos(dest);
-            dragging.time = ctx.now();
+            let now = SteadyTime::now();
+            dragging.time = now;
+            dragging.last_drag = now;
+            dragging.pos = ctx.pos();
             dragging.dragging = false;
 
             if dragging.square != dest && !dragging.fading {
