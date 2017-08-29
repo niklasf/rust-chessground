@@ -79,51 +79,48 @@ impl Pieces {
     }
 
     pub fn set_board(&mut self, board: &Board) {
-        println!("----");
-
+        // clean faded figurines
         let now = SteadyTime::now();
-
-        // clean and checkpoint animation
         self.figurines.retain(|f| !f.fading || f.alpha(now) > 0.0001);
 
-        for figurine in &mut self.figurines {
-            if !figurine.fading {
-                figurine.pos = figurine.pos(now);
-                figurine.time = now;
-            }
-        }
-
+        // diff
         let mut added: Vec<_> = board.pieces().filter(|&(sq, piece)| {
             Some(piece) != self.board.piece_at(sq)
         }).collect();
 
-        for f in &mut self.figurines {
-            if f.fading || board.by_piece(f.piece).contains(f.square) {
+        for figurine in &mut self.figurines {
+            if figurine.fading {
                 continue;
             }
 
-            let best = added
-                .iter()
-                .filter(|&&(_, p)| p == f.piece)
-                .min_by_key(|&&(sq, _)| f.square.distance(sq))
-                .map(|&(sq, _)| sq);
+            // checkpoint animation
+            figurine.pos = figurine.pos(now);
+            figurine.time = now;
 
-            if let Some(best) = best {
-                println!("move {:?} to {:?}", f.square, best);
-                f.square = best;
-                f.time = now;
-                added.retain(|&(sq, _)| sq != best);
-            } else {
-                println!("removed {:?} at {:?}", f.piece, f.square);
-                f.fading = true;
-                f.replaced = board.occupied().contains(f.square);
-                f.time = now;
+            // figurine was removed from the square
+            if !board.by_piece(figurine.piece).contains(figurine.square) {
+                let best = added
+                    .iter()
+                    .filter(|&&(_, p)| p == figurine.piece)
+                    .min_by_key(|&&(sq, _)| figurine.square.distance(sq))
+                    .map(|&(sq, _)| sq);
+
+                if let Some(best) = best {
+                    // found a close square it could have moved to
+                    figurine.square = best;
+                    figurine.time = now;
+                    added.retain(|&(sq, _)| sq != best);
+                } else {
+                    // fade it out
+                    figurine.fading = true;
+                    figurine.replaced = board.occupied().contains(figurine.square);
+                    figurine.time = now;
+                }
             }
         }
 
+        // add new figurines
         for (square, piece) in added {
-            println!("added {:?} at {:?}", piece, square);
-            assert!(self.figurine_at(square).is_none());
             self.figurines.push(Figurine {
                 square: square,
                 piece: piece,
@@ -135,20 +132,7 @@ impl Pieces {
             });
         }
 
-        println!("before:\n{:?}", self.board);
         self.board = board.clone();
-        println!("after:\n{:?}", self.board);
-
-        // check for consistency
-        for (square, piece) in self.board.pieces() {
-            println!("sq: {:?}", square);
-            assert_eq!(self.figurine_at_mut(square).expect("found").piece, piece);
-        }
-        /*for figurine in &self.figurines {
-            if !figurine.fading {
-                assert_eq!(self.board.piece_at(figurine.square), Some(figurine.piece));
-            }
-        }*/
     }
 
     pub fn occupied(&self) -> Bitboard {
