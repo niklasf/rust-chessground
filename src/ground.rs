@@ -320,22 +320,11 @@ impl State {
         cr.set_matrix(ctx.matrix());
 
         // draw
-        println!("-------");
-        let now = SteadyTime::now();
         self.board_state.draw(cr);
-        println!("board state: {:?}", SteadyTime::now() - now);
-        let now = SteadyTime::now();
-        self.pieces.draw(cr, now, &self.board_state, &self.promotable);
-        println!("pieces: {:?}", SteadyTime::now() - now);
-        let now = SteadyTime::now();
+        self.pieces.draw(cr, self.now, &self.board_state, &self.promotable);
         self.drawable.draw(cr);
-        println!("drawable: {:?}", SteadyTime::now() - now);
-        let now = SteadyTime::now();
-        self.pieces.draw_drag(cr, now, &self.board_state);
-        println!("pieces: {:?}", SteadyTime::now() - now);
-        let now = SteadyTime::now();
-        self.promotable.draw(cr, now, &self.board_state);
-        println!("promotable: {:?}", SteadyTime::now() - now);
+        self.pieces.draw_drag(cr, self.now, &self.board_state);
+        self.promotable.draw(cr, self.now, &self.board_state);
 
         self.last_render = self.now;
     }
