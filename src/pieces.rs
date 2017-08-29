@@ -267,21 +267,45 @@ impl Pieces {
 
         for figurine in &self.figurines {
             if figurine.fading {
-                figurine.draw(cr, state, promotable);
+                self.draw_figurine(cr, figurine, state, promotable);
             }
         }
 
         for figurine in &self.figurines {
             if !figurine.fading && figurine.elapsed >= 1.0 {
-                figurine.draw(cr, state, promotable);
+                self.draw_figurine(cr, figurine, state, promotable);
             }
         }
 
         for figurine in &self.figurines {
             if !figurine.fading && figurine.elapsed < 1.0 {
-                figurine.draw(cr, state, promotable);
+                self.draw_figurine(cr, figurine, state, promotable);
             }
         }
+    }
+
+    fn draw_figurine(&self, cr: &Context, figurine: &Figurine, state: &BoardState, promotable: &Promotable) {
+        // hide piece while promotion dialog is open
+        if promotable.is_promoting(figurine.square) {
+            return;
+        }
+
+        // draw shadow when dragging
+        let dragging = self.drag.as_ref().map_or(false, |d| d.threshold && d.square == figurine.square);
+
+        cr.push_group();
+
+        let (x, y) = figurine.pos();
+        cr.translate(x, y);
+        cr.rotate(state.orientation().fold(0.0, PI));
+        cr.translate(-0.5, -0.5);
+        cr.scale(state.piece_set().scale(), state.piece_set().scale());
+
+        state.piece_set().by_piece(&figurine.piece).render_cairo(cr);
+
+        cr.pop_group_to_source();
+
+        cr.paint_with_alpha(if dragging { 0.2 } else { figurine.alpha() });
     }
 
     fn draw_selection(&self, cr: &Context, state: &BoardState) {
@@ -372,9 +396,7 @@ impl Figurine {
     }
 
     fn alpha(&self) -> f64 {
-        if self.dragging {
-            0.2
-        } else if self.replaced {
+        if self.replaced {
             ease(0.5, 0.0, self.elapsed)
         } else if self.fading {
             ease(1.0, 0.0, self.elapsed)
@@ -394,26 +416,5 @@ impl Figurine {
             let pos = self.pos();
             ctx.queue_draw_rect(pos.0 - 0.5, pos.1 - 0.5, 1.0, 1.0);
         }
-    }
-
-    fn draw(&self, cr: &Context, board_state: &BoardState, promotable: &Promotable) {
-        // hide piece while promotion dialog is open
-        if promotable.is_promoting(self.square) {
-            return;
-        }
-
-        cr.push_group();
-
-        let (x, y) = self.pos();
-        cr.translate(x, y);
-        cr.rotate(board_state.orientation().fold(0.0, PI));
-        cr.translate(-0.5, -0.5);
-        cr.scale(board_state.piece_set().scale(), board_state.piece_set().scale());
-
-        board_state.piece_set().by_piece(&self.piece).render_cairo(cr);
-
-        cr.pop_group_to_source();
-
-        cr.paint_with_alpha(self.alpha());
     }
 }
