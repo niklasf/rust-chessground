@@ -24,7 +24,7 @@ use rsvg::HandleExt;
 
 use shakmaty::{Square, Color, Role};
 
-use util::{ease, square_to_pos};
+use util::{fmin, ease, square_to_pos};
 use pieces::Pieces;
 use boardstate::BoardState;
 use ground::{WidgetContext, EventContext, GroundMsg};
@@ -36,8 +36,13 @@ pub struct Promotable {
 struct Promoting {
     orig: Square,
     dest: Square,
-    hover: Option<Square>,
-    time: SteadyTime,
+    hover: Option<Hover>,
+}
+
+struct Hover {
+    square: Square,
+    since: SteadyTime,
+    elapsed: f64,
 }
 
 impl Promotable {
@@ -51,8 +56,11 @@ impl Promotable {
         self.promoting = Some(Promoting {
             orig,
             dest,
-            hover: Some(dest),
-            time: SteadyTime::now(),
+            hover: Some(Hover {
+                square: dest,
+                since: SteadyTime::now(),
+                elapsed: 0.0,
+            }),
         });
     }
 
@@ -60,30 +68,28 @@ impl Promotable {
         self.promoting.as_ref().map_or(false, |p| p.orig == orig)
     }
 
-    pub fn is_animating(&self, now: SteadyTime) -> bool {
-        self.promoting.as_ref().map_or(false, |p| {
-            p.hover.is_some() && p.elapsed(now) < 1.0
-        })
-    }
+    pub(crate) fn queue_animation(&mut self, ctx: &WidgetContext) {
+        if let Some(Promoting { hover: Some(ref mut hover), .. }) = self.promoting {
+            if hover.elapsed < 1.0 {
+                ctx.queue_draw_square(hover.square);
+            }
 
-    pub(crate) fn queue_animation(&self, ctx: &WidgetContext) {
-        if let Some(Promoting { hover: Some(square), .. }) = self.promoting {
-            ctx.queue_draw_square(square);
+            hover.elapsed = fmin(1.0, (SteadyTime::now() - hover.since).num_milliseconds() as f64 / 1000.0);
         }
     }
 
     pub(crate) fn mouse_move(&mut self, ctx: &EventContext) {
-        self.queue_animation(ctx.widget());
-
         if let Some(ref mut promoting) = self.promoting {
-            if promoting.hover != ctx.square() {
-                promoting.hover = ctx.square();
-                promoting.time = SteadyTime::now();
-
+            let square = promoting.hover.as_ref().map(|h| h.square);
+            if ctx.square() != square {
+                square.map(|sq| ctx.widget().queue_draw_square(sq));
+                promoting.hover = ctx.square().map(|square| Hover {
+                    square,
+                    since: SteadyTime::now(),
+                    elapsed: 0.0,
+                });
             }
         }
-
-        self.queue_animation(ctx.widget());
     }
 
     pub(crate) fn mouse_down(&mut self, pieces: &mut Pieces, ctx: &EventContext) -> Inhibit {
@@ -120,21 +126,17 @@ impl Promotable {
         Inhibit(false)
     }
 
-    pub(crate) fn draw(&self, cr: &Context, now: SteadyTime, state: &BoardState) {
-        self.promoting.as_ref().map(|p| p.draw(cr, now, state));
+    pub(crate) fn draw(&self, cr: &Context, state: &BoardState) {
+        self.promoting.as_ref().map(|p| p.draw(cr, state));
     }
 }
 
 impl Promoting {
-    fn elapsed(&self, now: SteadyTime) -> f64 {
-        (now - self.time).num_milliseconds() as f64 / 1000.0
-    }
-
     fn orientation(&self) -> Color {
         Color::from_bool(self.dest.rank() > 4)
     }
 
-    fn draw(&self, cr: &Context, now: SteadyTime, state: &BoardState) {
+    fn draw(&self, cr: &Context, state: &BoardState) {
         // make the board darker
         cr.rectangle(0.0, 0.0, 8.0, 8.0);
         cr.set_source_rgba(0.0, 0.0, 0.0, 0.5);
@@ -162,14 +164,12 @@ impl Promoting {
 
             // draw piece
             let radius = match self.hover {
-                Some(hover) if hover.file() == self.dest.file() && hover.rank() == rank => {
-                    let elapsed = self.elapsed(now) / 0.5;
+                Some(ref hover) if hover.square.rank() == rank => {
+                    cr.set_source_rgb(ease(0.69, 1.0, hover.elapsed),
+                                      ease(0.69, 0.65, hover.elapsed),
+                                      ease(0.69, 0.0, hover.elapsed));
 
-                    cr.set_source_rgb(ease(0.69, 1.0, elapsed),
-                                      ease(0.69, 0.65, elapsed),
-                                      ease(0.69, 0.0, elapsed));
-
-                    ease(0.5, 0.5f64.hypot(0.5), elapsed)
+                    ease(0.5, 0.5f64.hypot(0.5), hover.elapsed)
                 },
                 _ => {
                     cr.set_source_rgb(0.69, 0.69, 0.69);

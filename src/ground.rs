@@ -213,20 +213,17 @@ impl Widget for Ground {
             drawing_area.connect_draw(move |widget, cr| {
                 if let Some(state) = weak_state.upgrade() {
                     let mut state = state.borrow_mut();
-                    let animating = state.is_animating();
                     state.draw(widget, cr);
 
                     // queue next draw for animation
                     let weak_state = weak_state.clone();
                     let widget = widget.clone();
-                    if animating {
-                        gtk::idle_add(move || {
-                            if let Some(state) = weak_state.upgrade() {
-                                state.borrow_mut().queue_animation(&widget);
-                            }
-                            Continue(false)
-                        });
-                    }
+                    gtk::idle_add(move || {
+                        if let Some(state) = weak_state.upgrade() {
+                            state.borrow_mut().queue_animation(&widget);
+                        }
+                        Continue(false)
+                    });
                 }
                 Inhibit(false)
             });
@@ -303,11 +300,6 @@ impl State {
         }
     }
 
-    fn is_animating(&self) -> bool {
-        self.promotable.is_animating(self.last_render) ||
-        self.pieces.is_animating(self.last_render)
-    }
-
     fn queue_animation(&mut self, drawing_area: &DrawingArea) {
         self.now = SteadyTime::now();
         let ctx = WidgetContext::new(&self.board_state, drawing_area, self.last_render, self.now);
@@ -324,7 +316,7 @@ impl State {
         self.pieces.draw(cr, self.now, &self.board_state, &self.promotable);
         self.drawable.draw(cr);
         self.pieces.draw_drag(cr, self.now, &self.board_state);
-        self.promotable.draw(cr, self.now, &self.board_state);
+        self.promotable.draw(cr, &self.board_state);
 
         self.last_render = self.now;
     }
