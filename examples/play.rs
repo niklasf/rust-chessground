@@ -50,11 +50,23 @@ impl Model {
         self.replay();
     }
 
+    fn undo_all(&mut self) {
+        while !self.stack.is_empty() {
+            self.undo();
+        }
+    }
+
     fn redo(&mut self) {
         self.switchyard.pop().map(|m| {
             self.position.play_unchecked(&m);
             self.stack.push(m);
         });
+    }
+
+    fn redo_all(&mut self) {
+        while !self.switchyard.is_empty() {
+            self.redo();
+        }
     }
 
     fn replay(&mut self) {
@@ -114,6 +126,14 @@ impl Widget for Win {
             },
             KeyPressed(key) if key == 'k' as Key => {
                 self.model.redo();
+                self.ground.emit(SetPos(self.model.pos()));
+            },
+            KeyPressed(key) if key == 'h' as Key => {
+                self.model.undo_all();
+                self.ground.emit(SetPos(self.model.pos()));
+            },
+            KeyPressed(key) if key == 'l' as Key => {
+                self.model.redo_all();
                 self.ground.emit(SetPos(self.model.pos()));
             },
             KeyPressed(_) => {},
