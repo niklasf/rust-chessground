@@ -1,5 +1,6 @@
 #![feature(proc_macro)]
 
+extern crate gdk;
 extern crate gtk;
 extern crate chessground;
 #[macro_use]
@@ -13,6 +14,7 @@ extern crate rand;
 
 use rand::distributions::{Range, IndependentSample};
 
+use gdk::enums::key::Key;
 use gtk::prelude::*;
 use relm::Widget;
 use relm_attributes::widget;
@@ -26,7 +28,7 @@ use self::Msg::*;
 pub enum Msg {
     Quit,
     MovePlayed(Square, Square, Option<Role>),
-    ToGround(GroundMsg),
+    KeyPressed(Key),
 }
 
 #[widget]
@@ -67,9 +69,10 @@ impl Widget for Win {
 
                 self.ground.emit(SetPos(Pos::new(&self.model).with_last_move(last_move)));
             },
-            ToGround(msg) => {
-                self.ground.emit(msg)
-            }
+            KeyPressed(key) if key == 'f' as Key => {
+                self.ground.emit(Flip)
+            },
+            KeyPressed(_) => {},
         }
     }
 
@@ -81,7 +84,7 @@ impl Widget for Win {
                     UserMove(orig, dest, promotion) => MovePlayed(orig, dest, promotion),
                 },
             },
-            key_press_event(_, key) => (ToGround(Flip), Inhibit(false)),
+            key_press_event(_, e) => (KeyPressed(e.get_keyval()), Inhibit(false)),
             delete_event(_, _) => (Quit, Inhibit(false)),
         }
     }
