@@ -6,7 +6,7 @@ rust-chessground
 A chessboard widget for [Relm/GTK](https://github.com/antoyo/relm).
 Inspired by [chessground.js](https://github.com/ornicar/chessground).
 
-![](/screenshot.png)
+![](https://github.com/niklasf/rust-chessground/blob/master/screenshot.png?raw=true)
 
 Features
 --------
