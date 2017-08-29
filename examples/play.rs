@@ -19,8 +19,8 @@ use gtk::prelude::*;
 use relm::Widget;
 use relm_attributes::widget;
 
-use shakmaty::{Square, Role, Chess, Position};
-use chessground::{Ground, GroundMsg, UserMove, SetPos, Pos, Flip};
+use shakmaty::{Square, Role, Move, Chess, Position};
+use chessground::{Ground, UserMove, SetPos, Pos, Flip};
 
 use self::Msg::*;
 
@@ -31,10 +31,39 @@ pub enum Msg {
     KeyPressed(Key),
 }
 
+#[derive(Default)]
+pub struct Model {
+    moves: Vec<Move>,
+    position: Chess,
+}
+
+impl Model {
+    fn push(&mut self, m: &Move) {
+        self.position.play_unchecked(m);
+        self.moves.push(m.clone());
+    }
+
+    fn pop(&mut self) {
+        self.moves.pop();
+
+        // replay
+        self.position = Chess::default();
+        for m in &self.moves {
+            self.position.play_unchecked(m);
+        }
+    }
+
+    fn pos(&self) -> Pos {
+        let mut pos = Pos::new(&self.position);
+        pos.set_last_move(self.moves.iter().last());
+        pos
+    }
+}
+
 #[widget]
 impl Widget for Win {
-    fn model() -> Chess {
-        Chess::default()
+    fn model() -> Model {
+        Model::default()
     }
 
     fn update(&mut self, event: Msg) {
@@ -43,34 +72,33 @@ impl Widget for Win {
                 gtk::main_quit()
             },
             MovePlayed(orig, dest, promotion) => {
-                let legals = self.model.legals();
+                let legals = self.model.position.legals();
                 let m = legals.iter().find(|m| {
                     m.from() == Some(orig) && m.to() == dest &&
                     m.promotion() == promotion
                 });
 
-                let last_move = if let Some(m) = m {
-                    self.model.play_unchecked(&m);
-                    m
+                if let Some(m) = m {
+                    self.model.push(m);
                 } else {
                     return;
                 };
 
-                let legals = self.model.legals();
-                let last_move = if !legals.is_empty() {
+                if !self.model.position.is_game_over() {
                     // respond with a random move
+                    let legals = self.model.position.legals();
                     let random_index = Range::new(0, legals.len()).ind_sample(&mut rand::thread_rng());
-                    let m = &legals[random_index];
-                    self.model.play_unchecked(m);
-                    m
-                } else {
-                    last_move
-                };
+                    self.model.push(&legals[random_index]);
+                }
 
-                self.ground.emit(SetPos(Pos::new(&self.model).with_last_move(last_move)));
+                self.ground.emit(SetPos(self.model.pos()));
             },
             KeyPressed(key) if key == 'f' as Key => {
                 self.ground.emit(Flip)
+            },
+            KeyPressed(key) if key == 'j' as Key => {
+                self.model.pop();
+                self.ground.emit(SetPos(self.model.pos()));
             },
             KeyPressed(_) => {},
         }
