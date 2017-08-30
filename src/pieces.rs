@@ -384,6 +384,10 @@ impl Pieces {
 }
 
 impl Figurine {
+    pub fn piece(&self) -> &Piece {
+        &self.piece
+    }
+
     pub fn set_pos(&mut self, pos: (f64, f64)) {
         self.start = pos;
         self.time = SteadyTime::now();

@@ -36,6 +36,7 @@ pub struct Promotable {
 }
 
 struct Promoting {
+    color: Color,
     orig: Square,
     dest: Square,
     hover: Option<Hover>,
@@ -54,8 +55,9 @@ impl Promotable {
         }
     }
 
-    pub fn start_promoting(&mut self, orig: Square, dest: Square) {
+    pub fn start_promoting(&mut self, color: Color, orig: Square, dest: Square) {
         self.promoting = Some(Promoting {
+            color,
             orig,
             dest,
             hover: Some(Hover {
@@ -109,15 +111,16 @@ impl Promotable {
 
             if let Some(square) = ctx.square() {
                 let side = promoting.orientation();
+                let base = promoting.dest.rank();
 
                 if square.file() == promoting.dest.file() {
                     let role = match square.rank() {
-                        r if r == side.fold(7, 0) => Some(Role::Queen),
-                        r if r == side.fold(6, 1) => Some(Role::Rook),
-                        r if r == side.fold(5, 2) => Some(Role::Bishop),
-                        r if r == side.fold(4, 3) => Some(Role::Knight),
-                        r if r == side.fold(3, 4) => Some(Role::King),
-                        r if r == side.fold(2, 5) => Some(Role::Pawn),
+                        r if r == base => Some(Role::Queen),
+                        r if r == base + side.fold(-1, 1) => Some(Role::Rook),
+                        r if r == base + side.fold(-2, 2) => Some(Role::Bishop),
+                        r if r == base + side.fold(-3, 3) => Some(Role::Knight),
+                        r if r == base + side.fold(-4, 4) => Some(Role::King),
+                        r if r == base + side.fold(-5, 5) => Some(Role::Pawn),
                         _ => None,
                     };
 
@@ -153,7 +156,7 @@ impl Promoting {
                 continue;
             }
 
-            let rank = self.orientation().fold(7 - offset as i8, offset as i8);
+            let rank = self.dest.rank() - self.orientation().fold(offset as i8, -(offset as i8));
             let light = (self.dest.file() + rank) & 1 == 1;
 
             cr.save();
@@ -188,9 +191,10 @@ impl Promoting {
 
             cr.translate(0.5 + self.dest.file() as f64, 7.5 - rank as f64);
             cr.scale(2f64.sqrt() * radius, 2f64.sqrt() * radius);
+            cr.rotate(state.orientation().fold(0.0, PI));
             cr.translate(-0.5, -0.5);
             cr.scale(state.piece_set().scale(), state.piece_set().scale());
-            state.piece_set().by_piece(&role.of(self.orientation())).render_cairo(cr);
+            state.piece_set().by_piece(&role.of(self.color)).render_cairo(cr);
 
             cr.restore();
         }

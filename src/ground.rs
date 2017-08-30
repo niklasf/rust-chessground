@@ -181,7 +181,10 @@ impl Update for Ground {
             },
             GroundMsg::UserMove(orig, dest, None) if state.board_state.valid_move(orig, dest) => {
                 if state.board_state.legals().iter().any(|m| m.from() == Some(orig) && m.to() == dest && m.promotion().is_some()) {
-                    state.promotable.start_promoting(orig, dest);
+                    let color = state.pieces.figurine_at(orig).map_or_else(|| {
+                        Color::from_bool(dest.rank() > 4)
+                    }, |figurine| figurine.piece().color);
+                    state.promotable.start_promoting(color, orig, dest);
                     self.drawing_area.queue_draw();
                 }
             },
