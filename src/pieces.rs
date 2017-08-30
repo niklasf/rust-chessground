@@ -290,8 +290,10 @@ impl Pieces {
             return;
         }
 
-        // draw shadow when dragging
-        let dragging = self.drag.as_ref().map_or(false, |d| d.threshold && d.square == figurine.square);
+        // draw ghost when dragging
+        let dragging =
+            figurine.dragging &&
+            self.drag.as_ref().map_or(false, |d| d.threshold && d.square == figurine.square);
 
         cr.push_group();
 
