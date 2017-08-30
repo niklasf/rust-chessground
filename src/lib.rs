@@ -16,6 +16,8 @@
 
 //! A chessboard widget for Relm/GTK.
 
+#![doc(html_root_url = "https://docs.rs/chessground/0.1.3")]
+
 extern crate gtk;
 extern crate gdk;
 extern crate cairo;
