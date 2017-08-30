@@ -16,6 +16,8 @@
 
 use std::f64::consts::PI;
 
+use option_filter::OptionFilterExt;
+
 use time::SteadyTime;
 
 use gtk::prelude::*;
@@ -80,10 +82,11 @@ impl Promotable {
 
     pub(crate) fn mouse_move(&mut self, ctx: &EventContext) {
         if let Some(ref mut promoting) = self.promoting {
-            let square = promoting.hover.as_ref().map(|h| h.square);
-            if ctx.square() != square {
-                square.map(|sq| ctx.widget().queue_draw_square(sq));
-                promoting.hover = ctx.square().map(|square| Hover {
+            let previous = promoting.hover.as_ref().map(|h| h.square);
+            let square = ctx.square().filter(|sq| sq.file() == promoting.dest.file());
+            if square != previous {
+                previous.map(|sq| ctx.widget().queue_draw_square(sq));
+                promoting.hover = square.map(|square| Hover {
                     square,
                     since: SteadyTime::now(),
                     elapsed: 0.0,
