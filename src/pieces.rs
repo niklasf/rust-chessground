@@ -395,8 +395,12 @@ impl Figurine {
     }
 
     fn pos(&self) -> (f64, f64) {
-        let end = square_to_pos(self.square);
-        (ease(self.start.0, end.0, self.elapsed), ease(self.start.1, end.1, self.elapsed))
+        if self.fading {
+            self.start
+        } else {
+            let end = square_to_pos(self.square);
+            (ease(self.start.0, end.0, self.elapsed), ease(self.start.1, end.1, self.elapsed))
+        }
     }
 
     fn alpha(&self) -> f64 {
