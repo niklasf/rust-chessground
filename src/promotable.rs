@@ -152,7 +152,6 @@ impl Promoting {
 
             cr.save();
             cr.rectangle(self.dest.file() as f64, 7.0 - rank as f64, 1.0, 1.0);
-            cr.clip_preserve();
 
             // draw background
             if light {
@@ -160,7 +159,8 @@ impl Promoting {
             } else {
                 cr.set_source_rgb(0.18, 0.18, 0.18);
             }
-            cr.fill();
+            cr.fill_preserve();
+            cr.clip();
 
             // draw piece
             let radius = match self.hover {
