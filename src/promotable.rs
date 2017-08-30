@@ -148,7 +148,7 @@ impl Promoting {
             }
 
             let rank = self.orientation().fold(7 - offset as i8, offset as i8);
-            let light = self.dest.file() + rank & 1 == 1;
+            let light = (self.dest.file() + rank) & 1 == 1;
 
             cr.save();
             cr.rectangle(self.dest.file() as f64, 7.0 - rank as f64, 1.0, 1.0);
