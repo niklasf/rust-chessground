@@ -411,7 +411,7 @@ impl Figurine {
             ctx.queue_draw_rect(pos.0 - 0.5, pos.1 - 0.5, 1.0, 1.0);
 
             let now = SteadyTime::now();
-            self.elapsed = fmin(1.0, (now - self.time).num_milliseconds() as f64 / 200.0);
+            self.elapsed = fmin(1.0, (now - self.time).num_milliseconds() as f64 / 300.0);
 
             let pos = self.pos();
             ctx.queue_draw_rect(pos.0 - 0.5, pos.1 - 0.5, 1.0, 1.0);
