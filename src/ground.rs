@@ -167,6 +167,7 @@ impl Update for Ground {
             },
             GroundMsg::SetPos(pos) => {
                 state.pieces.set_board(&pos.board);
+                state.promotable.update(&pos.legals);
                 state.board_state.set_check(pos.check);
                 state.board_state.set_last_move(pos.last_move);
                 *state.board_state.legals_mut() = *pos.legals;
@@ -177,6 +178,7 @@ impl Update for Ground {
                 state.board_state.set_check(None);
                 state.board_state.set_last_move(None);
                 state.board_state.legals_mut().clear();
+                state.promotable.cancel();
                 self.drawing_area.queue_draw();
             },
             GroundMsg::UserMove(orig, dest, None) if state.board_state.valid_move(orig, dest) => {
@@ -184,7 +186,7 @@ impl Update for Ground {
                     let color = state.pieces.figurine_at(orig).map_or_else(|| {
                         Color::from_bool(dest.rank() > 4)
                     }, |figurine| figurine.piece().color);
-                    state.promotable.start_promoting(color, orig, dest);
+                    state.promotable.start(color, orig, dest);
                     self.drawing_area.queue_draw();
                 }
             },

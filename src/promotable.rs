@@ -24,7 +24,7 @@ use gtk::prelude::*;
 use cairo::Context;
 use rsvg::HandleExt;
 
-use shakmaty::{Square, Color, Role};
+use shakmaty::{Square, Color, Role, MoveList};
 
 use util::{fmin, ease, square_to_pos};
 use pieces::Pieces;
@@ -55,7 +55,7 @@ impl Promotable {
         }
     }
 
-    pub fn start_promoting(&mut self, color: Color, orig: Square, dest: Square) {
+    pub fn start(&mut self, color: Color, orig: Square, dest: Square) {
         self.promoting = Some(Promoting {
             color,
             orig,
@@ -66,6 +66,23 @@ impl Promotable {
                 elapsed: 0.0,
             }),
         });
+    }
+
+    pub fn cancel(&mut self) {
+        self.promoting = None;
+    }
+
+    pub fn update(&mut self, legals: &MoveList) {
+        if let Some(ref promoting) = self.promoting {
+            if legals.iter().any(|m| {
+                m.from() == Some(promoting.orig) && m.to() == promoting.dest &&
+                m.promotion().is_some()
+            }) {
+                return;
+            }
+        }
+
+        self.cancel();
     }
 
     pub fn is_promoting(&self, orig: Square) -> bool {
