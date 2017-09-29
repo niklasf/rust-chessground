@@ -18,6 +18,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::f64::consts::PI;
 use std::cmp::{min, max};
+use std::fmt;
 
 use option_filter::OptionFilterExt;
 
@@ -45,8 +46,14 @@ pub struct Model {
     state: Rc<RefCell<State>>,
 }
 
+impl fmt::Debug for Model {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Model").finish()
+    }
+}
+
 /// Chessground events and messages.
-#[derive(Msg)]
+#[derive(Debug, Msg)]
 pub enum GroundMsg {
     /// Flip the board.
     Flip,
@@ -69,6 +76,7 @@ pub enum GroundMsg {
 /// * Legal move hints
 /// * Check hint
 /// * Last move hint
+#[derive(Debug, Clone)]
 pub struct Pos {
     board: Board,
     legals: Box<MoveList>,
@@ -136,6 +144,7 @@ impl Default for Pos {
 }
 
 /// Chessground, a chess board widget.
+#[derive(Debug)]
 pub struct Ground {
     drawing_area: DrawingArea,
     model: Model,
