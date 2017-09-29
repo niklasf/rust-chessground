@@ -170,10 +170,10 @@ impl DrawShape {
             DrawBrush::Yellow => cr.set_source_rgba(0.90, 0.94, 0.0, opacity),
         }
 
-        let orig_x = 0.5 + self.orig.file() as f64;
-        let orig_y = 7.5 - self.orig.rank() as f64;
-        let dest_x = 0.5 + self.dest.file() as f64;
-        let dest_y = 7.5 - self.dest.rank() as f64;
+        let orig_x = 0.5 + f64::from(self.orig.file());
+        let orig_y = 7.5 - f64::from(self.orig.rank());
+        let dest_x = 0.5 + f64::from(self.dest.file());
+        let dest_y = 7.5 - f64::from(self.dest.rank());
 
         if self.is_circle() {
             // draw circle

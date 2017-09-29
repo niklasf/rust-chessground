@@ -73,16 +73,18 @@ impl Promotable {
     }
 
     pub fn update(&mut self, legals: &MoveList) {
-        if let Some(ref promoting) = self.promoting {
-            if legals.iter().any(|m| {
+        let cancel = if let Some(ref promoting) = self.promoting {
+            !legals.iter().any(|m| {
                 m.from() == Some(promoting.orig) && m.to() == promoting.dest &&
                 m.promotion().is_some()
-            }) {
-                return;
-            }
-        }
+            })
+        } else {
+            false
+        };
 
-        self.cancel();
+        if cancel {
+            self.cancel();
+        }
     }
 
     pub fn is_promoting(&self, orig: Square) -> bool {
@@ -177,7 +179,7 @@ impl Promoting {
             let light = (self.dest.file() + rank) & 1 == 1;
 
             cr.save();
-            cr.rectangle(self.dest.file() as f64, 7.0 - rank as f64, 1.0, 1.0);
+            cr.rectangle(f64::from(self.dest.file()), 7.0 - f64::from(rank), 1.0, 1.0);
 
             // draw background
             if light {
@@ -203,10 +205,10 @@ impl Promoting {
                 },
             };
 
-            cr.arc(0.5 + self.dest.file() as f64, 7.5 - rank as f64, radius, 0.0, 2.0 * PI);
+            cr.arc(0.5 + f64::from(self.dest.file()), 7.5 - f64::from(rank), radius, 0.0, 2.0 * PI);
             cr.fill();
 
-            cr.translate(0.5 + self.dest.file() as f64, 7.5 - rank as f64);
+            cr.translate(0.5 + f64::from(self.dest.file()), 7.5 - f64::from(rank));
             cr.scale(2f64.sqrt() * radius, 2f64.sqrt() * radius);
             cr.rotate(state.orientation().fold(0.0, PI));
             cr.translate(-0.5, -0.5);

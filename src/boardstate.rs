@@ -145,7 +145,7 @@ impl BoardState {
 
         for square in Bitboard::all() {
             if square.is_light() {
-                cr.rectangle(square.file() as f64, 7.0 - square.rank() as f64, 1.0, 1.0);
+                cr.rectangle(f64::from(square.file()), 7.0 - f64::from(square.rank()), 1.0, 1.0);
                 cr.fill();
             }
         }
@@ -154,11 +154,11 @@ impl BoardState {
     fn draw_last_move(&self, cr: &Context) {
         if let Some((orig, dest)) = self.last_move {
             cr.set_source_rgba(0.61, 0.78, 0.0, 0.41);
-            cr.rectangle(orig.file() as f64, 7.0 - orig.rank() as f64, 1.0, 1.0);
+            cr.rectangle(f64::from(orig.file()), 7.0 - f64::from(orig.rank()), 1.0, 1.0);
             cr.fill();
 
             if dest != orig {
-                cr.rectangle(dest.file() as f64, 7.0 - dest.rank() as f64, 1.0, 1.0);
+                cr.rectangle(f64::from(dest.file()), 7.0 - f64::from(dest.rank()), 1.0, 1.0);
                 cr.fill();
             }
         }
@@ -166,8 +166,8 @@ impl BoardState {
 
     fn draw_check(&self, cr: &Context) {
         if let Some(check) = self.check {
-            let cx = 0.5 + check.file() as f64;
-            let cy = 7.5 - check.rank() as f64;
+            let cx = 0.5 + f64::from(check.file());
+            let cy = 7.5 - f64::from(check.rank());
             let gradient = RadialGradient::new(cx, cy, 0.0, cx, cy, 0.5f64.hypot(0.5));
             gradient.add_color_stop_rgba(0.0, 1.0, 0.0, 0.0, 1.0);
             gradient.add_color_stop_rgba(0.25, 0.91, 0.0, 0.0, 1.0);

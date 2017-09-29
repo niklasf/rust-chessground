@@ -45,5 +45,5 @@ pub fn pos_to_square((x, y): (f64, f64)) -> Option<Square> {
 }
 
 pub fn square_to_pos(square: Square) -> (f64, f64) {
-    (0.5 + square.file() as f64, 7.5 - square.rank() as f64)
+    (0.5 + f64::from(square.file()), 7.5 - f64::from(square.rank()))
 }

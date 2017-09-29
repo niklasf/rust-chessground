@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use std::f64::consts::PI;
 use std::cmp::{min, max};
@@ -228,7 +228,7 @@ impl Widget for Ground {
                     state.draw(widget, cr);
 
                     // queue next draw for animation
-                    let weak_state = weak_state.clone();
+                    let weak_state = Weak::clone(&weak_state);
                     let widget = widget.clone();
                     gtk::idle_add(move || {
                         if let Some(state) = weak_state.upgrade() {
@@ -366,8 +366,8 @@ impl<'a> WidgetContext<'a> {
 
         let mut matrix = Matrix::identity();
 
-        matrix.translate(w as f64 / 2.0, h as f64 / 2.0);
-        matrix.scale(size as f64 / 9.0, size as f64 / 9.0);
+        matrix.translate(f64::from(w) / 2.0, f64::from(h) / 2.0);
+        matrix.scale(f64::from(size) / 9.0, f64::from(size) / 9.0);
         matrix.rotate(board_state.orientation().fold(0.0, PI));
         matrix.translate(-4.0, -4.0);
 
@@ -389,7 +389,7 @@ impl<'a> WidgetContext<'a> {
     }
 
     pub fn queue_draw_square(&self, square: Square) {
-        self.queue_draw_rect(square.file() as f64, 7.0 - square.rank() as f64, 1.0, 1.0);
+        self.queue_draw_rect(f64::from(square.file()), 7.0 - f64::from(square.rank()), 1.0, 1.0);
     }
 
     pub fn queue_draw_rect(&self, x: f64, y: f64, width: f64, height: f64) {
