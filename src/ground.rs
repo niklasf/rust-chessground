@@ -402,7 +402,8 @@ impl<'a> WidgetContext<'a> {
         let xmax = max(x1.ceil() as i32, x2.ceil() as i32);
         let ymax = max(y1.ceil() as i32, y2.ceil() as i32);
 
-        self.drawing_area.queue_draw_area(xmin, ymin, xmax - xmin, ymax - ymin);
+        let alloc = self.drawing_area.get_allocation();
+        self.drawing_area.queue_draw_area(xmin - alloc.x, ymin - alloc.y, xmax - xmin, ymax - ymin);
     }
 }
 
@@ -420,6 +421,8 @@ impl<'a> EventContext<'a> {
            pos: (f64, f64)) -> EventContext<'a>
     {
         let widget = WidgetContext::new(board_state, drawing_area);
+        let alloc = drawing_area.get_allocation();
+        let pos = (pos.0 + f64::from(alloc.x), pos.1 + f64::from(alloc.y));
         let pos = widget.invert_pos(pos);
         let square = pos_to_square(pos);
 
