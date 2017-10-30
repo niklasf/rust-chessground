@@ -360,13 +360,13 @@ pub(crate) struct WidgetContext<'a> {
 impl<'a> WidgetContext<'a> {
     fn new(board_state: &'a BoardState, drawing_area: &'a DrawingArea) -> WidgetContext<'a>
     {
-        let w = drawing_area.get_allocated_width();
-        let h = drawing_area.get_allocated_height();
-        let size = max(min(w, h), 9);
+        let alloc = drawing_area.get_allocation();
+        let size = max(min(alloc.width, alloc.height), 9);
 
         let mut matrix = Matrix::identity();
+        matrix.translate(f64::from(alloc.x), f64::from(alloc.y));
 
-        matrix.translate(f64::from(w) / 2.0, f64::from(h) / 2.0);
+        matrix.translate(f64::from(alloc.width) / 2.0, f64::from(alloc.height) / 2.0);
         matrix.scale(f64::from(size) / 9.0, f64::from(size) / 9.0);
         matrix.rotate(board_state.orientation().fold(0.0, PI));
         matrix.translate(-4.0, -4.0);
