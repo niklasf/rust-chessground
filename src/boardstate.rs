@@ -143,7 +143,7 @@ impl BoardState {
 
         cr.set_source_rgb(0.87, 0.89, 0.90); // light
 
-        for square in Bitboard::all() {
+        for square in Bitboard::ALL {
             if square.is_light() {
                 cr.rectangle(f64::from(square.file()), 7.0 - f64::from(square.rank()), 1.0, 1.0);
                 cr.fill();
