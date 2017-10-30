@@ -16,17 +16,9 @@
 
 use shakmaty::Square;
 
-pub fn fmin(a: f64, b: f64) -> f64 {
-    if a < b { a } else { b }
-}
-
-pub fn fmax(a: f64, b: f64) -> f64 {
-    if a > b { a } else { b }
-}
-
 pub fn ease(start: f64, end: f64, t: f64) -> f64 {
     // ease in out cubic from https://gist.github.com/gre/1650294
-    let t = fmax(0.0, fmin(1.0, t));
+    let t = t.max(0.0).min(1.0);
     let ease = if t < 0.5 {
         4.0 * t * t * t
     } else {

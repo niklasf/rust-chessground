@@ -26,7 +26,7 @@ use rsvg::HandleExt;
 
 use shakmaty::{Square, Color, Role, MoveList};
 
-use util::{fmin, ease, square_to_pos};
+use util::{ease, square_to_pos};
 use pieces::Pieces;
 use boardstate::BoardState;
 use ground::{WidgetContext, EventContext, GroundMsg};
@@ -97,7 +97,7 @@ impl Promotable {
                 ctx.queue_draw_square(hover.square);
             }
 
-            hover.elapsed = fmin(1.0, (SteadyTime::now() - hover.since).num_milliseconds() as f64 / 1000.0);
+            hover.elapsed = ((SteadyTime::now() - hover.since).num_milliseconds() as f64 / 1000.0).min(1.0);
         }
     }
 
