@@ -393,9 +393,13 @@ impl<'a> WidgetContext<'a> {
     }
 
     pub fn queue_draw_rect(&self, x: f64, y: f64, width: f64, height: f64) {
+        // round to square grid
+        let (rx, ry) = (x.floor(), y.floor());
+
+        // transform to widget coordinates
         let matrix = self.matrix();
-        let (x1, y1) = matrix.transform_point(x, y);
-        let (x2, y2) = matrix.transform_point(x + width, y + height);
+        let (x1, y1) = matrix.transform_point(rx, ry);
+        let (x2, y2) = matrix.transform_point((x + width).ceil(), (y + height).ceil());
 
         let xmin = min(x1.floor() as i32, x2.floor() as i32);
         let ymin = min(y1.floor() as i32, y2.floor() as i32);
