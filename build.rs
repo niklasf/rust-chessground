@@ -14,33 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-//! A chessboard widget for Relm/GTK.
+extern crate version_check;
 
-#![doc(html_root_url = "https://docs.rs/chessground/0.2.0")]
+fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
 
-#![warn(missing_debug_implementations)]
-
-#![cfg_attr(nightly, feature(option_filter))]
-
-extern crate gtk;
-extern crate gdk;
-extern crate cairo;
-extern crate rsvg;
-extern crate shakmaty;
-extern crate option_filter;
-extern crate time;
-extern crate relm;
-#[macro_use]
-extern crate relm_derive;
-
-mod ground;
-mod boardstate;
-mod pieceset;
-mod pieces;
-mod promotable;
-mod drawable;
-mod util;
-
-pub use ground::{Ground, GroundMsg, Pos};
-pub use GroundMsg::*;
-pub use drawable::{DrawBrush, DrawShape};
+    // detect support for nightly features
+    if let Some(true) = version_check::supports_features() {
+        println!("cargo:rustc-cfg=nightly");
+    }
+}

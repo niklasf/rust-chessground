@@ -16,6 +16,7 @@
 
 use std::f64::consts::PI;
 
+#[cfg(not(nightly))]
 use option_filter::OptionFilterExt;
 
 use cairo::prelude::*;

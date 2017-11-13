@@ -20,6 +20,7 @@ use std::f64::consts::PI;
 use std::cmp::{min, max};
 use std::fmt;
 
+#[cfg(not(nightly))]
 use option_filter::OptionFilterExt;
 
 use gtk;

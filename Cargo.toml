@@ -20,6 +20,9 @@ relm = "0.10"
 relm-derive = "0.10"
 shakmaty = "0.4"
 
+[build-dependencies]
+version_check = "0.1"
+
 [dev-dependencies]
 rand = "0.3"
 relm-attributes = "0.10"
