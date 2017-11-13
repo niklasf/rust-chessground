@@ -219,10 +219,14 @@ impl Pieces {
             let (pdx, pdy) = ctx.widget().matrix().transform_distance(dx, dy);
             drag.threshold |= dx.hypot(dy) >= 0.1 || pdx.hypot(pdy) >= 4.0;
 
-            // ensure orig square is selected
-            if drag.threshold && self.selected != Some(drag.square) {
-                self.selected = Some(drag.square);
-                ctx.widget().queue_draw();
+            if drag.threshold {
+                // ensure orig square is selected
+                if self.selected != Some(drag.square) {
+                  self.selected = Some(drag.square);
+                  ctx.widget().queue_draw();
+                } else {
+                  ctx.widget().queue_draw_square(drag.square);
+                }
             }
         }
     }
