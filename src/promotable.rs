@@ -161,7 +161,7 @@ impl Promotable {
 
 impl Promoting {
     fn orientation(&self) -> Color {
-        Color::from_bool(self.dest.rank() > 4)
+        Color::from_white(self.dest.rank() > 4)
     }
 
     fn draw(&self, cr: &Context, state: &BoardState) {
