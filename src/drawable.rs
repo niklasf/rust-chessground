@@ -204,12 +204,11 @@ impl DrawShape {
             cr.stroke();
 
             // arrow head
+            cr.move_to(head_x, head_y);
             cr.line_to(shaft_x - dy * 0.5 * marker_size / hypot,
                        shaft_y + dx * 0.5 * marker_size / hypot);
-            cr.line_to(head_x, head_y);
             cr.line_to(shaft_x + dy * 0.5 * marker_size / hypot,
                        shaft_y - dx * 0.5 * marker_size / hypot);
-            cr.line_to(shaft_x, shaft_y);
             cr.fill();
         }
     }
