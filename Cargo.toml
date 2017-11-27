@@ -11,13 +11,13 @@ keywords = ["chess"]
 
 [dependencies]
 option-filter = "1.0"
-gtk = "0.2.0"
-gdk = "0.6.0"
-cairo-rs = "0.2.0"
-rsvg = "0.2.0"
+gtk = "0.3.0"
+gdk = "0.7.0"
+cairo-rs = "0.3.0"
+rsvg = { git = "https://github.com/selaux/rsvg-rs", branch = "update-to-gtk-0.3.0" }
 time = "0.1"
-relm = "0.10"
-relm-derive = "0.10"
+relm = "0.11"
+relm-derive = "0.11"
 shakmaty = "0.4"
 
 [build-dependencies]
@@ -25,4 +25,4 @@ version_check = "0.1"
 
 [dev-dependencies]
 rand = "0.3"
-relm-attributes = "0.10"
+relm-attributes = "0.11"

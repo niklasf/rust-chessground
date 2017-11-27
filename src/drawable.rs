@@ -16,8 +16,7 @@
 
 use std::f64::consts::PI;
 
-use gdk;
-use gdk::EventButton;
+use gdk::{EventButton, ModifierType};
 use cairo::Context;
 
 use shakmaty::Square;
@@ -73,11 +72,11 @@ impl Drawable {
             }
             3 => {
                 self.drawing = ctx.square().map(|square| {
-                    let brush = if e.get_state().contains(gdk::MOD1_MASK | gdk::SHIFT_MASK) {
+                    let brush = if e.get_state().contains(ModifierType::MOD1_MASK | ModifierType::SHIFT_MASK) {
                         DrawBrush::Yellow
-                    } else if e.get_state().contains(gdk::MOD1_MASK) {
+                    } else if e.get_state().contains(ModifierType::MOD1_MASK) {
                         DrawBrush::Blue
-                    } else if e.get_state().contains(gdk::SHIFT_MASK) {
+                    } else if e.get_state().contains(ModifierType::SHIFT_MASK) {
                         DrawBrush::Red
                     } else {
                         DrawBrush::Green
