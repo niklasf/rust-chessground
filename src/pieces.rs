@@ -16,9 +16,7 @@
 
 use std::f64::consts::PI;
 
-#[cfg(not(nightly))]
 use option_filter::OptionFilterExt;
-
 use time::SteadyTime;
 
 use gdk::EventButton;
@@ -174,7 +172,7 @@ impl Pieces {
 
         if e.get_button() == 1 {
             let dest = ctx.square();
-            self.selected = dest.filter(|sq| self.occupied().contains(*sq));
+            self.selected = OptionFilterExt::filter(dest, |sq| self.occupied().contains(*sq));
 
             if let (Some(orig), Some(dest)) = (orig, dest) {
                 self.selected = None;

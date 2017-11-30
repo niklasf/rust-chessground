@@ -16,9 +16,7 @@
 
 use std::f64::consts::PI;
 
-#[cfg(not(nightly))]
 use option_filter::OptionFilterExt;
-
 use time::SteadyTime;
 
 use gtk::prelude::*;
@@ -105,7 +103,7 @@ impl Promotable {
     pub(crate) fn mouse_move(&mut self, ctx: &EventContext) {
         if let Some(ref mut promoting) = self.promoting {
             let previous = promoting.hover.as_ref().map(|h| h.square);
-            let square = ctx.square().filter(|sq| sq.file() == promoting.dest.file());
+            let square = OptionFilterExt::filter(ctx.square(), |sq| sq.file() == promoting.dest.file());
 
             if square != previous {
                 previous.map(|sq| ctx.widget().queue_draw_square(sq));

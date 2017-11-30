@@ -16,9 +16,6 @@
 
 use std::f64::consts::PI;
 
-#[cfg(not(nightly))]
-use option_filter::OptionFilterExt;
-
 use cairo::prelude::*;
 use cairo::{Context, RadialGradient};
 
@@ -53,7 +50,7 @@ impl BoardState {
     }
 
     pub fn set_position<P: Position>(&mut self, pos: &P) {
-        self.check = pos.board().king_of(pos.turn()).filter(|_| pos.checkers().any());
+        self.check = if pos.checkers().any() { pos.board().king_of(pos.turn()) } else { None };
         self.legals = pos.legals();
     }
 

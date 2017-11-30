@@ -20,9 +20,6 @@ use std::f64::consts::PI;
 use std::cmp::{min, max};
 use std::fmt;
 
-#[cfg(not(nightly))]
-use option_filter::OptionFilterExt;
-
 use gtk;
 use gtk::prelude::*;
 use gtk::DrawingArea;
@@ -90,7 +87,7 @@ impl Pos {
         Pos {
             board: p.board().clone(),
             legals: Box::new(p.legals()),
-            check: p.board().king_of(p.turn()).filter(|_| p.checkers().any()),
+            check: if p.checkers().any() { p.board().king_of(p.turn()) } else { None },
             last_move: None,
         }
     }

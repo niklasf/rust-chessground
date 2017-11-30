@@ -20,8 +20,6 @@
 
 #![warn(missing_debug_implementations)]
 
-#![cfg_attr(nightly, feature(option_filter))]
-
 extern crate gtk;
 extern crate gdk;
 extern crate cairo;
