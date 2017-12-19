@@ -22,7 +22,6 @@ use time::SteadyTime;
 use gdk::EventButton;
 use cairo::prelude::*;
 use cairo::Context;
-use rsvg::HandleExt;
 
 use shakmaty::{Square, Piece, Bitboard, Board};
 
@@ -298,15 +297,11 @@ impl Pieces {
             self.drag.as_ref().map_or(false, |d| d.threshold && d.square == figurine.square);
 
         cr.push_group();
-
         let (x, y) = figurine.pos();
         cr.translate(x, y);
         cr.rotate(state.orientation().fold(0.0, PI));
         cr.translate(-0.5, -0.5);
-        cr.scale(state.piece_set().scale(), state.piece_set().scale());
-
-        state.piece_set().by_piece(&figurine.piece).render_cairo(cr);
-
+        state.piece_set().render_cairo(cr, &figurine.piece);
         cr.pop_group_to_source();
 
         cr.paint_with_alpha(if dragging { 0.2 } else { figurine.alpha() });
@@ -377,8 +372,7 @@ impl Pieces {
                 cr.translate(drag.pos.0, drag.pos.1);
                 cr.rotate(state.orientation().fold(0.0, PI));
                 cr.translate(-0.5, -0.5);
-                cr.scale(state.piece_set().scale(), state.piece_set().scale());
-                state.piece_set().by_piece(&drag.piece).render_cairo(cr);
+                state.piece_set().render_cairo(cr, &drag.piece);
                 cr.pop_group_to_source();
                 cr.paint();
             }

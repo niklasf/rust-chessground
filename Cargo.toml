@@ -14,11 +14,15 @@ option-filter = "1.0"
 gtk = "0.3.0"
 gdk = "0.7.0"
 cairo-rs = "0.3.0"
-rsvg = "0.3.0"
 time = "0.1"
 relm = "0.11"
 relm-derive = "0.11"
 shakmaty = "0.4"
+
+[dependencies.resvg]
+path = "../libresvg"
+version = "0.1.0"
+features = ["cairo-backend"]
 
 [dev-dependencies]
 rand = "0.3"

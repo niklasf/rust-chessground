@@ -14,21 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-use rsvg::Handle;
+use cairo;
+use resvg;
 
 use shakmaty::{Color, Role, Piece};
 
 struct PieceSetSide {
-    pawn: Handle,
-    knight: Handle,
-    bishop: Handle,
-    rook: Handle,
-    queen: Handle,
-    king: Handle,
+    pawn: resvg::Document,
+    knight: resvg::Document,
+    bishop: resvg::Document,
+    rook: resvg::Document,
+    queen: resvg::Document,
+    king: resvg::Document,
 }
 
 impl PieceSetSide {
-    fn by_role(&self, role: Role) -> &Handle {
+    fn by_role(&self, role: Role) -> &resvg::Document {
         match role {
             Role::Pawn => &self.pawn,
             Role::Knight => &self.knight,
@@ -50,33 +51,37 @@ impl PieceSet {
         color.fold(&self.white, &self.black)
     }
 
-    pub fn by_piece(&self, piece: &Piece) -> &Handle {
+    fn by_piece(&self, piece: &Piece) -> &resvg::Document {
         self.by_color(piece.color).by_role(piece.role)
     }
 
-    pub fn scale(&self) -> f64 {
-        1.0 / 177.0
+    pub fn render_cairo(&self, cr: &cairo::Context, piece: &Piece) {
+        cr.scale(1.0 / 177.0, 1.0 / 177.0);
+        let rect = resvg::Rect::new(0.0, 0.0, 177.0, 177.0);
+        resvg::render_cairo::render_to_canvas(cr, rect, self.by_piece(piece));
     }
 }
 
 impl PieceSet {
     pub fn merida() -> PieceSet {
+        let opts = resvg::Options::default();
+
         PieceSet {
             black: PieceSetSide {
-                pawn: Handle::new_from_str(include_str!("merida/bP.svg")).expect("merida/bP.svg"),
-                knight: Handle::new_from_str(include_str!("merida/bN.svg")).expect("merida/bN.svg"),
-                bishop: Handle::new_from_str(include_str!("merida/bB.svg")).expect("merida/bB.svg"),
-                rook: Handle::new_from_str(include_str!("merida/bR.svg")).expect("merida/bR.svg"),
-                queen: Handle::new_from_str(include_str!("merida/bQ.svg")).expect("merida/bQ.svg"),
-                king: Handle::new_from_str(include_str!("merida/bK.svg")).expect("merida/bK.svg"),
+                pawn: resvg::parse_doc_from_data(include_str!("merida/bP.svg"), &opts).expect("merida/bP.svg"),
+                knight: resvg::parse_doc_from_data(include_str!("merida/bN.svg"), &opts).expect("merida/bN.svg"),
+                bishop: resvg::parse_doc_from_data(include_str!("merida/bB.svg"), &opts).expect("merida/bB.svg"),
+                rook: resvg::parse_doc_from_data(include_str!("merida/bR.svg"), &opts).expect("merida/bR.svg"),
+                queen: resvg::parse_doc_from_data(include_str!("merida/bQ.svg"), &opts).expect("merida/bQ.svg"),
+                king: resvg::parse_doc_from_data(include_str!("merida/bK.svg"), &opts).expect("merida/bK.svg"),
             },
             white: PieceSetSide {
-                pawn: Handle::new_from_str(include_str!("merida/wP.svg")).expect("merida/wP.svg"),
-                knight: Handle::new_from_str(include_str!("merida/wN.svg")).expect("merida/wN.svg"),
-                bishop: Handle::new_from_str(include_str!("merida/wB.svg")).expect("merida/wB.svg"),
-                rook: Handle::new_from_str(include_str!("merida/wR.svg")).expect("merida/wR.svg"),
-                queen: Handle::new_from_str(include_str!("merida/wQ.svg")).expect("merida/wQ.svg"),
-                king: Handle::new_from_str(include_str!("merida/wK.svg")).expect("merida/wK.svg"),
+                pawn: resvg::parse_doc_from_data(include_str!("merida/wP.svg"), &opts).expect("merida/wP.svg"),
+                knight: resvg::parse_doc_from_data(include_str!("merida/wN.svg"), &opts).expect("merida/wN.svg"),
+                bishop: resvg::parse_doc_from_data(include_str!("merida/wB.svg"), &opts).expect("merida/wB.svg"),
+                rook: resvg::parse_doc_from_data(include_str!("merida/wR.svg"), &opts).expect("merida/wR.svg"),
+                queen: resvg::parse_doc_from_data(include_str!("merida/wQ.svg"), &opts).expect("merida/wQ.svg"),
+                king: resvg::parse_doc_from_data(include_str!("merida/wK.svg"), &opts).expect("merida/wK.svg"),
             },
         }
     }

@@ -21,7 +21,6 @@ use time::SteadyTime;
 
 use gtk::prelude::*;
 use cairo::Context;
-use rsvg::HandleExt;
 
 use shakmaty::{Square, Color, Role, MoveList};
 
@@ -211,8 +210,7 @@ impl Promoting {
             cr.scale(2f64.sqrt() * radius, 2f64.sqrt() * radius);
             cr.rotate(state.orientation().fold(0.0, PI));
             cr.translate(-0.5, -0.5);
-            cr.scale(state.piece_set().scale(), state.piece_set().scale());
-            state.piece_set().by_piece(&role.of(self.color)).render_cairo(cr);
+            state.piece_set().render_cairo(cr, &role.of(self.color));
 
             cr.restore();
         }
