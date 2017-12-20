@@ -121,11 +121,11 @@ impl Widget for Win {
             KeyPressed(b'f') => {
                 self.ground.emit(Flip)
             },
-            KeyPressed(b'j') | Scroll(ScrollDirection::Down) => {
+            KeyPressed(b'k') | Scroll(ScrollDirection::Up) => {
                 self.model.undo();
                 self.ground.emit(SetPos(self.model.pos()));
             },
-            KeyPressed(b'k') | Scroll(ScrollDirection::Up) => {
+            KeyPressed(b'j') | Scroll(ScrollDirection::Down) => {
                 self.model.redo();
                 self.ground.emit(SetPos(self.model.pos()));
             },
