@@ -95,7 +95,7 @@ impl Pos {
     /// Create a position configuration from a board, without any other hints.
     pub fn from_board(board: Board) -> Pos {
         Pos {
-            board: board,
+            board,
             legals: Box::new(MoveList::new()),
             check: None,
             last_move: None,

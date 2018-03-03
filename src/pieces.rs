@@ -138,8 +138,8 @@ impl Pieces {
         // add new figurines
         for (square, piece) in added {
             self.figurines.push(Figurine {
-                square: square,
-                piece: piece,
+                square,
+                piece,
                 start: (0.5 + f64::from(square.file()), 7.5 - f64::from(square.rank())),
                 elapsed: 0.0,
                 time: now,
