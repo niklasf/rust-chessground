@@ -1,6 +1,6 @@
 [package]
 name = "chessground"
-version = "0.5.0" # remember to update html_root_url
+version = "0.6.0" # remember to update html_root_url
 description = "A chessboard widget for Relm/GTK"
 repository = "https://github.com/niklasf/rust-chessground"
 readme = "README.md"
