@@ -16,7 +16,7 @@
 
 //! A chessboard widget for Relm/GTK.
 
-#![doc(html_root_url = "https://docs.rs/chessground/0.6.0")]
+#![doc(html_root_url = "https://docs.rs/chessground/0.7.0")]
 
 #![warn(missing_debug_implementations)]
 
