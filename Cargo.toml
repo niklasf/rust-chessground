@@ -18,8 +18,8 @@ rsvg = "0.4.0"
 time = "0.1"
 relm = "0.14"
 relm-derive = "0.14"
-shakmaty = "0.6"
+shakmaty = "0.8"
 
 [dev-dependencies]
-rand = "0.4"
+rand = "0.5"
 relm-attributes = "0.14"

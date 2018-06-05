@@ -12,7 +12,7 @@ extern crate relm_derive;
 extern crate shakmaty;
 extern crate rand;
 
-use rand::distributions::{Range, IndependentSample};
+use rand::distributions::{Range, Distribution};
 
 use gdk::ScrollDirection;
 use gtk::prelude::*;
@@ -113,7 +113,7 @@ impl Widget for Win {
                 if !self.model.position.is_game_over() {
                     let legals = self.model.position.legals();
                     let rng = &mut rand::thread_rng();
-                    let random_index = Range::new(0, legals.len()).ind_sample(rng);
+                    let random_index = Range::new(0, legals.len()).sample(rng);
                     self.model.push(&legals[random_index]);
                     self.ground.emit(SetPos(self.model.pos()));
                 }
