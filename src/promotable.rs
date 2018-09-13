@@ -16,16 +16,15 @@
 
 use std::f64::consts::PI;
 
-use option_filter::OptionFilterExt;
 use time::SteadyTime;
 
 use gtk::prelude::*;
 use cairo::Context;
 use rsvg::HandleExt;
 
-use shakmaty::{Square, Color, Role, MoveList};
+use shakmaty::{Square, Rank, Color, Role, MoveList};
 
-use util::{ease, square_to_pos};
+use util::{ease, float, square_to_pos};
 use pieces::Pieces;
 use boardstate::BoardState;
 use ground::{WidgetContext, EventContext, GroundMsg};
@@ -103,7 +102,7 @@ impl Promotable {
     pub(crate) fn mouse_move(&mut self, ctx: &EventContext) {
         if let Some(ref mut promoting) = self.promoting {
             let previous = promoting.hover.as_ref().map(|h| h.square);
-            let square = OptionFilterExt::filter(ctx.square(), |sq| sq.file() == promoting.dest.file());
+            let square = ctx.square().filter(|sq| sq.file() == promoting.dest.file());
 
             if square != previous {
                 previous.map(|sq| ctx.widget().queue_draw_square(sq));
@@ -129,10 +128,10 @@ impl Promotable {
 
             if let Some(square) = ctx.square() {
                 let side = promoting.orientation();
-                let base = promoting.dest.rank();
+                let base = i8::from(promoting.dest.rank());
 
                 if square.file() == promoting.dest.file() {
-                    let role = match square.rank() {
+                    let role = match i8::from(square.rank()) {
                         r if r == base => Some(Role::Queen),
                         r if r == base + side.fold(-1, 1) => Some(Role::Rook),
                         r if r == base + side.fold(-2, 2) => Some(Role::Bishop),
@@ -160,7 +159,7 @@ impl Promotable {
 
 impl Promoting {
     fn orientation(&self) -> Color {
-        Color::from_white(self.dest.rank() > 4)
+        Color::from_white(self.dest.rank() > Rank::Fourth)
     }
 
     fn draw(&self, cr: &Context, state: &BoardState) {
@@ -174,11 +173,11 @@ impl Promoting {
                 continue;
             }
 
-            let rank = self.dest.rank() - self.orientation().fold(offset as i8, -(offset as i8));
-            let light = (self.dest.file() + rank) & 1 == 1;
+            let rank = i8::from(self.dest.rank()) - self.orientation().fold(offset as i8, -(offset as i8));
+            let light = (i8::from(self.dest.file()) + rank) & 1 == 1;
 
             cr.save();
-            cr.rectangle(f64::from(self.dest.file()), 7.0 - f64::from(rank), 1.0, 1.0);
+            cr.rectangle(float(self.dest.file()), 7.0 - float(rank), 1.0, 1.0);
 
             // draw background
             if light {
@@ -191,7 +190,7 @@ impl Promoting {
 
             // draw piece
             let radius = match self.hover {
-                Some(ref hover) if hover.square.rank() == rank => {
+                Some(ref hover) if i8::from(hover.square.rank()) == rank => {
                     cr.set_source_rgb(ease(0.69, 1.0, hover.elapsed),
                                       ease(0.69, 0.65, hover.elapsed),
                                       ease(0.69, 0.0, hover.elapsed));
@@ -204,10 +203,10 @@ impl Promoting {
                 },
             };
 
-            cr.arc(0.5 + f64::from(self.dest.file()), 7.5 - f64::from(rank), radius, 0.0, 2.0 * PI);
+            cr.arc(0.5 + float(self.dest.file()), 7.5 - f64::from(rank), radius, 0.0, 2.0 * PI);
             cr.fill();
 
-            cr.translate(0.5 + f64::from(self.dest.file()), 7.5 - f64::from(rank));
+            cr.translate(0.5 + float(self.dest.file()), 7.5 - float(rank));
             cr.scale(2f64.sqrt() * radius, 2f64.sqrt() * radius);
             cr.rotate(state.orientation().fold(0.0, PI));
             cr.translate(-0.5, -0.5);

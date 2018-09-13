@@ -16,7 +16,6 @@
 
 use std::f64::consts::PI;
 
-use option_filter::OptionFilterExt;
 use time::SteadyTime;
 
 use gdk::EventButton;
@@ -26,7 +25,7 @@ use rsvg::HandleExt;
 
 use shakmaty::{Square, Piece, Bitboard, Board};
 
-use util::{ease, pos_to_square, square_to_pos};
+use util::{ease, float, pos_to_square, square_to_pos};
 use promotable::Promotable;
 use boardstate::BoardState;
 use ground::{GroundMsg, EventContext, WidgetContext};
@@ -73,7 +72,7 @@ impl Pieces {
             figurines: board.pieces().map(|(square, piece)| Figurine {
                 square,
                 piece,
-                start: (0.5 + f64::from(square.file()), 7.5 - f64::from(square.rank())),
+                start: (0.5 + float(square.file()), 7.5 - float(square.rank())),
                 elapsed: 0.0,
                 time: now,
                 last_drag: now,
@@ -140,7 +139,7 @@ impl Pieces {
             self.figurines.push(Figurine {
                 square,
                 piece,
-                start: (0.5 + f64::from(square.file()), 7.5 - f64::from(square.rank())),
+                start: (0.5 + float(square.file()), 7.5 - float(square.rank())),
                 elapsed: 0.0,
                 time: now,
                 last_drag: self.past,
@@ -172,7 +171,7 @@ impl Pieces {
 
         if e.get_button() == 1 {
             let dest = ctx.square();
-            self.selected = OptionFilterExt::filter(dest, |sq| self.occupied().contains(*sq));
+            self.selected = dest.filter(|sq| self.occupied().contains(*sq));
 
             if let (Some(orig), Some(dest)) = (orig, dest) {
                 self.selected = None;
@@ -314,13 +313,13 @@ impl Pieces {
 
     fn draw_selection(&self, cr: &Context, state: &BoardState) {
         if let Some(selected) = self.selected {
-            cr.rectangle(f64::from(selected.file()), 7.0 - f64::from(selected.rank()), 1.0, 1.0);
+            cr.rectangle(float(selected.file()), 7.0 - float(selected.rank()), 1.0, 1.0);
             cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
             cr.fill();
 
             if let Some(hovered) = self.drag.as_ref().and_then(|d| pos_to_square(d.pos)) {
                 if state.valid_move(selected, hovered) {
-                    cr.rectangle(f64::from(hovered.file()), 7.0 - f64::from(hovered.rank()), 1.0, 1.0);
+                    cr.rectangle(float(hovered.file()), 7.0 - float(hovered.rank()), 1.0, 1.0);
                     cr.set_source_rgba(0.08, 0.47, 0.11, 0.25);
                     cr.fill();
                 }
@@ -337,32 +336,32 @@ impl Pieces {
 
             for square in state.move_targets(selected) {
                 if self.occupied().contains(square) {
-                    cr.move_to(f64::from(square.file()), 7.0 - f64::from(square.rank()));
+                    cr.move_to(float(square.file()), 7.0 - float(square.rank()));
                     cr.rel_line_to(corner, 0.0);
                     cr.rel_line_to(-corner, corner);
                     cr.rel_line_to(0.0, -corner);
                     cr.fill();
 
-                    cr.move_to(1.0 + f64::from(square.file()), 7.0 - f64::from(square.rank()));
+                    cr.move_to(1.0 + float(square.file()), 7.0 - float(square.rank()));
                     cr.rel_line_to(0.0, corner);
                     cr.rel_line_to(-corner, -corner);
                     cr.rel_line_to(corner, 0.0);
                     cr.fill();
 
-                    cr.move_to(f64::from(square.file()), 8.0 - f64::from(square.rank()));
+                    cr.move_to(float(square.file()), 8.0 - float(square.rank()));
                     cr.rel_line_to(corner, 0.0);
                     cr.rel_line_to(-corner, -corner);
                     cr.rel_line_to(0.0, corner);
                     cr.fill();
 
-                    cr.move_to(1.0 + f64::from(square.file()), 8.0 - f64::from(square.rank()));
+                    cr.move_to(1.0 + float(square.file()), 8.0 - float(square.rank()));
                     cr.rel_line_to(-corner, 0.0);
                     cr.rel_line_to(corner, -corner);
                     cr.rel_line_to(0.0, corner);
                     cr.fill();
                 } else {
-                    cr.arc(0.5 + f64::from(square.file()),
-                           7.5 - f64::from(square.rank()),
+                    cr.arc(0.5 + float(square.file()),
+                           7.5 - float(square.rank()),
                            radius, 0.0, 2.0 * PI);
                     cr.fill();
                 }

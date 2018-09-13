@@ -29,9 +29,9 @@ use cairo::{Context, Matrix};
 
 use relm::{Relm, Widget, Update, EventStream};
 
-use shakmaty::{Square, Color, Role, Board, Move, MoveList, Chess, Position};
+use shakmaty::{Square, Rank, Color, Role, Board, Move, MoveList, Chess, Position};
 
-use util::pos_to_square;
+use util::{float, pos_to_square};
 use pieces::Pieces;
 use drawable::{Drawable, DrawShape};
 use promotable::Promotable;
@@ -190,7 +190,7 @@ impl Update for Ground {
             GroundMsg::UserMove(orig, dest, None) if state.board_state.valid_move(orig, dest) => {
                 if state.board_state.legals().iter().any(|m| m.from() == Some(orig) && m.to() == dest && m.promotion().is_some()) {
                     let color = state.pieces.figurine_at(orig).map_or_else(|| {
-                        Color::from_white(dest.rank() > 4)
+                        Color::from_white(dest.rank() > Rank::Fourth)
                     }, |figurine| figurine.piece().color);
                     state.promotable.start(color, orig, dest);
                     self.drawing_area.queue_draw();
@@ -386,7 +386,7 @@ impl<'a> WidgetContext<'a> {
     }
 
     pub fn queue_draw_square(&self, square: Square) {
-        self.queue_draw_rect(f64::from(square.file()), 7.0 - f64::from(square.rank()), 1.0, 1.0);
+        self.queue_draw_rect(float(square.file()), 7.0 - float(square.rank()), 1.0, 1.0);
     }
 
     pub fn queue_draw_rect(&self, x: f64, y: f64, width: f64, height: f64) {

@@ -1,5 +1,3 @@
-#![feature(proc_macro)]
-
 extern crate gtk;
 extern crate chessground;
 #[macro_use]

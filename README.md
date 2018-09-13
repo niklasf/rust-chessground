@@ -38,8 +38,6 @@ Example
 A board that lets the user freely move pieces. Run with `cargo run --example editor`.
 
 ```rust
-#![feature(proc_macro)]
-
 extern crate gtk;
 extern crate chessground;
 #[macro_use]
