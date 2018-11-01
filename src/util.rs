@@ -16,10 +16,6 @@
 
 use shakmaty::{Square, File, Rank};
 
-pub fn float<T: Into<i8>>(x: T) -> f64 {
-    f64::from(x.into())
-}
-
 pub fn ease(start: f64, end: f64, t: f64) -> f64 {
     // ease in out cubic from https://gist.github.com/gre/1650294
     let t = t.max(0.0).min(1.0);
@@ -41,5 +37,5 @@ pub fn pos_to_square((x, y): (f64, f64)) -> Option<Square> {
 }
 
 pub fn square_to_pos(square: Square) -> (f64, f64) {
-    (0.5 + float(square.file()), 7.5 - float(square.rank()))
+    (0.5 + f64::from(square.file()), 7.5 - f64::from(square.rank()))
 }

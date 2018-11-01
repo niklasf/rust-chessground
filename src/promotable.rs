@@ -24,7 +24,7 @@ use rsvg::HandleExt;
 
 use shakmaty::{Square, Rank, Color, Role, MoveList};
 
-use util::{ease, float, square_to_pos};
+use util::{ease, square_to_pos};
 use pieces::Pieces;
 use boardstate::BoardState;
 use ground::{WidgetContext, EventContext, GroundMsg};
@@ -177,7 +177,7 @@ impl Promoting {
             let light = (i8::from(self.dest.file()) + rank) & 1 == 1;
 
             cr.save();
-            cr.rectangle(float(self.dest.file()), 7.0 - float(rank), 1.0, 1.0);
+            cr.rectangle(f64::from(self.dest.file()), 7.0 - f64::from(rank), 1.0, 1.0);
 
             // draw background
             if light {
@@ -203,10 +203,10 @@ impl Promoting {
                 },
             };
 
-            cr.arc(0.5 + float(self.dest.file()), 7.5 - f64::from(rank), radius, 0.0, 2.0 * PI);
+            cr.arc(0.5 + f64::from(self.dest.file()), 7.5 - f64::from(rank), radius, 0.0, 2.0 * PI);
             cr.fill();
 
-            cr.translate(0.5 + float(self.dest.file()), 7.5 - float(rank));
+            cr.translate(0.5 + f64::from(self.dest.file()), 7.5 - f64::from(rank));
             cr.scale(2f64.sqrt() * radius, 2f64.sqrt() * radius);
             cr.rotate(state.orientation().fold(0.0, PI));
             cr.translate(-0.5, -0.5);

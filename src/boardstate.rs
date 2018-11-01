@@ -21,7 +21,6 @@ use cairo::{Context, Pattern, RadialGradient};
 
 use shakmaty::{Color, Square, Role, Bitboard, Chess, Position, MoveList};
 
-use util::float;
 use pieceset::PieceSet;
 
 pub struct BoardState {
@@ -144,7 +143,7 @@ impl BoardState {
 
         for square in Bitboard::ALL {
             if square.is_light() {
-                cr.rectangle(float(square.file()), 7.0 - float(square.rank()), 1.0, 1.0);
+                cr.rectangle(f64::from(square.file()), 7.0 - f64::from(square.rank()), 1.0, 1.0);
                 cr.fill();
             }
         }
@@ -153,11 +152,11 @@ impl BoardState {
     fn draw_last_move(&self, cr: &Context) {
         if let Some((orig, dest)) = self.last_move {
             cr.set_source_rgba(0.61, 0.78, 0.0, 0.41);
-            cr.rectangle(float(orig.file()), 7.0 - float(orig.rank()), 1.0, 1.0);
+            cr.rectangle(f64::from(orig.file()), 7.0 - f64::from(orig.rank()), 1.0, 1.0);
             cr.fill();
 
             if dest != orig {
-                cr.rectangle(float(dest.file()), 7.0 - float(dest.rank()), 1.0, 1.0);
+                cr.rectangle(f64::from(dest.file()), 7.0 - f64::from(dest.rank()), 1.0, 1.0);
                 cr.fill();
             }
         }
@@ -165,8 +164,8 @@ impl BoardState {
 
     fn draw_check(&self, cr: &Context) {
         if let Some(check) = self.check {
-            let cx = 0.5 + float(check.file());
-            let cy = 7.5 - float(check.rank());
+            let cx = 0.5 + f64::from(check.file());
+            let cy = 7.5 - f64::from(check.rank());
             let gradient = RadialGradient::new(cx, cy, 0.0, cx, cy, 0.5f64.hypot(0.5));
             gradient.add_color_stop_rgba(0.0, 1.0, 0.0, 0.0, 1.0);
             gradient.add_color_stop_rgba(0.25, 0.91, 0.0, 0.0, 1.0);

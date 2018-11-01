@@ -31,7 +31,7 @@ use relm::{Relm, Widget, Update, EventStream};
 
 use shakmaty::{Square, Rank, Color, Role, Board, Move, MoveList, Chess, Position};
 
-use util::{float, pos_to_square};
+use util::pos_to_square;
 use pieces::Pieces;
 use drawable::{Drawable, DrawShape};
 use promotable::Promotable;
@@ -386,7 +386,7 @@ impl<'a> WidgetContext<'a> {
     }
 
     pub fn queue_draw_square(&self, square: Square) {
-        self.queue_draw_rect(float(square.file()), 7.0 - float(square.rank()), 1.0, 1.0);
+        self.queue_draw_rect(f64::from(square.file()), 7.0 - f64::from(square.rank()), 1.0, 1.0);
     }
 
     pub fn queue_draw_rect(&self, x: f64, y: f64, width: f64, height: f64) {
