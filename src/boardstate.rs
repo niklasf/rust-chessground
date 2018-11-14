@@ -27,6 +27,7 @@ pub struct BoardState {
     orientation: Color,
     check: Option<Square>,
     last_move: Option<(Square, Square)>,
+    turn: Option<Color>,
     piece_set: PieceSet,
     legals: MoveList,
 }
@@ -41,6 +42,7 @@ impl BoardState {
             orientation: pos.turn(),
             check: None,
             last_move: None,
+            turn: None,
             piece_set: PieceSet::merida(),
             legals: MoveList::new(),
         };
@@ -52,6 +54,7 @@ impl BoardState {
     pub fn set_position<P: Position>(&mut self, pos: &P) {
         self.check = if pos.checkers().any() { pos.board().king_of(pos.turn()) } else { None };
         self.legals = pos.legals();
+        self.turn = Some(pos.turn());
     }
 
     pub fn set_last_move(&mut self, m: Option<(Square, Square)>) {
@@ -60,6 +63,14 @@ impl BoardState {
 
     pub fn set_check(&mut self, king: Option<Square>) {
         self.check = king;
+    }
+
+    pub fn set_turn(&mut self, turn: Option<Color>) {
+        self.turn = turn;
+    }
+
+    pub fn turn(&self) -> Option<Color> {
+        self.turn
     }
 
     pub fn move_targets(&self, orig: Square) -> Bitboard {
@@ -98,6 +109,7 @@ impl BoardState {
 
     pub(crate) fn draw(&self, cr: &Context) {
         self.draw_border(cr);
+        self.draw_turn(cr);
         self.draw_board(cr);
         self.draw_last_move(cr);
         self.draw_check(cr);
@@ -119,6 +131,22 @@ impl BoardState {
         for (file, glyph) in ["a", "b", "c", "d", "e", "f", "g", "h"].iter().enumerate() {
             self.draw_text(cr, (0.5 + file as f64, -0.25), glyph);
             self.draw_text(cr, (0.5 + file as f64, 8.25), glyph);
+        }
+    }
+
+    fn draw_turn(&self, cr: &Context) {
+        match self.turn {
+            Some(Color::White) => {
+                cr.set_source_rgb(1.0, 1.0, 1.0);
+                cr.arc(8.25, 8.25, 0.1, 0.0, 2.0 * PI);
+                cr.fill();
+            },
+            Some(Color::Black) => {
+                cr.set_source_rgb(0.0, 0.0, 0.0);
+                cr.arc(8.25, -0.25, 0.1, 0.0, 2.0 * PI);
+                cr.fill();
+            }
+            None => (),
         }
     }
 

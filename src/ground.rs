@@ -73,12 +73,14 @@ pub enum GroundMsg {
 /// * Legal move hints
 /// * Check hint
 /// * Last move hint
+/// * Side to move
 #[derive(Debug, Clone)]
 pub struct Pos {
     board: Board,
     legals: Box<MoveList>,
     check: Option<Square>,
     last_move: Option<(Square, Square)>,
+    turn: Option<Color>,
 }
 
 impl Pos {
@@ -89,6 +91,7 @@ impl Pos {
             legals: Box::new(p.legals()),
             check: if p.checkers().any() { p.board().king_of(p.turn()) } else { None },
             last_move: None,
+            turn: Some(p.turn()),
         }
     }
 
@@ -99,6 +102,7 @@ impl Pos {
             legals: Box::new(MoveList::new()),
             check: None,
             last_move: None,
+            turn: None,
         }
     }
 
@@ -130,6 +134,16 @@ impl Pos {
 
     pub fn with_legals(mut self, legals: MoveList) -> Pos {
         self.legals = Box::new(legals);
+        self
+    }
+
+    /// Set the side to move.
+    pub fn set_turn(&mut self, turn: Option<Color>) {
+        self.turn = turn;
+    }
+
+    pub fn with_turn(mut self, turn: Color) -> Pos {
+        self.turn = Some(turn);
         self
     }
 }
@@ -176,6 +190,7 @@ impl Update for Ground {
                 state.promotable.update(&pos.legals);
                 state.board_state.set_check(pos.check);
                 state.board_state.set_last_move(pos.last_move);
+                state.board_state.set_turn(pos.turn);
                 *state.board_state.legals_mut() = *pos.legals;
                 self.drawing_area.queue_draw();
             },
@@ -183,6 +198,7 @@ impl Update for Ground {
                 state.pieces.set_board(&board);
                 state.board_state.set_check(None);
                 state.board_state.set_last_move(None);
+                state.board_state.set_turn(None);
                 state.board_state.legals_mut().clear();
                 state.promotable.cancel();
                 self.drawing_area.queue_draw();
