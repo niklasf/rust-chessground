@@ -129,7 +129,9 @@ impl Drawable {
             shape.draw(cr);
         }
 
-        self.drawing.as_ref().map(|shape| shape.draw(cr));
+        if let Some(ref shape) = self.drawing {
+            shape.draw(cr);
+        }
     }
 }
 

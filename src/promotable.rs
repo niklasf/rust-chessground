@@ -105,8 +105,12 @@ impl Promotable {
             let square = ctx.square().filter(|sq| sq.file() == promoting.dest.file());
 
             if square != previous {
-                previous.map(|sq| ctx.widget().queue_draw_square(sq));
-                square.map(|sq| ctx.widget().queue_draw_square(sq));
+                if let Some(sq) = previous {
+                    ctx.widget().queue_draw_square(sq);
+                }
+                if let Some(sq) = square {
+                    ctx.widget().queue_draw_square(sq);
+                }
 
                 promoting.hover = square.map(|square| Hover {
                     square,
@@ -153,7 +157,9 @@ impl Promotable {
     }
 
     pub(crate) fn draw(&self, cr: &Context, state: &BoardState) {
-        self.promoting.as_ref().map(|p| p.draw(cr, state));
+        if let Some(ref p) = self.promoting {
+            p.draw(cr, state);
+        }
     }
 }
 
