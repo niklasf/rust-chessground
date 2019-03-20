@@ -10,7 +10,7 @@ extern crate relm_derive;
 extern crate shakmaty;
 extern crate rand;
 
-use rand::Rng;
+use rand::seq::SliceRandom;
 
 use gdk::ScrollDirection;
 use gtk::prelude::*;
@@ -109,7 +109,7 @@ impl Widget for Win {
             KeyPressed(b' ') => {
                 // play a random move
                 let legals = self.model.position.legals();
-                if let Some(m) = rand::thread_rng().choose(&legals) {
+                if let Some(m) = legals.choose(&mut rand::thread_rng()) {
                     self.model.push(m);
                     self.ground.emit(SetPos(self.model.pos()));
                 }
