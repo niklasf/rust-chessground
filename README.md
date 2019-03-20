@@ -4,7 +4,7 @@ rust-chessground
 [![crates.io](https://img.shields.io/crates/v/chessground.svg)](https://crates.io/crates/chessground)
 [![docs.rs](https://docs.rs/chessground/badge.svg)](https://docs.rs/chessground)
 
-A chessboard widget for [Relm/GTK](https://github.com/antoyo/relm).
+An *experimental* chessboard widget for [Relm/GTK](https://github.com/antoyo/relm).
 Inspired by [chessground.js](https://github.com/ornicar/chessground).
 
 ![](https://github.com/niklasf/rust-chessground/blob/master/screenshot.png?raw=true)
