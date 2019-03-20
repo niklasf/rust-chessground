@@ -19,7 +19,7 @@ use std::f64::consts::PI;
 use cairo::prelude::*;
 use cairo::{Context, Pattern, RadialGradient};
 
-use shakmaty::{Color, Square, Role, Bitboard, Chess, Position, MoveList};
+use shakmaty::{Color, Square, Role, Bitboard, Chess, Position, Move, MoveList};
 
 use pieceset::PieceSet;
 
@@ -74,7 +74,7 @@ impl BoardState {
     }
 
     pub fn move_targets(&self, orig: Square) -> Bitboard {
-        self.legals.iter().filter(|m| m.from() == Some(orig)).map(|m| m.to()).collect()
+        self.legals.iter().filter(|m| m.from() == Some(orig)).map(Move::to).collect()
     }
 
     pub fn valid_move(&self, orig: Square, dest: Square) -> bool {

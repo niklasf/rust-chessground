@@ -208,10 +208,14 @@ impl Pieces {
     pub(crate) fn drag_mouse_move(&mut self, ctx: &EventContext) {
         if let Some(ref mut drag) = self.drag {
             ctx.widget().queue_draw_rect(drag.pos.0 - 0.5, drag.pos.1 - 0.5, 1.0, 1.0);
-            pos_to_square(drag.pos).map(|sq| ctx.widget().queue_draw_square(sq));
+            if let Some(sq) = pos_to_square(drag.pos) {
+                ctx.widget().queue_draw_square(sq);
+            }
             drag.pos = ctx.pos();
             ctx.widget().queue_draw_rect(drag.pos.0 - 0.5, drag.pos.1 - 0.5, 1.0, 1.0);
-            pos_to_square(drag.pos).map(|sq| ctx.widget().queue_draw_square(sq));
+            if let Some(sq) = pos_to_square(drag.pos) {
+                ctx.widget().queue_draw_square(sq);
+            }
 
             let (dx, dy) = (drag.start.0 - drag.pos.0, drag.start.1 - drag.pos.1);
             let (pdx, pdy) = ctx.widget().matrix().transform_distance(dx, dy);
