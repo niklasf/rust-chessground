@@ -227,10 +227,10 @@ impl Widget for Ground {
     fn view(relm: &Relm<Self>, model: Model) -> Self {
         let drawing_area = DrawingArea::new();
 
-        drawing_area.add_events((EventMask::BUTTON_PRESS_MASK |
-                                 EventMask::BUTTON_RELEASE_MASK |
-                                 EventMask::POINTER_MOTION_MASK |
-                                 EventMask::SCROLL_MASK).bits() as i32);
+        drawing_area.add_events(EventMask::BUTTON_PRESS_MASK |
+                                EventMask::BUTTON_RELEASE_MASK |
+                                EventMask::POINTER_MOTION_MASK |
+                                EventMask::SCROLL_MASK);
 
         {
             // draw
