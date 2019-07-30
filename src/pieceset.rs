@@ -14,21 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-use rsvg::Handle;
+use librsvg::{Loader, SvgHandle};
 
 use shakmaty::{Color, Role, Piece};
 
 struct PieceSetSide {
-    pawn: Handle,
-    knight: Handle,
-    bishop: Handle,
-    rook: Handle,
-    queen: Handle,
-    king: Handle,
+    pawn: SvgHandle,
+    knight: SvgHandle,
+    bishop: SvgHandle,
+    rook: SvgHandle,
+    queen: SvgHandle,
+    king: SvgHandle,
 }
 
 impl PieceSetSide {
-    fn by_role(&self, role: Role) -> &Handle {
+    fn by_role(&self, role: Role) -> &SvgHandle {
         match role {
             Role::Pawn => &self.pawn,
             Role::Knight => &self.knight,
@@ -50,7 +50,7 @@ impl PieceSet {
         color.fold(&self.white, &self.black)
     }
 
-    pub fn by_piece(&self, piece: &Piece) -> &Handle {
+    pub fn by_piece(&self, piece: &Piece) -> &SvgHandle {
         self.by_color(piece.color).by_role(piece.role)
     }
 
@@ -63,20 +63,20 @@ impl PieceSet {
     pub fn merida() -> PieceSet {
         PieceSet {
             black: PieceSetSide {
-                pawn: Handle::new_from_str(include_str!("merida/bP.svg")).expect("merida/bP.svg"),
-                knight: Handle::new_from_str(include_str!("merida/bN.svg")).expect("merida/bN.svg"),
-                bishop: Handle::new_from_str(include_str!("merida/bB.svg")).expect("merida/bB.svg"),
-                rook: Handle::new_from_str(include_str!("merida/bR.svg")).expect("merida/bR.svg"),
-                queen: Handle::new_from_str(include_str!("merida/bQ.svg")).expect("merida/bQ.svg"),
-                king: Handle::new_from_str(include_str!("merida/bK.svg")).expect("merida/bK.svg"),
+                pawn: Loader::new().read_path("src/merida/bP.svg").expect("merida/bP.svg"),
+                knight: Loader::new().read_path("src/merida/bN.svg").expect("merida/bN.svg"),
+                bishop: Loader::new().read_path("src/merida/bB.svg").expect("merida/bB.svg"),
+                rook: Loader::new().read_path("src/merida/bR.svg").expect("merida/bR.svg"),
+                queen: Loader::new().read_path("src/merida/bQ.svg").expect("merida/bQ.svg"),
+                king: Loader::new().read_path("src/merida/bK.svg").expect("merida/bK.svg"),
             },
             white: PieceSetSide {
-                pawn: Handle::new_from_str(include_str!("merida/wP.svg")).expect("merida/wP.svg"),
-                knight: Handle::new_from_str(include_str!("merida/wN.svg")).expect("merida/wN.svg"),
-                bishop: Handle::new_from_str(include_str!("merida/wB.svg")).expect("merida/wB.svg"),
-                rook: Handle::new_from_str(include_str!("merida/wR.svg")).expect("merida/wR.svg"),
-                queen: Handle::new_from_str(include_str!("merida/wQ.svg")).expect("merida/wQ.svg"),
-                king: Handle::new_from_str(include_str!("merida/wK.svg")).expect("merida/wK.svg"),
+                pawn: Loader::new().read_path("src/merida/wP.svg").expect("merida/wP.svg"),
+                knight: Loader::new().read_path("src/merida/wN.svg").expect("merida/wN.svg"),
+                bishop: Loader::new().read_path("src/merida/wB.svg").expect("merida/wB.svg"),
+                rook: Loader::new().read_path("src/merida/wR.svg").expect("merida/wR.svg"),
+                queen: Loader::new().read_path("src/merida/wQ.svg").expect("merida/wQ.svg"),
+                king: Loader::new().read_path("src/merida/wK.svg").expect("merida/wK.svg"),
             },
         }
     }

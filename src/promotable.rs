@@ -19,8 +19,7 @@ use std::f64::consts::PI;
 use time::SteadyTime;
 
 use gtk::prelude::*;
-use cairo::Context;
-use rsvg::HandleExt;
+use cairo::{Context, Rectangle};
 
 use shakmaty::{Square, Rank, Color, Role, MoveList};
 
@@ -217,7 +216,13 @@ impl Promoting {
             cr.rotate(state.orientation().fold(0.0, PI));
             cr.translate(-0.5, -0.5);
             cr.scale(state.piece_set().scale(), state.piece_set().scale());
-            state.piece_set().by_piece(&role.of(self.color)).render_cairo(cr);
+            let renderer = librsvg::CairoRenderer::new(state.piece_set().by_piece(&role.of(self.color)));
+            renderer.render_element_to_viewport(cr, None, &Rectangle {
+                x: 0.0,
+                y: 0.0,
+                width: 177.0,
+                height: 177.0,
+            }).expect("render");
 
             cr.restore();
         }

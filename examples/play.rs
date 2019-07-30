@@ -3,7 +3,6 @@ extern crate gtk;
 extern crate chessground;
 #[macro_use]
 extern crate relm;
-extern crate relm_attributes;
 #[macro_use]
 extern crate relm_derive;
 
@@ -15,7 +14,7 @@ use rand::seq::SliceRandom;
 use gdk::ScrollDirection;
 use gtk::prelude::*;
 use relm::Widget;
-use relm_attributes::widget;
+use relm_derive::widget;
 
 use shakmaty::{Square, Role, Move, Chess, Position};
 use chessground::{Ground, UserMove, SetPos, Pos, Flip};
