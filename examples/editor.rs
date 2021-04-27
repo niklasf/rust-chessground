@@ -2,14 +2,13 @@ extern crate gtk;
 extern crate chessground;
 #[macro_use]
 extern crate relm;
-extern crate relm_attributes;
 #[macro_use]
 extern crate relm_derive;
 extern crate shakmaty;
 
 use gtk::prelude::*;
 use relm::Widget;
-use relm_attributes::widget;
+use relm_derive::widget;
 
 use shakmaty::{Square, Board};
 use chessground::{Ground, UserMove, SetBoard};

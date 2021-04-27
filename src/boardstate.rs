@@ -16,8 +16,7 @@
 
 use std::f64::consts::PI;
 
-use cairo::prelude::*;
-use cairo::{Context, Pattern, RadialGradient};
+use cairo::{Context, RadialGradient};
 
 use shakmaty::{Color, Square, Role, Bitboard, Chess, Position, Move, MoveList};
 
@@ -198,7 +197,7 @@ impl BoardState {
             gradient.add_color_stop_rgba(0.0, 1.0, 0.0, 0.0, 1.0);
             gradient.add_color_stop_rgba(0.25, 0.91, 0.0, 0.0, 1.0);
             gradient.add_color_stop_rgba(0.89, 0.66, 0.0, 0.0, 0.0);
-            cr.set_source(&Pattern::RadialGradient(gradient));
+            cr.set_source(&gradient);
             cr.paint();
         }
     }

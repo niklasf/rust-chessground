@@ -19,9 +19,7 @@ use std::f64::consts::PI;
 use time::SteadyTime;
 
 use gdk::EventButton;
-use cairo::prelude::*;
-use cairo::Context;
-use rsvg::HandleExt;
+use cairo::{Context, Rectangle};
 
 use shakmaty::{Square, Piece, Bitboard, Board};
 
@@ -308,7 +306,13 @@ impl Pieces {
         cr.translate(-0.5, -0.5);
         cr.scale(state.piece_set().scale(), state.piece_set().scale());
 
-        state.piece_set().by_piece(&figurine.piece).render_cairo(cr);
+        let renderer = librsvg::CairoRenderer::new(state.piece_set().by_piece(&figurine.piece));
+        renderer.render_element_to_viewport(cr, None, &Rectangle {
+            x: 0.0,
+            y: 0.0,
+            width: 177.0,
+            height: 177.0,
+        }).expect("render");
 
         cr.pop_group_to_source();
 
@@ -381,7 +385,13 @@ impl Pieces {
                 cr.rotate(state.orientation().fold(0.0, PI));
                 cr.translate(-0.5, -0.5);
                 cr.scale(state.piece_set().scale(), state.piece_set().scale());
-                state.piece_set().by_piece(&drag.piece).render_cairo(cr);
+                let renderer = librsvg::CairoRenderer::new(state.piece_set().by_piece(&drag.piece));
+                renderer.render_element_to_viewport(cr, None, &Rectangle {
+                    x: 0.0,
+                    y: 0.0,
+                    width: 177.0,
+                    height: 177.0,
+                }).expect("render");
                 cr.pop_group_to_source();
                 cr.paint();
             }
