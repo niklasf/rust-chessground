@@ -156,10 +156,12 @@ impl Promotable {
         Inhibit(false)
     }
 
-    pub(crate) fn draw(&self, cr: &Context, state: &BoardState) {
+    pub(crate) fn draw(&self, cr: &Context, state: &BoardState) -> Result<(), cairo::Error> {
         if let Some(ref p) = self.promoting {
-            p.draw(cr, state);
+            p.draw(cr, state)?;
         }
+
+        Ok(())
     }
 }
 
@@ -168,11 +170,11 @@ impl Promoting {
         Color::from_white(self.dest.rank() > Rank::Fourth)
     }
 
-    fn draw(&self, cr: &Context, state: &BoardState) {
+    fn draw(&self, cr: &Context, state: &BoardState) -> Result<(), cairo::Error> {
         // make the board darker
         cr.rectangle(0.0, 0.0, 8.0, 8.0);
         cr.set_source_rgba(0.0, 0.0, 0.0, 0.5);
-        cr.fill();
+        cr.fill()?;
 
         for (offset, role) in [Role::Queen, Role::Rook, Role::Bishop, Role::Knight, Role::King, Role::Pawn].iter().enumerate() {
             if !state.legal_move(self.orig, self.dest, Some(*role)) {
@@ -182,7 +184,7 @@ impl Promoting {
             let rank = i8::from(self.dest.rank()) - self.orientation().fold(offset as i8, -(offset as i8));
             let light = (i8::from(self.dest.file()) + rank) & 1 == 1;
 
-            cr.save();
+            cr.save()?;
             cr.rectangle(f64::from(self.dest.file()), 7.0 - f64::from(rank), 1.0, 1.0);
 
             // draw background
@@ -191,7 +193,7 @@ impl Promoting {
             } else {
                 cr.set_source_rgb(0.18, 0.18, 0.18);
             }
-            cr.fill_preserve();
+            cr.fill_preserve()?;
             cr.clip();
 
             // draw piece
@@ -210,7 +212,7 @@ impl Promoting {
             };
 
             cr.arc(0.5 + f64::from(self.dest.file()), 7.5 - f64::from(rank), radius, 0.0, 2.0 * PI);
-            cr.fill();
+            cr.fill()?;
 
             cr.translate(0.5 + f64::from(self.dest.file()), 7.5 - f64::from(rank));
             cr.scale(2f64.sqrt() * radius, 2f64.sqrt() * radius);
@@ -219,7 +221,9 @@ impl Promoting {
             cr.scale(state.piece_set().scale(), state.piece_set().scale());
             state.piece_set().by_piece(&role.of(self.color)).render_cairo(cr);
 
-            cr.restore();
+            cr.restore()?;
         }
+
+        Ok(())
     }
 }

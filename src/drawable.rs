@@ -62,7 +62,7 @@ impl Drawable {
             return;
         }
 
-        match e.get_button() {
+        match e.button() {
             1 => {
                 if self.erase_on_click && !self.shapes.is_empty() {
                     self.shapes.clear();
@@ -72,11 +72,11 @@ impl Drawable {
             }
             3 => {
                 self.drawing = ctx.square().map(|square| {
-                    let brush = if e.get_state().contains(ModifierType::MOD1_MASK | ModifierType::SHIFT_MASK) {
+                    let brush = if e.state().contains(ModifierType::MOD1_MASK | ModifierType::SHIFT_MASK) {
                         DrawBrush::Yellow
-                    } else if e.get_state().contains(ModifierType::MOD1_MASK) {
+                    } else if e.state().contains(ModifierType::MOD1_MASK) {
                         DrawBrush::Blue
-                    } else if e.get_state().contains(ModifierType::SHIFT_MASK) {
+                    } else if e.state().contains(ModifierType::SHIFT_MASK) {
                         DrawBrush::Red
                     } else {
                         DrawBrush::Green
@@ -124,14 +124,16 @@ impl Drawable {
         }
     }
 
-    pub(crate) fn draw(&self, cr: &Context) {
+    pub(crate) fn draw(&self, cr: &Context) -> Result<(), cairo::Error> {
         for shape in &self.shapes {
-            shape.draw(cr);
+            shape.draw(cr)?;
         }
 
         if let Some(ref shape) = self.drawing {
-            shape.draw(cr);
+            shape.draw(cr)?;
         }
+
+        Ok(())
     }
 }
 
@@ -161,7 +163,7 @@ impl DrawShape {
         self.orig != self.dest
     }
 
-    fn draw(&self, cr: &Context) {
+    fn draw(&self, cr: &Context) -> Result<(), cairo::Error> {
         let opacity = 0.5;
 
         match self.brush {
@@ -181,7 +183,7 @@ impl DrawShape {
             let stroke = 0.05;
             cr.set_line_width(stroke);
             cr.arc(dest_x, dest_y, 0.5 * (1.0 - stroke), 0.0, 2.0 * PI);
-            cr.stroke();
+            cr.stroke()?;
         } else {
             // draw arrow
             let marker_size = 0.75;
@@ -202,7 +204,7 @@ impl DrawShape {
             // shaft
             cr.move_to(orig_x, orig_y);
             cr.line_to(shaft_x, shaft_y);
-            cr.stroke();
+            cr.stroke()?;
 
             // arrow head
             cr.move_to(head_x, head_y);
@@ -210,7 +212,9 @@ impl DrawShape {
                        shaft_y + dx * 0.5 * marker_size / hypot);
             cr.line_to(shaft_x + dy * 0.5 * marker_size / hypot,
                        shaft_y - dx * 0.5 * marker_size / hypot);
-            cr.fill();
+            cr.fill()?;
         }
+
+        Ok(())
     }
 }

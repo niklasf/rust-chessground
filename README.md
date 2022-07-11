@@ -40,16 +40,14 @@ A board that lets the user freely move pieces. Run with `cargo run --example edi
 ```rust
 extern crate gtk;
 extern crate chessground;
-#[macro_use]
 extern crate relm;
-extern crate relm_attributes;
 #[macro_use]
 extern crate relm_derive;
 extern crate shakmaty;
 
 use gtk::prelude::*;
 use relm::Widget;
-use relm_attributes::widget;
+use relm_derive::widget;
 
 use shakmaty::{Square, Board};
 use chessground::{Ground, UserMove, SetBoard};
@@ -74,7 +72,7 @@ impl Widget for Win {
             PieceMoved(orig, dest) => {
                 if let Some(piece) = self.model.remove_piece_at(orig) {
                     self.model.set_piece_at(dest, piece, false);
-                    self.ground.emit(SetBoard(self.model.clone()));
+                    self.components.ground.emit(SetBoard(self.model.clone()));
                 }
             }
         }

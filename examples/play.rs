@@ -1,9 +1,7 @@
 extern crate gdk;
 extern crate gtk;
 extern crate chessground;
-#[macro_use]
 extern crate relm;
-extern crate relm_attributes;
 #[macro_use]
 extern crate relm_derive;
 
@@ -15,7 +13,7 @@ use rand::seq::SliceRandom;
 use gdk::ScrollDirection;
 use gtk::prelude::*;
 use relm::Widget;
-use relm_attributes::widget;
+use relm_derive::widget;
 
 use shakmaty::{Square, Role, Move, Chess, Position};
 use chessground::{Ground, UserMove, SetPos, Pos, Flip};
@@ -103,7 +101,7 @@ impl Widget for Win {
 
                 if let Some(m) = m {
                     self.model.push(m);
-                    self.ground.emit(SetPos(self.model.pos()));
+                    self.components.ground.emit(SetPos(self.model.pos()));
                 }
             },
             KeyPressed(b' ') => {
@@ -111,27 +109,27 @@ impl Widget for Win {
                 let legals = self.model.position.legals();
                 if let Some(m) = legals.choose(&mut rand::thread_rng()) {
                     self.model.push(m);
-                    self.ground.emit(SetPos(self.model.pos()));
+                    self.components.ground.emit(SetPos(self.model.pos()));
                 }
             },
             KeyPressed(b'f') => {
-                self.ground.emit(Flip)
+                self.components.ground.emit(Flip)
             },
             KeyPressed(b'k') | Scroll(ScrollDirection::Up) => {
                 self.model.undo();
-                self.ground.emit(SetPos(self.model.pos()));
+                self.components.ground.emit(SetPos(self.model.pos()));
             },
             KeyPressed(b'j') | Scroll(ScrollDirection::Down) => {
                 self.model.redo();
-                self.ground.emit(SetPos(self.model.pos()));
+                self.components.ground.emit(SetPos(self.model.pos()));
             },
             KeyPressed(b'h') => {
                 self.model.undo_all();
-                self.ground.emit(SetPos(self.model.pos()));
+                self.components.ground.emit(SetPos(self.model.pos()));
             },
             KeyPressed(b'l') => {
                 self.model.redo_all();
-                self.ground.emit(SetPos(self.model.pos()));
+                self.components.ground.emit(SetPos(self.model.pos()));
             },
             _ => {},
         }
@@ -143,10 +141,10 @@ impl Widget for Win {
                 #[name="ground"]
                 Ground {
                     UserMove(orig, dest, promotion) => MovePlayed(orig, dest, promotion),
-                    scroll_event(_, e) => (Scroll(e.get_direction()), Inhibit(false)),
+                    scroll_event(_, e) => (Scroll(e.direction()), Inhibit(false)),
                 },
             },
-            key_press_event(_, e) => (KeyPressed(e.get_keyval() as u8), Inhibit(false)),
+            key_press_event(_, e) => (KeyPressed(*e.keyval() as u8), Inhibit(false)),
             delete_event(_, _) => (Quit, Inhibit(false)),
         }
     }
