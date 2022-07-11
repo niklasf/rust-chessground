@@ -71,7 +71,7 @@ impl Widget for Win {
             Quit => gtk::main_quit(),
             PieceMoved(orig, dest) => {
                 if let Some(piece) = self.model.remove_piece_at(orig) {
-                    self.model.set_piece_at(dest, piece, false);
+                    self.model.set_piece_at(dest, piece);
                     self.components.ground.emit(SetBoard(self.model.clone()));
                 }
             }

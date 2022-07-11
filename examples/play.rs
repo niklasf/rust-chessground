@@ -93,7 +93,7 @@ impl Widget for Win {
                 gtk::main_quit()
             },
             MovePlayed(orig, dest, promotion) => {
-                let legals = self.model.position.legals();
+                let legals = self.model.position.legal_moves();
                 let m = legals.iter().find(|m| {
                     m.from() == Some(orig) && m.to() == dest &&
                     m.promotion() == promotion
@@ -106,7 +106,7 @@ impl Widget for Win {
             },
             KeyPressed(b' ') => {
                 // play a random move
-                let legals = self.model.position.legals();
+                let legals = self.model.position.legal_moves();
                 if let Some(m) = legals.choose(&mut rand::thread_rng()) {
                     self.model.push(m);
                     self.components.ground.emit(SetPos(self.model.pos()));
