@@ -30,12 +30,20 @@ pub fn ease(start: f64, end: f64, t: f64) -> f64 {
 pub fn pos_to_square((x, y): (f64, f64)) -> Option<Square> {
     let (x, y) = (x.floor(), y.floor());
     if 0f64 <= x && x <= 7f64 && 0f64 <= y && y <= 7f64 {
-        Some(Square::from_coords(File::new(x as i8), Rank::new(7 - y as i8)))
+        Some(Square::from_coords(File::new(x as u32), Rank::new(7 - y as u32)))
     } else {
         None
     }
 }
 
 pub fn square_to_pos(square: Square) -> (f64, f64) {
-    (0.5 + f64::from(square.file()), 7.5 - f64::from(square.rank()))
+    (0.5 + file_to_float(square.file()), 7.5 - rank_to_float(square.rank()))
+}
+
+pub fn rank_to_float(rank: Rank) -> f64 {
+    f64::from(i8::from(rank))
+}
+
+pub fn file_to_float(file: File) -> f64 {
+    f64::from(i8::from(file))
 }

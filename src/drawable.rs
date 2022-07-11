@@ -23,6 +23,8 @@ use shakmaty::Square;
 
 use ground::{EventContext, GroundMsg};
 
+use util::{file_to_float, rank_to_float};
+
 /// Shape colors.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum DrawBrush {
@@ -173,10 +175,10 @@ impl DrawShape {
             DrawBrush::Yellow => cr.set_source_rgba(0.90, 0.94, 0.0, opacity),
         }
 
-        let orig_x = 0.5 + f64::from(self.orig.file());
-        let orig_y = 7.5 - f64::from(self.orig.rank());
-        let dest_x = 0.5 + f64::from(self.dest.file());
-        let dest_y = 7.5 - f64::from(self.dest.rank());
+        let orig_x = 0.5 + file_to_float(self.orig.file());
+        let orig_y = 7.5 - rank_to_float(self.orig.rank());
+        let dest_x = 0.5 + file_to_float(self.dest.file());
+        let dest_y = 7.5 - rank_to_float(self.dest.rank());
 
         if self.is_circle() {
             // draw circle

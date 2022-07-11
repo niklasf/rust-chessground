@@ -21,6 +21,7 @@ use cairo::{Context, RadialGradient};
 use shakmaty::{Color, Square, Role, Bitboard, Chess, Position, Move, MoveList};
 
 use pieceset::PieceSet;
+use util::{file_to_float, rank_to_float};
 
 pub struct BoardState {
     orientation: Color,
@@ -52,7 +53,7 @@ impl BoardState {
 
     pub fn set_position<P: Position>(&mut self, pos: &P) {
         self.check = if pos.checkers().any() { pos.board().king_of(pos.turn()) } else { None };
-        self.legals = pos.legals();
+        self.legals = pos.legal_moves();
         self.turn = Some(pos.turn());
     }
 
@@ -160,7 +161,7 @@ impl BoardState {
 
         cr.save()?;
         cr.translate(x, y);
-        cr.rotate(self.orientation.fold(0.0, PI));
+        cr.rotate(self.orientation.fold_wb(0.0, PI));
         cr.move_to(-0.5 * e.width, 0.5 * font.height - font.descent);
         cr.show_text(text)?;
         cr.restore()?;
@@ -175,9 +176,9 @@ impl BoardState {
 
         cr.set_source_rgb(0.87, 0.89, 0.90); // light
 
-        for square in Bitboard::ALL {
+        for square in Square::ALL {
             if square.is_light() {
-                cr.rectangle(f64::from(square.file()), 7.0 - f64::from(square.rank()), 1.0, 1.0);
+                cr.rectangle(file_to_float(square.file()), 7.0 - rank_to_float(square.rank()), 1.0, 1.0);
                 cr.fill()?;
             }
         }
@@ -188,11 +189,11 @@ impl BoardState {
     fn draw_last_move(&self, cr: &Context) -> Result<(), cairo::Error> {
         if let Some((orig, dest)) = self.last_move {
             cr.set_source_rgba(0.61, 0.78, 0.0, 0.41);
-            cr.rectangle(f64::from(orig.file()), 7.0 - f64::from(orig.rank()), 1.0, 1.0);
+            cr.rectangle(file_to_float(orig.file()), 7.0 - rank_to_float(orig.rank()), 1.0, 1.0);
             cr.fill()?;
 
             if dest != orig {
-                cr.rectangle(f64::from(dest.file()), 7.0 - f64::from(dest.rank()), 1.0, 1.0);
+                cr.rectangle(file_to_float(dest.file()), 7.0 - rank_to_float(dest.rank()), 1.0, 1.0);
                 cr.fill()?;
             }
         }
@@ -202,8 +203,8 @@ impl BoardState {
 
     fn draw_check(&self, cr: &Context) -> Result<(), cairo::Error> {
         if let Some(check) = self.check {
-            let cx = 0.5 + f64::from(check.file());
-            let cy = 7.5 - f64::from(check.rank());
+            let cx = 0.5 + file_to_float(check.file());
+            let cy = 7.5 - rank_to_float(check.rank());
             let gradient = RadialGradient::new(cx, cy, 0.0, cx, cy, 0.5f64.hypot(0.5));
             gradient.add_color_stop_rgba(0.0, 1.0, 0.0, 0.0, 1.0);
             gradient.add_color_stop_rgba(0.25, 0.91, 0.0, 0.0, 1.0);

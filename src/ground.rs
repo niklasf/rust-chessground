@@ -29,7 +29,7 @@ use relm::{Relm, Widget, Update, StreamHandle};
 
 use shakmaty::{Square, Rank, Color, Role, Board, Move, MoveList, Chess, Position};
 
-use util::pos_to_square;
+use util::{file_to_float, pos_to_square, rank_to_float};
 use pieces::Pieces;
 use drawable::{Drawable, DrawShape};
 use promotable::Promotable;
@@ -86,7 +86,7 @@ impl Pos {
     pub fn new<P: Position>(p: &P) -> Pos {
         Pos {
             board: p.board().clone(),
-            legals: Box::new(p.legals()),
+            legals: Box::new(p.legal_moves()),
             check: if p.checkers().any() { p.board().king_of(p.turn()) } else { None },
             last_move: None,
             turn: Some(p.turn()),
@@ -381,7 +381,7 @@ impl<'a> WidgetContext<'a> {
 
         matrix.translate(f64::from(alloc.width) / 2.0, f64::from(alloc.height) / 2.0);
         matrix.scale(f64::from(size) / 9.0, f64::from(size) / 9.0);
-        matrix.rotate(board_state.orientation().fold(0.0, PI));
+        matrix.rotate(board_state.orientation().fold_wb(0.0, PI));
         matrix.translate(-4.0, -4.0);
 
         WidgetContext { matrix, drawing_area }
@@ -402,7 +402,7 @@ impl<'a> WidgetContext<'a> {
     }
 
     pub fn queue_draw_square(&self, square: Square) {
-        self.queue_draw_rect(f64::from(square.file()), 7.0 - f64::from(square.rank()), 1.0, 1.0);
+        self.queue_draw_rect(file_to_float(square.file()), 7.0 - rank_to_float(square.rank()), 1.0, 1.0);
     }
 
     pub fn queue_draw_rect(&self, x: f64, y: f64, width: f64, height: f64) {

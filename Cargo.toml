@@ -17,7 +17,7 @@ rsvg = { git = "https://github.com/selaux/rsvg-rs.git", rev = "27f4c8adbadddbffc
 time = "0.1"
 relm = "0.22"
 relm-derive = "0.22"
-shakmaty = "0.14"
+shakmaty = "0.21"
 
 [dev-dependencies]
 rand = "0.6"

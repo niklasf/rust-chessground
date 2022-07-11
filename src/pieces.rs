@@ -24,7 +24,7 @@ use rsvg::HandleExt;
 
 use shakmaty::{Square, Piece, Bitboard, Board};
 
-use util::{ease, pos_to_square, square_to_pos};
+use util::{ease, file_to_float, pos_to_square, rank_to_float, square_to_pos};
 use promotable::Promotable;
 use boardstate::BoardState;
 use ground::{GroundMsg, EventContext, WidgetContext};
@@ -68,10 +68,10 @@ impl Pieces {
             selected: None,
             drag: None,
             past: now,
-            figurines: board.pieces().map(|(square, piece)| Figurine {
+            figurines: board.clone().into_iter().map(|(square, piece)| Figurine {
                 square,
                 piece,
-                start: (0.5 + f64::from(square.file()), 7.5 - f64::from(square.rank())),
+                start: (0.5 + file_to_float(square.file()), 7.5 - rank_to_float(square.rank())),
                 elapsed: 0.0,
                 time: now,
                 last_drag: now,
@@ -88,7 +88,7 @@ impl Pieces {
         self.figurines.retain(|f| !f.fading || f.alpha() > 0.0001);
 
         // diff
-        let mut added: Vec<_> = board.pieces().filter(|&(sq, piece)| {
+        let mut added: Vec<_> = board.clone().into_iter().filter(|&(sq, piece)| {
             self.figurine_at(sq).map_or(true, |f| f.piece != piece)
         }).collect();
 
@@ -138,7 +138,7 @@ impl Pieces {
             self.figurines.push(Figurine {
                 square,
                 piece,
-                start: (0.5 + f64::from(square.file()), 7.5 - f64::from(square.rank())),
+                start: (0.5 + file_to_float(square.file()), 7.5 - rank_to_float(square.rank())),
                 elapsed: 0.0,
                 time: now,
                 last_drag: self.past,
@@ -305,7 +305,7 @@ impl Pieces {
 
         let (x, y) = figurine.pos();
         cr.translate(x, y);
-        cr.rotate(state.orientation().fold(0.0, PI));
+        cr.rotate(state.orientation().fold_wb(0.0, PI));
         cr.translate(-0.5, -0.5);
         cr.scale(state.piece_set().scale(), state.piece_set().scale());
 
@@ -320,13 +320,13 @@ impl Pieces {
 
     fn draw_selection(&self, cr: &Context, state: &BoardState) -> Result<(), cairo::Error> {
         if let Some(selected) = self.selected {
-            cr.rectangle(f64::from(selected.file()), 7.0 - f64::from(selected.rank()), 1.0, 1.0);
+            cr.rectangle(file_to_float(selected.file()), 7.0 - rank_to_float(selected.rank()), 1.0, 1.0);
             cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
             cr.fill()?;
 
             if let Some(hovered) = self.drag.as_ref().and_then(|d| pos_to_square(d.pos)) {
                 if state.valid_move(selected, hovered) {
-                    cr.rectangle(f64::from(hovered.file()), 7.0 - f64::from(hovered.rank()), 1.0, 1.0);
+                    cr.rectangle(file_to_float(hovered.file()), 7.0 - rank_to_float(hovered.rank()), 1.0, 1.0);
                     cr.set_source_rgba(0.08, 0.47, 0.11, 0.25);
                     cr.fill()?;
                 }
@@ -345,32 +345,32 @@ impl Pieces {
 
             for square in state.move_targets(selected) {
                 if self.occupied().contains(square) {
-                    cr.move_to(f64::from(square.file()), 7.0 - f64::from(square.rank()));
+                    cr.move_to(file_to_float(square.file()), 7.0 - rank_to_float(square.rank()));
                     cr.rel_line_to(corner, 0.0);
                     cr.rel_line_to(-corner, corner);
                     cr.rel_line_to(0.0, -corner);
                     cr.fill()?;
 
-                    cr.move_to(1.0 + f64::from(square.file()), 7.0 - f64::from(square.rank()));
+                    cr.move_to(1.0 + file_to_float(square.file()), 7.0 - rank_to_float(square.rank()));
                     cr.rel_line_to(0.0, corner);
                     cr.rel_line_to(-corner, -corner);
                     cr.rel_line_to(corner, 0.0);
                     cr.fill()?;
 
-                    cr.move_to(f64::from(square.file()), 8.0 - f64::from(square.rank()));
+                    cr.move_to(file_to_float(square.file()), 8.0 - rank_to_float(square.rank()));
                     cr.rel_line_to(corner, 0.0);
                     cr.rel_line_to(-corner, -corner);
                     cr.rel_line_to(0.0, corner);
                     cr.fill()?;
 
-                    cr.move_to(1.0 + f64::from(square.file()), 8.0 - f64::from(square.rank()));
+                    cr.move_to(1.0 + file_to_float(square.file()), 8.0 - rank_to_float(square.rank()));
                     cr.rel_line_to(-corner, 0.0);
                     cr.rel_line_to(corner, -corner);
                     cr.rel_line_to(0.0, corner);
                     cr.fill()?;
                 } else {
-                    cr.arc(0.5 + f64::from(square.file()),
-                           7.5 - f64::from(square.rank()),
+                    cr.arc(0.5 + file_to_float(square.file()),
+                           7.5 - rank_to_float(square.rank()),
                            radius, 0.0, 2.0 * PI);
                     cr.fill()?;
                 }
@@ -385,7 +385,7 @@ impl Pieces {
             Some(ref drag) if drag.threshold => {
                 cr.push_group();
                 cr.translate(drag.pos.0, drag.pos.1);
-                cr.rotate(state.orientation().fold(0.0, PI));
+                cr.rotate(state.orientation().fold_wb(0.0, PI));
                 cr.translate(-0.5, -0.5);
                 cr.scale(state.piece_set().scale(), state.piece_set().scale());
                 state.piece_set().by_piece(&drag.piece).render_cairo(cr);

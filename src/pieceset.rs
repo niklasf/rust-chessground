@@ -47,7 +47,7 @@ pub struct PieceSet {
 
 impl PieceSet {
     fn by_color(&self, color: Color) -> &PieceSetSide {
-        color.fold(&self.white, &self.black)
+        color.fold_wb(&self.white, &self.black)
     }
 
     pub fn by_piece(&self, piece: &Piece) -> &Handle {
