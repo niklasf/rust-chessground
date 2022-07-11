@@ -20,14 +20,12 @@ use std::f64::consts::PI;
 use std::cmp::{min, max};
 use std::fmt;
 
-use gtk;
 use gtk::prelude::*;
 use gtk::DrawingArea;
 use gdk::{EventButton, EventMotion, EventMask};
-use cairo::prelude::*;
 use cairo::{Context, Matrix};
 
-use relm::{Relm, Widget, Update, EventStream};
+use relm::{Relm, Widget, Update, StreamHandle};
 
 use shakmaty::{Square, Rank, Color, Role, Board, Move, MoveList, Chess, Position};
 
@@ -37,7 +35,7 @@ use drawable::{Drawable, DrawShape};
 use promotable::Promotable;
 use boardstate::BoardState;
 
-type Stream = EventStream<GroundMsg>;
+type Stream = StreamHandle<GroundMsg>;
 
 pub struct Model {
     state: Rc<RefCell<State>>,
@@ -238,12 +236,12 @@ impl Widget for Ground {
             drawing_area.connect_draw(move |widget, cr| {
                 if let Some(state) = weak_state.upgrade() {
                     let state = state.borrow();
-                    state.draw(widget, cr);
+                    state.draw(widget, cr).unwrap();
 
                     // queue next draw for animation
                     let weak_state = Weak::clone(&weak_state);
                     let widget = widget.clone();
-                    gtk::idle_add(move || {
+                    cairo::glib::idle_add_local(move || {
                         if let Some(state) = weak_state.upgrade() {
                             state.borrow_mut().queue_animation(&widget);
                         }
@@ -327,33 +325,35 @@ impl State {
         self.promotable.queue_animation(&ctx);
     }
 
-    fn draw(&self, drawing_area: &DrawingArea, cr: &Context) {
+    fn draw(&self, drawing_area: &DrawingArea, cr: &Context) -> Result<(), cairo::Error> {
         let ctx = WidgetContext::new(&self.board_state, drawing_area);
         cr.set_matrix(ctx.matrix());
 
         // draw
-        self.board_state.draw(cr);
-        self.pieces.draw(cr, &self.board_state, &self.promotable);
-        self.drawable.draw(cr);
-        self.pieces.draw_drag(cr, &self.board_state);
-        self.promotable.draw(cr, &self.board_state);
+        self.board_state.draw(cr)?;
+        self.pieces.draw(cr, &self.board_state, &self.promotable)?;
+        self.drawable.draw(cr)?;
+        self.pieces.draw_drag(cr, &self.board_state)?;
+        self.promotable.draw(cr, &self.board_state)?;
+
+        Ok(())
     }
 
     fn button_release_event(&mut self, stream: &Stream, drawing_area: &DrawingArea, e: &EventButton) {
-        let ctx = EventContext::new(&self.board_state, stream, drawing_area, e.get_position());
+        let ctx = EventContext::new(&self.board_state, stream, drawing_area, e.position());
         self.pieces.drag_mouse_up(&ctx);
         self.drawable.mouse_up(&ctx);
     }
 
     fn motion_notify_event(&mut self, stream: &Stream, drawing_area: &DrawingArea, e: &EventMotion) {
-        let ctx = EventContext::new(&self.board_state, stream, drawing_area, e.get_position());
+        let ctx = EventContext::new(&self.board_state, stream, drawing_area, e.position());
         self.promotable.mouse_move(&ctx);
         self.pieces.drag_mouse_move(&ctx);
         self.drawable.mouse_move(&ctx);
     }
 
     fn button_press_event(&mut self, stream: &Stream, drawing_area: &DrawingArea, e: &EventButton) {
-        let ctx = EventContext::new(&self.board_state, stream, drawing_area, e.get_position());
+        let ctx = EventContext::new(&self.board_state, stream, drawing_area, e.position());
         let promotable = &mut self.promotable;
         let pieces = &mut self.pieces;
 
@@ -373,7 +373,7 @@ pub(crate) struct WidgetContext<'a> {
 impl<'a> WidgetContext<'a> {
     fn new(board_state: &'a BoardState, drawing_area: &'a DrawingArea) -> WidgetContext<'a>
     {
-        let alloc = drawing_area.get_allocation();
+        let alloc = drawing_area.allocation();
         let size = max(min(alloc.width, alloc.height), 9);
 
         let mut matrix = Matrix::identity();
@@ -419,7 +419,7 @@ impl<'a> WidgetContext<'a> {
         let xmax = max(x1.ceil() as i32, x2.ceil() as i32);
         let ymax = max(y1.ceil() as i32, y2.ceil() as i32);
 
-        let alloc = self.drawing_area.get_allocation();
+        let alloc = self.drawing_area.allocation();
         self.drawing_area.queue_draw_area(xmin - alloc.x, ymin - alloc.y, xmax - xmin, ymax - ymin);
     }
 }
@@ -438,7 +438,7 @@ impl<'a> EventContext<'a> {
            pos: (f64, f64)) -> EventContext<'a>
     {
         let widget = WidgetContext::new(board_state, drawing_area);
-        let alloc = drawing_area.get_allocation();
+        let alloc = drawing_area.allocation();
         let pos = (pos.0 + f64::from(alloc.x), pos.1 + f64::from(alloc.y));
         let pos = widget.invert_pos(pos);
         let square = pos_to_square(pos);

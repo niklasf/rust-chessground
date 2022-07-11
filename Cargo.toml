@@ -10,15 +10,14 @@ categories = ["games", "gui"]
 keywords = ["chess"]
 
 [dependencies]
-gtk = "0.6.0"
-gdk = "0.10.0"
-cairo-rs = "0.6.0"
-rsvg = { git = "https://github.com/1aim/rsvg-rs.git", rev = "0a24ef8c7b8472b116fbcd44654eb896f279b608" }
+gtk = "0.14"
+gdk = "0.14"
+cairo-rs = "0.14"
+rsvg = { git = "https://github.com/selaux/rsvg-rs.git", rev = "27f4c8adbadddbffc413d27f8866afa023fe2fd5" }
 time = "0.1"
-relm = "0.16"
-relm-derive = "0.16"
+relm = "0.22"
+relm-derive = "0.22"
 shakmaty = "0.14"
 
 [dev-dependencies]
 rand = "0.6"
-relm-attributes = "0.16"

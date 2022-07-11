@@ -19,7 +19,6 @@ use std::f64::consts::PI;
 use time::SteadyTime;
 
 use gdk::EventButton;
-use cairo::prelude::*;
 use cairo::Context;
 use rsvg::HandleExt;
 
@@ -169,7 +168,7 @@ impl Pieces {
     pub(crate) fn selection_mouse_down(&mut self, ctx: &EventContext, e: &EventButton) {
         let orig = self.selected.take();
 
-        if e.get_button() == 1 {
+        if e.button() == 1 {
             let dest = ctx.square();
             self.selected = dest.filter(|sq| self.occupied().contains(*sq));
 
@@ -185,7 +184,7 @@ impl Pieces {
     }
 
     pub(crate) fn drag_mouse_down(&mut self, ctx: &EventContext, e: &EventButton) {
-        if e.get_button() == 1 {
+        if e.button() == 1 {
             if let Some(square) = ctx.square() {
                 let piece = if let Some(figurine) = self.figurine_at_mut(square) {
                     figurine.dragging = true;
@@ -266,33 +265,35 @@ impl Pieces {
         }
     }
 
-    pub(crate) fn draw(&self, cr: &Context, state: &BoardState, promotable: &Promotable) {
-        self.draw_selection(cr, state);
-        self.draw_move_hints(cr, state);
+    pub(crate) fn draw(&self, cr: &Context, state: &BoardState, promotable: &Promotable) -> Result<(), cairo::Error> {
+        self.draw_selection(cr, state)?;
+        self.draw_move_hints(cr, state)?;
 
         for figurine in &self.figurines {
             if figurine.fading {
-                self.draw_figurine(cr, figurine, state, promotable);
+                self.draw_figurine(cr, figurine, state, promotable)?;
             }
         }
 
         for figurine in &self.figurines {
             if !figurine.fading && figurine.elapsed >= 1.0 {
-                self.draw_figurine(cr, figurine, state, promotable);
+                self.draw_figurine(cr, figurine, state, promotable)?;
             }
         }
 
         for figurine in &self.figurines {
             if !figurine.fading && figurine.elapsed < 1.0 {
-                self.draw_figurine(cr, figurine, state, promotable);
+                self.draw_figurine(cr, figurine, state, promotable)?;
             }
         }
+
+        Ok(())
     }
 
-    fn draw_figurine(&self, cr: &Context, figurine: &Figurine, state: &BoardState, promotable: &Promotable) {
+    fn draw_figurine(&self, cr: &Context, figurine: &Figurine, state: &BoardState, promotable: &Promotable) -> Result<(), cairo::Error> {
         // hide piece while promotion dialog is open
         if promotable.is_promoting(figurine.square) {
-            return;
+            return Ok(());
         }
 
         // draw ghost when dragging
@@ -310,28 +311,32 @@ impl Pieces {
 
         state.piece_set().by_piece(&figurine.piece).render_cairo(cr);
 
-        cr.pop_group_to_source();
+        cr.pop_group_to_source()?;
 
-        cr.paint_with_alpha(if dragging { 0.2 } else { figurine.alpha() });
+        cr.paint_with_alpha(if dragging { 0.2 } else { figurine.alpha() })?;
+
+        Ok(())
     }
 
-    fn draw_selection(&self, cr: &Context, state: &BoardState) {
+    fn draw_selection(&self, cr: &Context, state: &BoardState) -> Result<(), cairo::Error> {
         if let Some(selected) = self.selected {
             cr.rectangle(f64::from(selected.file()), 7.0 - f64::from(selected.rank()), 1.0, 1.0);
             cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
-            cr.fill();
+            cr.fill()?;
 
             if let Some(hovered) = self.drag.as_ref().and_then(|d| pos_to_square(d.pos)) {
                 if state.valid_move(selected, hovered) {
                     cr.rectangle(f64::from(hovered.file()), 7.0 - f64::from(hovered.rank()), 1.0, 1.0);
                     cr.set_source_rgba(0.08, 0.47, 0.11, 0.25);
-                    cr.fill();
+                    cr.fill()?;
                 }
             }
         }
+
+        Ok(())
     }
 
-    fn draw_move_hints(&self, cr: &Context, state: &BoardState) {
+    fn draw_move_hints(&self, cr: &Context, state: &BoardState) -> Result<(), cairo::Error> {
         if let Some(selected) = self.selected {
             cr.set_source_rgba(0.08, 0.47, 0.11, 0.5);
 
@@ -344,36 +349,38 @@ impl Pieces {
                     cr.rel_line_to(corner, 0.0);
                     cr.rel_line_to(-corner, corner);
                     cr.rel_line_to(0.0, -corner);
-                    cr.fill();
+                    cr.fill()?;
 
                     cr.move_to(1.0 + f64::from(square.file()), 7.0 - f64::from(square.rank()));
                     cr.rel_line_to(0.0, corner);
                     cr.rel_line_to(-corner, -corner);
                     cr.rel_line_to(corner, 0.0);
-                    cr.fill();
+                    cr.fill()?;
 
                     cr.move_to(f64::from(square.file()), 8.0 - f64::from(square.rank()));
                     cr.rel_line_to(corner, 0.0);
                     cr.rel_line_to(-corner, -corner);
                     cr.rel_line_to(0.0, corner);
-                    cr.fill();
+                    cr.fill()?;
 
                     cr.move_to(1.0 + f64::from(square.file()), 8.0 - f64::from(square.rank()));
                     cr.rel_line_to(-corner, 0.0);
                     cr.rel_line_to(corner, -corner);
                     cr.rel_line_to(0.0, corner);
-                    cr.fill();
+                    cr.fill()?;
                 } else {
                     cr.arc(0.5 + f64::from(square.file()),
                            7.5 - f64::from(square.rank()),
                            radius, 0.0, 2.0 * PI);
-                    cr.fill();
+                    cr.fill()?;
                 }
             }
         }
+
+        Ok(())
     }
 
-    pub(crate) fn draw_drag(&self, cr: &Context, state: &BoardState) {
+    pub(crate) fn draw_drag(&self, cr: &Context, state: &BoardState) -> Result<(), cairo::Error> {
         match self.drag {
             Some(ref drag) if drag.threshold => {
                 cr.push_group();
@@ -382,11 +389,13 @@ impl Pieces {
                 cr.translate(-0.5, -0.5);
                 cr.scale(state.piece_set().scale(), state.piece_set().scale());
                 state.piece_set().by_piece(&drag.piece).render_cairo(cr);
-                cr.pop_group_to_source();
-                cr.paint();
+                cr.pop_group_to_source()?;
+                cr.paint()?;
             }
             _ => {}
         }
+
+        Ok(())
     }
 }
 
