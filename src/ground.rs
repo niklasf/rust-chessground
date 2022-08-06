@@ -374,12 +374,12 @@ impl<'a> WidgetContext<'a> {
     fn new(board_state: &'a BoardState, drawing_area: &'a DrawingArea) -> WidgetContext<'a>
     {
         let alloc = drawing_area.allocation();
-        let size = max(min(alloc.width, alloc.height), 9);
+        let size = max(min(alloc.width(), alloc.height()), 9);
 
         let mut matrix = Matrix::identity();
-        matrix.translate(f64::from(alloc.x), f64::from(alloc.y));
+        matrix.translate(f64::from(alloc.x()), f64::from(alloc.y()));
 
-        matrix.translate(f64::from(alloc.width) / 2.0, f64::from(alloc.height) / 2.0);
+        matrix.translate(f64::from(alloc.width()) / 2.0, f64::from(alloc.height()) / 2.0);
         matrix.scale(f64::from(size) / 9.0, f64::from(size) / 9.0);
         matrix.rotate(board_state.orientation().fold_wb(0.0, PI));
         matrix.translate(-4.0, -4.0);
@@ -420,7 +420,7 @@ impl<'a> WidgetContext<'a> {
         let ymax = max(y1.ceil() as i32, y2.ceil() as i32);
 
         let alloc = self.drawing_area.allocation();
-        self.drawing_area.queue_draw_area(xmin - alloc.x, ymin - alloc.y, xmax - xmin, ymax - ymin);
+        self.drawing_area.queue_draw_area(xmin - alloc.x(), ymin - alloc.y(), xmax - xmin, ymax - ymin);
     }
 }
 
@@ -439,7 +439,7 @@ impl<'a> EventContext<'a> {
     {
         let widget = WidgetContext::new(board_state, drawing_area);
         let alloc = drawing_area.allocation();
-        let pos = (pos.0 + f64::from(alloc.x), pos.1 + f64::from(alloc.y));
+        let pos = (pos.0 + f64::from(alloc.x()), pos.1 + f64::from(alloc.y()));
         let pos = widget.invert_pos(pos);
         let square = pos_to_square(pos);
 
