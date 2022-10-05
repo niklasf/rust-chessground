@@ -9,6 +9,11 @@ Inspired by [chessground.js](https://github.com/ornicar/chessground).
 
 ![](https://github.com/niklasf/rust-chessground/blob/master/screenshot.png?raw=true)
 
+Requirements
+------------
+
+Needs [GTK+ installed](https://www.gtk.org/docs/installations/) on your operating system.
+
 Features
 --------
 
